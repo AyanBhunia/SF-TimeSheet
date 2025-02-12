@@ -1,0 +1,17 @@
+<template>
+    <div class="timesheet-block">
+        <template if:true={orderedFields}>
+            <template for:each={orderedFields} for:item="field">
+                <div class="field-row" key={field.label}>
+                    <span class="field-label">{field.label}:</span>
+                    <span class="field-value {field.label === 'Name' ? 'bold-value' : ''}">
+                        {field.value}
+                    </span>
+                </div>
+            </template>
+        </template>
+        <template if:false={orderedFields}>
+            <p>Loading data...</p>
+        </template>
+    </div>
+</template>
