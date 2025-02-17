@@ -1,9 +1,12 @@
-// chartTwo.js
-import { LightningElement, track } from 'lwc';
+import { LightningElement, api, track, wire } from 'lwc';
 import { loadScript } from 'lightning/platformResourceLoader';
 import ChartJS from '@salesforce/resourceUrl/jsChart';
 import { getChartData } from 'c/dashboardSharedData';
-import userId from '@salesforce/user/Id';
+import USER_ID from '@salesforce/user/Id';
+
+// LMS imports
+import { subscribe, MessageContext } from 'lightning/messageService';
+import SELECTED_USER_CHANNEL from '@salesforce/messageChannel/SelectedUserChannel__c';
 
 export default class ChartTwo extends LightningElement { 
     @track chartData;
@@ -11,6 +14,39 @@ export default class ChartTwo extends LightningElement {
     attendanceChart;
     isChartJsInitialized = false;
     currentWeekIndex = 0; // Initialize to the latest week
+
+    // LMS
+    @wire(MessageContext)
+    messageContext;
+
+    subscription = null;
+    selectedUserId = USER_ID; // Set to current user by default
+
+    connectedCallback() {
+        // Subscribe to message channel
+        this.subscribeToMessageChannel();
+    }
+
+    subscribeToMessageChannel() {
+        if (this.subscription) {
+            return;
+        }
+        this.subscription = subscribe(
+            this.messageContext,
+            SELECTED_USER_CHANNEL,
+            (message) => this.handleMessage(message)
+        );
+    }
+
+    handleMessage(message) {
+        this.selectedUserId = message.selectedUserId;
+        console.log('Received selected user ID:', this.selectedUserId);
+
+        // Reset indices
+        this.currentWeekIndex = 0;
+        // Re-initialize the chart with the new user ID
+        this.initializeChart();
+    }
 
     renderedCallback() {
         if (this.isChartJsInitialized) {
@@ -29,8 +65,8 @@ export default class ChartTwo extends LightningElement {
     }
 
     initializeChart() {
-        if (userId) {
-            getChartData(userId)
+        if (this.selectedUserId) {
+            getChartData(this.selectedUserId)
                 .then(data => {
                     this.chartData = data;
                     this.showChart();
@@ -44,6 +80,12 @@ export default class ChartTwo extends LightningElement {
     showChart() {
         const canvas = this.template.querySelector('canvas');
         const ctx = canvas.getContext('2d');
+
+        if(this.chartData == 0) {
+            this.template.querySelector('.slds-m-around_medium').style.display = 'none';
+            return;
+        }
+        this.template.querySelector('.slds-m-around_medium').style.removeProperty('display');
 
         // Attach event listeners
         const prevButton = this.template.querySelector('[data-id="prevButton"]');

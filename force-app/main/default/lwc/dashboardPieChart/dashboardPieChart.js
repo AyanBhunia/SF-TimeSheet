@@ -1,9 +1,13 @@
 // chartOne.js
-import { LightningElement, api, track } from 'lwc';
+import { LightningElement, api, track, wire } from 'lwc';
 import { loadScript } from 'lightning/platformResourceLoader';
 import ChartJS from '@salesforce/resourceUrl/jsChart';
 import { getChartData } from 'c/dashboardSharedData';
-import userId from '@salesforce/user/Id';
+import USER_ID from '@salesforce/user/Id';
+
+// LMS imports
+import { subscribe, MessageContext } from 'lightning/messageService';
+import SELECTED_USER_CHANNEL from '@salesforce/messageChannel/SelectedUserChannel__c';
 
 export default class ChartOne extends LightningElement {
     @track chartData;
@@ -19,6 +23,44 @@ export default class ChartOne extends LightningElement {
     currentMonthIndex = 0;
     currentWeekIndex = 0;
     currentDayIndex = 0;
+
+    // LMS
+    @wire(MessageContext)
+    messageContext;
+
+    subscription = null;
+    selectedUserId = USER_ID; // Set to current user by default
+
+    eventListenersAttached = false;
+
+    connectedCallback() {
+        // Subscribe to message channel
+        this.subscribeToMessageChannel();
+    }
+
+    subscribeToMessageChannel() {
+        if (this.subscription) {
+            return;
+        }
+        this.subscription = subscribe(
+            this.messageContext,
+            SELECTED_USER_CHANNEL,
+            (message) => this.handleMessage(message)
+        );
+    }
+
+    handleMessage(message) {
+        this.selectedUserId = message.selectedUserId;
+        console.log('Received selected user ID:', this.selectedUserId);
+
+        // Reset indices
+        this.currentYearIndex = 0;
+        this.currentMonthIndex = 0;
+        this.currentWeekIndex = 0;
+        this.currentDayIndex = 0;
+        // Re-initialize the chart with the new user ID
+        this.initializeChart();
+    }
 
     renderedCallback() {
         if (this.isChartJsInitialized) {
@@ -37,12 +79,10 @@ export default class ChartOne extends LightningElement {
     }
 
     initializeChart() {
-        console.log("start 1",userId);
-        if (userId) {
-            getChartData(userId)
+        console.log("start 1",this.selectedUserId);
+        if (this.selectedUserId) {
+            getChartData(this.selectedUserId)
                 .then(data => {
-                    // console.log("data",data);
-                    console.log("got data 1");
                     this.chartData = data;
                     this.showChart();
                 })
@@ -53,16 +93,28 @@ export default class ChartOne extends LightningElement {
     }
 
     showChart() {
-        const ctx = this.template.querySelector('canvas').getContext('2d');
+        const canvas = this.template.querySelector('canvas');
+        const ctx = canvas.getContext('2d');
 
-        // Attach event listeners
-        const levelSelector = this.template.querySelector('[data-id="levelSelector"]');
-        const prevButton = this.template.querySelector('[data-id="prevButton"]');
-        const nextButton = this.template.querySelector('[data-id="nextButton"]');
+        if(this.chartData == 0) {
+            this.template.querySelector('.slds-m-around_x-small').style.display = 'none';
+            return;
+        }
+        this.template.querySelector('.slds-m-around_x-small').style.removeProperty('display');
 
-        levelSelector.addEventListener('click', this.handleLevelSelection.bind(this));
-        prevButton.addEventListener('click', this.handlePrevClick.bind(this));
-        nextButton.addEventListener('click', this.handleNextClick.bind(this));
+        // If event listeners are already attached, no need to attach them again
+        if (!this.eventListenersAttached) {
+            // Attach event listeners
+            const levelSelector = this.template.querySelector('[data-id="levelSelector"]');
+            const prevButton = this.template.querySelector('[data-id="prevButton"]');
+            const nextButton = this.template.querySelector('[data-id="nextButton"]');
+
+            levelSelector.addEventListener('click', this.handleLevelSelection.bind(this));
+            prevButton.addEventListener('click', this.handlePrevClick.bind(this));
+            nextButton.addEventListener('click', this.handleNextClick.bind(this));
+
+            this.eventListenersAttached = true;
+        }
 
         // Render the chart with the latest data by default
         this.renderChart(this.selectedLevel, ctx);

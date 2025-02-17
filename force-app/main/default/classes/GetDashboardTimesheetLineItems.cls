@@ -12,10 +12,6 @@ public with sharing class GetDashboardTimesheetLineItems {
      */
     @AuraEnabled(cacheable=true)
     public static List<AggregateResult> getDashboardTimesheetLineItemsDetails(Id userID){
-
-        // For testing userId is '005fK000000xxC9QAI'
-        userID = Id.valueOf('005fK000000xxC9QAI');
-
         try {
             return [
                 select 

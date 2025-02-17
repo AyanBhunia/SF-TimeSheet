@@ -1,31 +1,19 @@
-/* Ensure the block is displayed as a grid or flexbox for alignment */
-.timesheet-block {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    /* Space between fields */
+.vertical-divider {
+    width: 1px;
+    background-color: #dddbda;
 }
 
-/* Make each row a flex container to align the label and value */
 .field-row {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    margin-bottom: 0.5rem;
 }
 
-/* Style for labels */
 .field-label {
-    font-weight: normal;
-    margin-right: 8px;
-    /* Space between label and value */
-}
-
-/* Style for field values */
-.field-value {
-    font-weight: normal;
-}
-
-/* Bold the name field */
-.bold-value {
     font-weight: bold;
+    padding-right: 1rem;
+}
+
+.field-value {
+    text-align: right;
 }

@@ -1,10 +1,14 @@
 // chartTwo.js
-import { LightningElement, api, track } from 'lwc';
+import { LightningElement, api, track, wire } from 'lwc';
 import { loadScript } from 'lightning/platformResourceLoader';
 import ChartJS from '@salesforce/resourceUrl/jsChart';
 import jsChartMatrix from '@salesforce/resourceUrl/jsChartMatrix';
 import { getChartData } from 'c/dashboardSharedData';
-import userId from '@salesforce/user/Id';
+import USER_ID from '@salesforce/user/Id';
+
+// LMS imports
+import { subscribe, MessageContext } from 'lightning/messageService';
+import SELECTED_USER_CHANNEL from '@salesforce/messageChannel/SelectedUserChannel__c';
 
 export default class ChartTwo extends LightningElement {
     @track chartData;
@@ -12,6 +16,37 @@ export default class ChartTwo extends LightningElement {
     chart;
     isChartJsInitialized = false;
     year = new Date().getFullYear(); // Default to current year
+
+    // LMS
+    @wire(MessageContext)
+    messageContext;
+
+    subscription = null;
+    selectedUserId = USER_ID; // Set to current user by default
+
+    connectedCallback() {
+        // Subscribe to message channel
+        this.subscribeToMessageChannel();
+    }
+
+    subscribeToMessageChannel() {
+        if (this.subscription) {
+            return;
+        }
+        this.subscription = subscribe(
+            this.messageContext,
+            SELECTED_USER_CHANNEL,
+            (message) => this.handleMessage(message)
+        );
+    }
+
+    handleMessage(message) {
+        this.selectedUserId = message.selectedUserId;
+        console.log('Received selected user ID:', this.selectedUserId);
+
+        // Re-initialize the chart with the new user ID
+        this.initializeChart();
+    }
 
     renderedCallback() {
         if (this.isChartJsInitialized) {
@@ -33,12 +68,12 @@ export default class ChartTwo extends LightningElement {
     }
 
     initializeChart() {
-        console.log("start 2",userId);
-        if (userId) {
-            getChartData(userId)
+        console.log("start 2",this.selectedUserId);
+        if (this.selectedUserId) {
+            getChartData(this.selectedUserId)
                 .then(data => {
                     console.log("got data 2");
-                    // console.log("data",data);
+                    console.log("data",data);
                     this.chartData = data;
                     this.showChart();
                 })
@@ -50,96 +85,121 @@ export default class ChartTwo extends LightningElement {
 
     showChart() {
         const ctx = this.template.querySelector('canvas').getContext('2d');
+        
+        if(this.chartData == 0) {
+            this.template.querySelector('.slds-m-around_medium').style.display = 'none';
+            return;
+        }
+        this.template.querySelector('.slds-m-around_medium').style.removeProperty('display');
 
         // Prepare data for the chart
         const graphdata = this.prepareGraphData();
 
         console.log("graphdata",graphdata);
 
-        // Create the chart
-        this.chart = new Chart(ctx, {
-            type: 'matrix',
-            data: {
-                datasets: [{
-                    label: 'Contributions',
-                    data: graphdata,
-                    backgroundColor: (context) => {
-                        const value = context.dataset.data[context.dataIndex].v;
-                        const alpha = Math.min(Math.max((value / 8), 0.1), 1);
-                        return `rgba(101, 129, 71, ${alpha})`;
+        if(this.chart){
+            //update existing chart data
+            this.chart.data.datasets[0].data = graphdata;
+            this.chart.update();
+        }
+        else{
+            // Create the chart
+            this.chart = new Chart(ctx, {
+                type: 'matrix',
+                data: {
+                    datasets: [{
+                        label: 'Contributions',
+                        data: graphdata,
+                        backgroundColor: (context) => {
+                            const value = context.dataset.data[context.dataIndex].v;
+                            const alpha = value === 0 ? 0.1 
+                                        : value < 4 ? 0.3 
+                                        : value < 7 ? 0.6 
+                                        : value < 10 ? 0.9 
+                                        : 1;
+                            return `rgba(101, 129, 71, ${alpha})`;
+                        },
+                        borderColor: (context) => {
+                            const value = context.dataset.data[context.dataIndex].v;
+                            const alpha = value === 0 ? 0.1 
+                                        : value < 4 ? 0.3 
+                                        : value < 7 ? 0.6 
+                                        : value < 10 ? 0.9 
+                                        : 1;
+                            return `rgba(101, 129, 71, ${alpha * 0.7})`;
+                        },
+                        borderWidth: 1,
+                        // hoverBackgroundColor: 'rgba(255, 255, 0, 0.8)',
+                        // hoverBorderColor: 'rgba(154, 205, 50, 0.8)',
+                        width: (context) => {
+                            const area = context.chart.chartArea;
+                            return area ? (area.right - area.left) / 53 - 2 : 0;
+                        },
+                        height: (context) => {
+                            const area = context.chart.chartArea;
+                            return area ? (area.bottom - area.top) / 7 - 2 : 0;
+                        }
+                    }]
+                },
+                options: {
+                    animation: {
+                        duration: 0  // disable animations
                     },
-                    borderColor: (context) => {
-                        const value = context.dataset.data[context.dataIndex].v;
-                        return `rgba(101, 129, 71, ${Math.min(Math.max((value / 10), 0.1), 1) * 0.7})`;
-                    },
-                    borderWidth: 1,
-                    hoverBackgroundColor: 'rgba(255, 255, 0, 0.8)',
-                    hoverBorderColor: 'rgba(154, 205, 50, 0.8)',
-                    width: (context) => {
-                        const area = context.chart.chartArea;
-                        return area ? (area.right - area.left) / 53 - 2 : 0;
-                    },
-                    height: (context) => {
-                        const area = context.chart.chartArea;
-                        return area ? (area.bottom - area.top) / 7 - 2 : 0;
-                    }
-                }]
-            },
-            options: {
-                aspectRatio: 5,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        enabled: true,
-                        displayColors: false,
-                        callbacks: {
-                            title: () => '',
-                            label: (context) => {
-                                const v = context.dataset.data[context.dataIndex];
-                                return [`Date: ${v.d}`, `Duration: ${v.v}`];
+                    aspectRatio: 5,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            enabled: true,
+                            displayColors: false,
+                            callbacks: {
+                                title: () => '',
+                                label: (context) => {
+                                    const v = context.dataset.data[context.dataIndex];
+                                    return [`Date: ${v.d}`, `Duration: ${v.v}`];
+                                }
                             }
                         }
-                    }
-                },
-                scales: {
-                    y: {
-                        type: 'linear',
-                        offset: true,
-                        min: 1,
-                        max: 7,
-                        position: 'left',
-                        ticks: {
-                            stepSize: 1,
-                            maxRotation: 0,
-                            autoSkip: true,
-                            callback: value => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][value - 1],
-                            font: { size: 9 }
-                        },
-                        grid: { display: false, drawBorder: false, tickLength: 0 }
                     },
-                    x: {
-                        type: 'linear',
-                        position: 'bottom',
-                        offset: true,
-                        min: 1,
-                        max: 53,
-                        // reverse: true,
-                        ticks: {
-                            stepSize: 1,
-                            maxRotation: 0,
-                            autoSkip: true,
-                            callback: (value) => {
-                                return new Date(this.year, 0, 1 + (value - 1) * 7)
-                                    .toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            offset: true,
+                            min: 1,
+                            max: 7,
+                            position: 'left',
+                            ticks: {
+                                stepSize: 1,
+                                maxRotation: 0,
+                                autoSkip: true,
+                                callback: value => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][value - 1],
+                                font: { size: 11 }
                             },
-                            font: { size: 9 }
+                            grid: { display: false, drawBorder: false, tickLength: 0 }
                         },
-                        grid: { display: false, drawBorder: false, tickLength: 0 }
-                    }
-                },
-                layout: { padding: { top: 10 } }
-            }
-        });
+                        x: {
+                            type: 'linear',
+                            position: 'bottom',
+                            offset: true,
+                            min: 1,
+                            max: 53,
+                            // reverse: true,
+                            ticks: {
+                                stepSize: 1,
+                                maxRotation: 0,
+                                autoSkip: true,
+                                callback: (value) => {
+                                    return new Date(this.year, 0, 1 + (value - 1) * 7)
+                                        .toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                                },
+                                font: { size: 11 }
+                            },
+                            grid: { display: false, drawBorder: false, tickLength: 0 }
+                        }
+                    },
+                    layout: { padding: { top: 10 } }
+                }
+            });
+        }
     }
 
     prepareGraphData() {

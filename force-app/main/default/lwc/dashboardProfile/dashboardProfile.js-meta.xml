@@ -9,8 +9,17 @@
     </targets>
     <targetConfigs>
         <targetConfig targets="lightning__RecordPage,lightning__AppPage,lightning__HomePage">
-            <property name="fieldsOrder" type="String" label="Field Order (Comma-Separated)"
-                description="Enter fields in desired order, e.g., 'Name, ClientManager, ClientManagerEmail, Projects, TotalBillableHours, TotalNonBillableHours, TotalAbsenceHours, TotalHours'" />
+            <property name="column1Fields" type="String" label="Column 1 Fields"
+                default="Name,PhoneNumber,Email,HireDate,LastWorkingDate"
+                description="Enter fields for first column (comma-separated)" />
+            <property name="column2Fields" type="String" label="Column 2 Fields"
+                default="ClientManager,ClientManagerEmail,Projects"
+                description="Enter fields for second column (comma-separated)" />
+            <property name="column3Fields" type="String" label="Column 3 Fields"
+                default="TotalBillableHours,TotalNonBillableHours,TotalAbsenceHours,TotalHours,VacationsTaken"
+                description="Enter fields for third column (comma-separated)" />
+            <property name="showNullFields" type="Boolean" label="Show Null Value Fields"
+                description="If checked, fields with null values will be displayed" default="false" />
         </targetConfig>
     </targetConfigs>
 </LightningComponentBundle>

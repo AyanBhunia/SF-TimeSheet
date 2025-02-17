@@ -14,7 +14,7 @@ public with sharing class GetDashboardProfileDetails {
     public static Map<String, Object> getEmployeeDetails(Id userID) {
         try {
             // For testing userId is '005fK000000xxC9QAI'
-            userID = Id.valueOf('005fK000000xxC9QAI');
+            // userID = Id.valueOf('005fK000000xxC9QAI');
             
             Map<String, Object> resultData = new Map<String, Object>();
             
@@ -39,7 +39,7 @@ public with sharing class GetDashboardProfileDetails {
      */
     private static dbt__Employee__c getEmployeeRecord(Id userID) {
         return [
-            SELECT Id, Name, Client_Manager__r.Name, Client_Manager_email__c,
+            SELECT Id, Name, Client_Manager__r.Name, Client_Manager_email__c,dbt__Email__c,dbt__Hire_Date__c,dbt__Last_Working_Date__c,dbt__No_of_Vacations_Taken__c,dbt__Phone_Number__c,
                 (SELECT dbt__Project_Name__c FROM dbt__Project_Employees__r)
             FROM dbt__Employee__c
             WHERE dbt__User__c = :userID
@@ -61,7 +61,10 @@ public with sharing class GetDashboardProfileDetails {
                 SUM(dbt__Absence_Hours__c) TotalAbsenceHours, 
                 SUM(dbt__Total_Hours__c) TotalHours
             FROM dbt__Timesheet__c
-            WHERE dbt__Employee__c IN (SELECT id FROM dbt__Employee__c WHERE dbt__User__c = :userID)
+            WHERE 
+                dbt__Employee__c IN (SELECT id FROM dbt__Employee__c WHERE dbt__User__c = :userID)
+                AND
+                dbt__Start_Date__c = THIS_YEAR
             WITH SECURITY_ENFORCED
         ];
     }
@@ -72,15 +75,28 @@ public with sharing class GetDashboardProfileDetails {
      * @param emp Employee record to process
      */
     private static void populateEmployeeDetails(Map<String, Object> resultData, dbt__Employee__c emp) {
+        // Basic Information
         resultData.put('Name', emp.Name);
         resultData.put('ClientManager', emp.Client_Manager__r?.Name);
         resultData.put('ClientManagerEmail', emp.Client_Manager_email__c);
+
+        // Additional fields from query
+        resultData.put('Email', emp.dbt__Email__c);
+        resultData.put('HireDate', emp.dbt__Hire_Date__c);
+        resultData.put('LastWorkingDate', emp.dbt__Last_Working_Date__c);
+        resultData.put('VacationsTaken', emp.dbt__No_of_Vacations_Taken__c);
+        resultData.put('PhoneNumber', emp.dbt__Phone_Number__c);
         
+        // Project information
         List<String> projectNames = new List<String>();
-        for (dbt__Project_Employee__c proj : emp.dbt__Project_Employees__r) {
-            projectNames.add(proj.dbt__Project_Name__c);
+        if (emp.dbt__Project_Employees__r != null) {
+            for (dbt__Project_Employee__c proj : emp.dbt__Project_Employees__r) {
+                if (proj.dbt__Project_Name__c != null) {
+                    projectNames.add(proj.dbt__Project_Name__c);
+                }
+            }
         }
-        resultData.put('Projects', String.join(projectNames, ', '));
+        resultData.put('Projects', projectNames.isEmpty() ? 'No Projects Assigned' : String.join(projectNames, ', '));
     }
     
     /**

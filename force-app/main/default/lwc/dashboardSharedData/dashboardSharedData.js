@@ -15,9 +15,18 @@ export async function getChartData(recordId) {
         fetchPromises[recordId] = getDashboardTimesheetLineItemsDetails({userID: recordId })
             .then((data) => {
 
-                // console.log("shared data data", JSON.stringify(data));
-                // Process the fetched data into maps using the helper function
-                const processedData = processData(data);
+                console.log("1",data);
+
+                let processedData;
+
+                if(data.length==0)
+                {
+                    processedData = 0;
+                }
+                else
+                {
+                    processedData = processData(data);
+                }
 
                 // console.log("processedData", processedData);
                 console.log("exit 1");

@@ -1,17 +1,48 @@
 <template>
-    <div class="timesheet-block">
-        <template if:true={orderedFields}>
-            <template for:each={orderedFields} for:item="field">
-                <div class="field-row" key={field.label}>
-                    <span class="field-label">{field.label}:</span>
-                    <span class="field-value {field.label === 'Name' ? 'bold-value' : ''}">
-                        {field.value}
-                    </span>
+    <div class="slds-m-around_x-small">
+        <div class="slds-grid slds-gutters">
+            <template if:true={column1Data}>
+                <div class="slds-col">
+                    <template for:each={column1Data} for:item="field">
+                        <div key={field.label} class="field-row">
+                            <span class="field-label">{field.label}:</span>
+                            <span class="field-value">{field.value}</span>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Divider after Column 1 (if Column 2 exists) -->
+                <template if:true={column2Data}>
+                    <div class="vertical-divider"></div>
+                </template>
+            </template>
+
+            <template if:true={column2Data}>
+                <div class="slds-col">
+                    <template for:each={column2Data} for:item="field">
+                        <div key={field.label} class="field-row">
+                            <span class="field-label">{field.label}:</span>
+                            <span class="field-value">{field.value}</span>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Divider after Column 2 (if Column 3 exists) -->
+                <template if:true={column3Data}>
+                    <div class="vertical-divider"></div>
+                </template>
+            </template>
+
+            <template if:true={column3Data}>
+                <div class="slds-col">
+                    <template for:each={column3Data} for:item="field">
+                        <div key={field.label} class="field-row">
+                            <span class="field-label">{field.label}:</span>
+                            <span class="field-value">{field.value}</span>
+                        </div>
+                    </template>
                 </div>
             </template>
-        </template>
-        <template if:false={orderedFields}>
-            <p>Loading data...</p>
-        </template>
+        </div>
     </div>
 </template>

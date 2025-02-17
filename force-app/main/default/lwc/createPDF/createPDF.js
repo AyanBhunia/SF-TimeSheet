@@ -1,127 +1,206 @@
 import getTimesheetRecords from '@salesforce/apex/GetTimesheet.getTimesheetRecords';
 import getTimesheetLineItemsRecords from '@salesforce/apex/GetTimesheetLineItems.getTimesheetLineItemsRecords';
-import image from '@salesforce/resourceUrl/dbtLogo';
+import imageLogo from '@salesforce/resourceUrl/dbtLogo';
 import JS_PDF from '@salesforce/resourceUrl/jsPDF';
+import jsPDFAutoTable from '@salesforce/resourceUrl/jsPdfAutotable';
 import { loadScript } from 'lightning/platformResourceLoader';
-import { LightningElement, api } from 'lwc';
+import { LightningElement, api, track } from 'lwc';
+import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 
 export default class PdfGenerator extends LightningElement {
+    @api recordId;
+    @track isGeneratingPDF = false;
 
-	@api recordId; 
+    // Private properties
+    Timesheet;
+    TimesheetLineItems = [];
+    weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-	Timesheet;
+    // PDF Generation states
+    jsPDFInitialized = false;
+    loadError = false;
+    isLoading = true;
 
-	TimesheetLineItems = [];
+    /**
+     * @description Shows toast message
+     */
+    showToast(title, message, variant) {
+        this.dispatchEvent(new ShowToastEvent({ title, message, variant }));
+    }
 
-	headers = [
-		{id: "Day",
-			name: "Day",
-			prompt: "Day",
-			width: 65,
-			align: "center",
-			padding: 0},
-		{id: "dbt__Date__c",
-			name: "dbt__Date__c",
-			prompt: "Date",
-			width: 65,
-			align: "center",
-			padding: 0},
-		{id: "duration",
-			name: "duration",
-			prompt: "Day Worked",
-			width: 65,
-			align: "center",
-			padding: 0}
-		
-	];
+    /**
+     * @description Lifecycle hook to initialize PDF libraries
+     */
+    renderedCallback() {
+        if (this.jsPDFInitialized) return;
+        this.initializePDFLibraries();
+    }
 
-	date;
-	dayNumber;
-	weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    /**
+     * @description Initializes PDF libraries
+     */
+    async initializePDFLibraries() {
+        this.jsPDFInitialized = true;
+        try {
+            await Promise.all([
+                loadScript(this, JS_PDF),
+                loadScript(this, jsPDFAutoTable)
+            ]);
+            this.isLoading = false;
+        } catch (error) {
+            console.error('Error loading PDF libraries:', error);
+            this.loadError = true;
+            this.isLoading = false;
+            this.showToast('Error', 'Failed to load PDF libraries', 'error');
+        }
+    }
 
-	jsPDFInitialized = false;
+    /**
+     * @description Handles generate PDF button click
+     */
+    async handleClick() {
+        if (!this.validatePDFGeneration()) return;
 
-	renderedCallback() {
-		if (!this.jsPDFInitialized) {
-			this.jsPDFInitialized = true;
-			loadScript(this, JS_PDF)
-				.then(() => {
-					console.log('jsPDF library loaded successfully');
-				})
-				.catch((error) => {
-					console.error('Error loading jsPDF library', error);
-				});
-		}
-	}
+        try {
+            this.isGeneratingPDF = true;
+            await this.generateData();
+            this.showToast('Success', 'PDF generated successfully', 'success');
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+            this.showToast('Error', 'Failed to generate PDF', 'error');
+        } finally {
+            this.isGeneratingPDF = false;
+        }
+    }
 
-	handleGeneratePDF() {
-		if (this.jsPDFInitialized) {
-			// Make sure to correctly reference the loaded jsPDF library.
-			const doc = new window.jspdf.jsPDF();
-			const pic = new Image();
+    /**
+     * @description Validates PDF generation
+     */
+    validatePDFGeneration() {
+        if (this.loadError) {
+            this.showToast('Error', 'PDF libraries failed to load', 'error');
+            return false;
+        }
+        if (this.isLoading) {
+            this.showToast('Warning', 'Please wait, libraries are loading', 'warning');
+            return false;
+        }
+        return true;
+    }
 
-			pic.src = image;
+    /**
+     * @description Generates data and creates PDF
+     */
+    async generateData() {
+        try {
+            const timesheetData = await getTimesheetRecords({ recID: this.recordId });
+            this.Timesheet = timesheetData;
 
-			// Define the content of the PDF.
-			const contractorName = this.Timesheet?.dbt__Employee__r?.Name || "Unknown Contractor";
-			const clientManagerName = this.Timesheet?.dbt__Employee__r?.Client_Manager__r?.Name || "Unknown Manager";
-			const clientManagerEmail = this.Timesheet?.dbt__Employee__r?.Client_Manager_email__c || "No Email Provided";
-			const fortnightEnding = this.Timesheet?.dbt__End_Date__c || "Unknown Date";
-			const billableHours = this.Timesheet?.dbt__Billable_Hours__c || "0";
-			const totalHours = this.Timesheet?.dbt__Total_Hours__c || "0";
+            const lineItems = await getTimesheetLineItemsRecords({ recId: this.recordId });
+            this.processLineItems(lineItems);
+            
+            await this.handleGeneratePDF();
+        } catch (error) {
+            console.error('Error generating data:', error);
+            throw error;
+        }
+    }
 
-			// Add content to the PDF.
-			doc.text("Name of Contractor: " + contractorName, 10, 10);
-			doc.addImage(pic, 190, 2, 15, 15);
-			doc.text("Digital Biz Tech", 148, 10);
-			doc.text("Fortnight Ending: " + fortnightEnding, 10, 20);
-			doc.text("Name of Manager: " + clientManagerName, 10, 30);
-			doc.text("Manager Email: " + clientManagerEmail, 10, 40);
-			doc.text("Billable Hours: " + billableHours, 10, 50);
-			doc.text("Total Hours: " + totalHours, 10, 60);
+    /**
+     * @description Processes timesheet line items
+     */
+    processLineItems(lineItems) {
+        this.TimesheetLineItems = lineItems.map(element => ({
+            ...element,
+            duration: element.duration.toString(),
+            Day: this.weekdays[new Date(element.dbt__Date__c).getDay()]
+        }));
+    }
 
-			doc.table(30, 80, this.TimesheetLineItems, this.headers, {autosize:true});
+    /**
+     * @description Generates PDF
+     */
+    async handleGeneratePDF() {
+        const doc = new window.jspdf.jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4'
+        });
 
-			//doc.table(10, 80, this.testData, this.testHeader, {autosize: true});
+        this.addHeader(doc);
+        this.addTable(doc);
+        
+        doc.save(`timesheet_${this.Timesheet?.dbt__End_Date__c || 'generated'}.pdf`);
+    }
 
-			//doc.table(30, 30, this.Employee, this.headers, {autosize:true});
+    /**
+     * @description Adds header to PDF
+     */
+    addHeader(doc) {
+        const contractorName = this.Timesheet?.dbt__Employee__r?.Name || "Unknown Contractor";
+        const clientManagerName = this.Timesheet?.dbt__Employee__r?.Client_Manager__r?.Name || "Unknown Manager";
+        const clientManagerEmail = this.Timesheet?.dbt__Employee__r?.Client_Manager_email__c || "No Email Provided";
+        const fortnightEnding = this.Timesheet?.dbt__End_Date__c || "Unknown Date";
+        const billableHours = this.Timesheet?.dbt__Billable_Hours__c || "0";
+        const totalHours = this.Timesheet?.dbt__Total_Hours__c || "0";
 
-			// Save the PDF.
-			doc.save('generated_pdf.pdf');
-		} else {
-			console.error('jsPDF library not initialized');
-		}
-	}
+        const pic = new Image();
+        pic.src = imageLogo;
 
-	generateData(){
-		getTimesheetRecords({recID: this.recordId}).then(result =>{
-			this.Timesheet = result;		
-			getTimesheetLineItemsRecords({recId: this.recordId}).then(result => {
-				this.TimesheetLineItems =  result;
-	
-				this.TimesheetLineItems.forEach(element => {
-					element.duration = element.duration.toString();
-					this.date = new Date(element.dbt__Date__c);
-					this.dayNumber = this.date.getDay();
-					element.Day = this.weekdays[this.dayNumber];
-				});
-				this.handleGeneratePDF();
-			});
-		});
-	}
+        doc.text("Name of Contractor: " + contractorName, 10, 10);
+        doc.addImage(pic, 190, 2, 15, 15);
+        doc.text("Digital Biz Tech", 148, 10);
+        doc.text("Fortnight Ending: " + fortnightEnding, 10, 20);
+        doc.text("Name of Manager: " + clientManagerName, 10, 30);
+        doc.text("Manager Email: " + clientManagerEmail, 10, 40);
+        doc.text("Billable Hours: " + billableHours, 10, 50);
+        doc.text("Total Hours: " + totalHours, 10, 60);
+    }
 
-	createHeaders(keys) {
-		var result = [];
-		for (var i = 0; i < keys.length; i += 1) {
-			result.push({
-				id: keys[i],
-				name: keys[i],
-				prompt: keys[i],
-				width: 65,
-				align: "center",
-				padding: 0
-			});
-		}
-		return result;
-	}
+    /**
+     * @description Adds table to PDF
+     */
+    addTable(doc) {
+        const columns = [
+            { header: 'Day', dataKey: 'Day' },
+            { header: 'Date', dataKey: 'dbt__Date__c' },
+            { header: 'Hours Worked', dataKey: 'duration' }
+        ];
+
+        doc.autoTable({
+            startY: 70,
+            columns: columns,
+            body: this.TimesheetLineItems,
+            theme: 'grid',
+            headStyles: {
+                fillColor: [0, 172, 148],
+                textColor: [255, 255, 255],
+                fontSize: 13,
+                fontStyle: 'bold',
+                cellPadding: 2.5,
+                valign: 'middle',
+                halign: 'center'
+            },
+            bodyStyles: {
+                fontSize: 11,
+                cellPadding: 1.5,
+                valign: 'middle',
+                halign: 'center'
+            },
+            didParseCell: (data) => {
+                const { row, column } = data;
+                if (row.raw?.Day === 'Saturday' || row.raw?.Day === 'Sunday') {
+                    data.cell.styles.fillColor = [240, 240, 240];
+                }
+            }
+        });
+    }
+
+    get generateButtonLabel() {
+        return this.isGeneratingPDF ? 'Generating PDF...' : 'Generate PDF';
+    }
+
+    get isButtonDisabled() {
+        return this.isGeneratingPDF || this.isLoading;
+    }
 }
