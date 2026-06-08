@@ -3,17 +3,17 @@ public with sharing class TimesheetLineItemLwcController {
     
     @AuraEnabled(cacheable=true)
     public static List<Timesheet_Line_Item__c> getTimesheetLineItems(Id timesheetId){
-        List<Timesheet_Line_Item__c> timesheetLineItemList = new List<Timesheet_Line_Item__c>();
+        List<Timesheet_Line_Item_c> timesheetLineItemList = new List<Timesheet_Line_Item_c>();
         if(Timesheet_Line_Item__c.SObjectType.getDescribe().isAccessible() 
             && Schema.SObjectType.Timesheet_Line_Item__c.fields.Id.isAccessible() 
-            && Schema.SObjectType.Timesheet_Line_Item__c.fields.Type__c.isAccessible() 
-            && Schema.SObjectType.Timesheet_Line_Item__c.fields.Timesheet__c.isAccessible() 
-            && Schema.SObjectType.Timesheet_Line_Item__c.fields.Date__c.isAccessible() 
-            && Schema.SObjectType.Timesheet_Line_Item__c.fields.Project__c.isAccessible() 
-            && Schema.SObjectType.Timesheet_Line_Item__c.fields.Activity__c.isAccessible() 
-            && Schema.SObjectType.Timesheet_Line_Item__c.fields.Absence_Category__c.isAccessible() 
-            && Schema.SObjectType.Timesheet_Line_Item__c.fields.Description__c.isAccessible() 
-            && Schema.SObjectType.Timesheet_Line_Item__c.fields.Duration__c.isAccessible() ){
+            && Schema.SObjectType.Timesheet_Line_Item_c.fields.Type_c.isAccessible() 
+            && Schema.SObjectType.Timesheet_Line_Item_c.fields.Timesheet_c.isAccessible() 
+            && Schema.SObjectType.Timesheet_Line_Item_c.fields.Date_c.isAccessible() 
+            && Schema.SObjectType.Timesheet_Line_Item_c.fields.Project_c.isAccessible() 
+            && Schema.SObjectType.Timesheet_Line_Item_c.fields.Activity_c.isAccessible() 
+            && Schema.SObjectType.Timesheet_Line_Item_c.fields.Absence_Category_c.isAccessible() 
+            && Schema.SObjectType.Timesheet_Line_Item_c.fields.Description_c.isAccessible() 
+            && Schema.SObjectType.Timesheet_Line_Item_c.fields.Duration_c.isAccessible() ){
                 timesheetLineItemList = [SELECT Id,
                                             Type__c,
                                             Timesheet__c,
@@ -48,21 +48,21 @@ public with sharing class TimesheetLineItemLwcController {
     private static void upsertTimesheetRecords(List<Timesheet_Line_Item__c> timesheetLineItems){
         if(Timesheet_Line_Item__c.SObjectType.getDescribe().isCreateable() 
             && Timesheet_Line_Item__c.SObjectType.getDescribe().isUpdateable() 
-            && Schema.SObjectType.Timesheet_Line_Item__c.fields.Type__c.isUpdateable() 
-            && Schema.SObjectType.Timesheet_Line_Item__c.fields.Date__c.isUpdateable() 
-            && Schema.SObjectType.Timesheet_Line_Item__c.fields.Project__c.isUpdateable() 
-            && Schema.SObjectType.Timesheet_Line_Item__c.fields.Activity__c.isUpdateable() 
-            && Schema.SObjectType.Timesheet_Line_Item__c.fields.Absence_Category__c.isUpdateable() 
-            && Schema.SObjectType.Timesheet_Line_Item__c.fields.Duration__c.isUpdateable() 
-            && Schema.SObjectType.Timesheet_Line_Item__c.fields.Description__c.isUpdateable() 
-            && Schema.SObjectType.Timesheet_Line_Item__c.fields.Type__c.isCreateable() 
-            && Schema.SObjectType.Timesheet_Line_Item__c.fields.Timesheet__c.isCreateable() 
-            && Schema.SObjectType.Timesheet_Line_Item__c.fields.Date__c.isCreateable() 
-            && Schema.SObjectType.Timesheet_Line_Item__c.fields.Project__c.isCreateable() 
-            && Schema.SObjectType.Timesheet_Line_Item__c.fields.Activity__c.isCreateable() 
-            && Schema.SObjectType.Timesheet_Line_Item__c.fields.Absence_Category__c.isCreateable() 
-            && Schema.SObjectType.Timesheet_Line_Item__c.fields.Duration__c.isCreateable() 
-            && Schema.SObjectType.Timesheet_Line_Item__c.fields.Description__c.isCreateable()){
+            && Schema.SObjectType.Timesheet_Line_Item_c.fields.Type_c.isUpdateable() 
+            && Schema.SObjectType.Timesheet_Line_Item_c.fields.Date_c.isUpdateable() 
+            && Schema.SObjectType.Timesheet_Line_Item_c.fields.Project_c.isUpdateable() 
+            && Schema.SObjectType.Timesheet_Line_Item_c.fields.Activity_c.isUpdateable() 
+            && Schema.SObjectType.Timesheet_Line_Item_c.fields.Absence_Category_c.isUpdateable() 
+            && Schema.SObjectType.Timesheet_Line_Item_c.fields.Duration_c.isUpdateable() 
+            && Schema.SObjectType.Timesheet_Line_Item_c.fields.Description_c.isUpdateable() 
+            && Schema.SObjectType.Timesheet_Line_Item_c.fields.Type_c.isCreateable() 
+            && Schema.SObjectType.Timesheet_Line_Item_c.fields.Timesheet_c.isCreateable() 
+            && Schema.SObjectType.Timesheet_Line_Item_c.fields.Date_c.isCreateable() 
+            && Schema.SObjectType.Timesheet_Line_Item_c.fields.Project_c.isCreateable() 
+            && Schema.SObjectType.Timesheet_Line_Item_c.fields.Activity_c.isCreateable() 
+            && Schema.SObjectType.Timesheet_Line_Item_c.fields.Absence_Category_c.isCreateable() 
+            && Schema.SObjectType.Timesheet_Line_Item_c.fields.Duration_c.isCreateable() 
+            && Schema.SObjectType.Timesheet_Line_Item_c.fields.Description_c.isCreateable()){
                 upsert timesheetLineItems;
         } else{
             AuraHandledException ae = new AuraHandledException(errorMessage);
@@ -75,7 +75,7 @@ public with sharing class TimesheetLineItemLwcController {
         if(Timesheet_Line_Item__c.SObjectType.getDescribe().isDeletable() 
             && Timesheet_Line_Item__c.SObjectType.getDescribe().isAccessible() 
             && Schema.SObjectType.Timesheet_Line_Item__c.fields.Id.isAccessible() ){
-                List<Timesheet_Line_Item__c> timesheetLineItems = [SELECT Id from Timesheet_Line_Item__c WHERE Id = : timesheetIds WITH SECURITY_ENFORCED];
+                List<Timesheet_Line_Item_c> timesheetLineItems = [SELECT Id from Timesheet_Line_Item_c WHERE Id = : timesheetIds WITH SECURITY_ENFORCED];
                 delete timesheetLineItems;
         } else{
             AuraHandledException ae = new AuraHandledException(errorMessage);

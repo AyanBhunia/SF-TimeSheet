@@ -99,7 +99,7 @@ public with sharing class GetDashboardProfileDetails {
         resultData.put('Email', emp.Email__c);
         resultData.put('HireDate', emp.Hire_Date__c);
         resultData.put('LastWorkingDate', emp.Last_Working_Date__c);
-        resultData.put('VacationsTaken', emp.No_of_Vacations_Taken__c);
+        resultData.put('ThisYearVacationsTaken', emp.No_of_Vacations_Taken__c);
         resultData.put('PhoneNumber', emp.Phone_Number__c);
 
         // Accrued and Absence Hours
@@ -125,9 +125,9 @@ public with sharing class GetDashboardProfileDetails {
      * @param hours AggregateResult containing timesheet summary
      */
     private static void populateTimesheetSummary(Map<String, Object> resultData, AggregateResult hours) {
-        resultData.put('TotalBillableHours', (Decimal) hours.get('TotalBillableHours'));
-        resultData.put('TotalNonBillableHours', (Decimal) hours.get('TotalNonBillableHours'));
-        resultData.put('TotalAbsenceHours', (Decimal) hours.get('TotalAbsenceHours'));
-        resultData.put('TotalHours', (Decimal) hours.get('TotalHours'));
+        resultData.put('ThisYearBillableHours', (Decimal) hours.get('TotalBillableHours'));
+        resultData.put('ThisYearNonBillableHours', (Decimal) hours.get('TotalNonBillableHours'));
+        resultData.put('ThisYearAbsenceHours', (Decimal) hours.get('TotalAbsenceHours'));
+        resultData.put('ThisYearTotalHours', (Decimal) hours.get('TotalHours'));
     }
 }
