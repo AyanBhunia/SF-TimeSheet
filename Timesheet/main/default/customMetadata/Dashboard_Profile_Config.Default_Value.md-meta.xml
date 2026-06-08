@@ -12,7 +12,7 @@
     </values>
     <values>
         <field>Column_3_Fields__c</field>
-        <value xsi:type="xsd:string">TotalBillableHours,TotalNonBillableHours,TotalAbsenceHours,TotalHours,VacationsTaken</value>
+        <value xsi:type="xsd:string">ThisYearBillableHours,ThisYearNonBillableHours,ThisYearAbsenceHours,ThisYearTotalHours,ThisYearVacationsTaken</value>
     </values>
     <values>
         <field>Show_Null_Fields__c</field>

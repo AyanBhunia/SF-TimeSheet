@@ -91,29 +91,36 @@ public with sharing class WeeklyTimesheetController {
         return week;
     }
     
-    @AuraEnabled
-    public static String upsertLineItems(List<Timesheet_Line_Item__c> lineItems) {
-        System.debug('begin upsertLineItems: '+lineItems);
-        
-        if(lineItems == null || lineItems.isEmpty()){
-            return 'Error: No Timesheet Line Items provided.';
-        }
-        
-        String result = 'Success';
+   @AuraEnabled
+public static String upsertLineItems(List<Timesheet_Line_Item__c> lineItems) {
+    System.debug('begin upsertLineItems: ' + lineItems);
 
-        try {
-            SObjectAccessDecision decision =
+    if(lineItems == null || lineItems.isEmpty()){
+        return 'Error: No Timesheet Line Items provided.';
+    }
+
+    try {
+        SObjectAccessDecision decision =
             Security.stripInaccessible(
                 AccessType.CREATABLE,
                 lineItems,
                 true
             );
-            upsert decision.getRecords();
-        } catch(Exception e) {
-            result = 'Error: ' + e.getMessage();
+
+        upsert decision.getRecords();
+
+        return 'Success';
+    }
+    catch(Exception e) {
+
+        if(e.getMessage().contains('FIELD_FILTER_VALIDATION_EXCEPTION')
+           && e.getMessage().contains('Project__c')) {
+
+            return 'Error: Selected project is inactive. Please choose an active project.';
         }
-        System.debug('after upsertLineItems: '+result);
-        return result;
+
+        return 'Error: ' + e.getMessage();
+    }
     }
 
     @AuraEnabled
