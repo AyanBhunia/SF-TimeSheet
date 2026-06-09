@@ -3,6 +3,7 @@
     <fullName>Extra_Accrued_Hours__c</fullName>
     <defaultValue>0</defaultValue>
     <externalId>false</externalId>
+    <inlineHelpText>Extra accrued hours manually added to the employee&apos;s accrued balance.</inlineHelpText>
     <label>Extra Accrued Hours</label>
     <precision>18</precision>
     <required>false</required>

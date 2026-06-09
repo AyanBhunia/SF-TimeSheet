@@ -13,73 +13,63 @@ import TIMESHEET_LINE_ITEM_OBJECT from '@salesforce/schema/Timesheet_Line_Item__
 import ACTIVITY_CATEGORY_FIELD from '@salesforce/schema/Timesheet_Line_Item__c.Activity__c';
 import ABSENCE_CATEGORY_FIELD from '@salesforce/schema/Timesheet_Line_Item__c.Absence_Category__c';
 
-
 import TIMESHEET_OBJECT from '@salesforce/schema/Timesheet__c';
 import EMPLOYEE_OBJECT from '@salesforce/schema/Employee__c';
 import PROJECT_EMPLOYEE_OBJECT from '@salesforce/schema/Project_Employee__c';
 import TIMESHEET_LINE_OBJECT from '@salesforce/schema/Timesheet_Line_Item__c';
 
-
-
 export default class TestLineItem extends LightningElement {
     timesheetInfo;
-  employeeInfo;
-  projectEmployeeInfo;
-  timesheetLineInfo;
+    employeeInfo;
+    projectEmployeeInfo;
+    timesheetLineInfo;
 
-  @wire(getObjectInfo, { objectApiName: TIMESHEET_OBJECT })
-  wiredTimesheet({ error, data }) {
-    if (data) {
-      this.timesheetInfo = data;
-    //   console.info('dbt__Timesheet__c schema (UI API):', data);
-    } else if (error) {
-      console.error('Error loading dbt__Timesheet__c schema', error);
+    @wire(getObjectInfo, { objectApiName: TIMESHEET_OBJECT })
+    wiredTimesheet({ error, data }) {
+        if (data) {
+            this.timesheetInfo = data;
+        } else if (error) {
+            console.error('Error loading dbt__Timesheet__c schema', error);
+        }
     }
-  }
 
-  @wire(getObjectInfo, { objectApiName: EMPLOYEE_OBJECT })
-  wiredEmployee({ error, data }) {
-    if (data) {
-      this.employeeInfo = data;
-    //   console.info('dbt__Employee__c schema (UI API):', data);
-    } else if (error) {
-      console.error('Error loading dbt__Employee__c schema', error);
+    @wire(getObjectInfo, { objectApiName: EMPLOYEE_OBJECT })
+    wiredEmployee({ error, data }) {
+        if (data) {
+            this.employeeInfo = data;
+        } else if (error) {
+            console.error('Error loading dbt__Employee__c schema', error);
+        }
     }
-  }
 
-  @wire(getObjectInfo, { objectApiName: PROJECT_EMPLOYEE_OBJECT })
-  wiredProjectEmployee({ error, data }) {
-    if (data) {
-      this.projectEmployeeInfo = data;
-    //   console.info('dbt__Project_Employee__c schema (UI API):', data);
-    } else if (error) {
-      console.error('Error loading dbt__Project_Employee__c schema', error);
+    @wire(getObjectInfo, { objectApiName: PROJECT_EMPLOYEE_OBJECT })
+    wiredProjectEmployee({ error, data }) {
+        if (data) {
+            this.projectEmployeeInfo = data;
+        } else if (error) {
+            console.error('Error loading dbt__Project_Employee__c schema', error);
+        }
     }
-  }
 
-  @wire(getObjectInfo, { objectApiName: TIMESHEET_LINE_OBJECT })
-  wiredTimesheetLine({ error, data }) {
-    if (data) {
-      this.timesheetLineInfo = data;
-    //   console.info('dbt__Timesheet_Line_Item__c schema (UI API):', data);
-    } else if (error) {
-      console.error('Error loading dbt__Timesheet_Line_Item__c schema', error);
+    @wire(getObjectInfo, { objectApiName: TIMESHEET_LINE_OBJECT })
+    wiredTimesheetLine({ error, data }) {
+        if (data) {
+            this.timesheetLineInfo = data;
+        } else if (error) {
+            console.error('Error loading dbt__Timesheet_Line_Item__c schema', error);
+        }
     }
-  }
 
     @api recordId;
     @track projectsList = [];
     @track projectOptions = [];
-    // Common Activity picklist options from field metadata
-    @track activityOptions= [];
-    // Map of projectId -> array of activity option objects
+    @track activityOptions = [];
     ProjectActivityMap;
     @track absenceList = [];
     @track absenceOptions = [];
     projectIds = [];
-    
 
-    @track prevTimesheets= [];
+    @track prevTimesheets = [];
     prevTimesheetValue;
 
     @track projectsTotals = [0, 0, 0, 0, 0, 0, 0];
@@ -87,32 +77,27 @@ export default class TestLineItem extends LightningElement {
     @track grandTotals = [0, 0, 0, 0, 0, 0, 0];
     @track billableAmounts = [0, 0, 0, 0, 0, 0, 0];
 
-    TimesheetStartDate='';
-    TimeSheetEndDate='';
-    TimeSheetName='';
-    EmployeeID='';
+    TimesheetStartDate = '';
+    TimeSheetEndDate = '';
+    TimeSheetName = '';
+    EmployeeID = '';
 
     previousRecordIDs;
-
     wiredTimesheetResult;
     error;
 
-    
     dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    dayList=[];
+    dayList = [];
 
-    // Get object info to retrieve recordTypeId
     @wire(getObjectInfo, { objectApiName: TIMESHEET_LINE_ITEM_OBJECT })
     objectInfo;
 
-    // Fetch picklist values for Activity
-    @wire(getPicklistValues, { 
-        recordTypeId: '$objectInfo.data.defaultRecordTypeId', 
-        fieldApiName: ACTIVITY_CATEGORY_FIELD 
+    @wire(getPicklistValues, {
+        recordTypeId: '$objectInfo.data.defaultRecordTypeId',
+        fieldApiName: ACTIVITY_CATEGORY_FIELD
     })
     wiredActivityPicklistValues({ error, data }) {
         if (data) {
-            // Store the common picklist options
             this.activityOptions = data.values.map(item => ({
                 label: item.label,
                 value: item.value
@@ -122,10 +107,9 @@ export default class TestLineItem extends LightningElement {
         }
     }
 
-    // Fetch picklist values for Absence
-    @wire(getPicklistValues, { 
-        recordTypeId: '$objectInfo.data.defaultRecordTypeId', 
-        fieldApiName: ABSENCE_CATEGORY_FIELD 
+    @wire(getPicklistValues, {
+        recordTypeId: '$objectInfo.data.defaultRecordTypeId',
+        fieldApiName: ABSENCE_CATEGORY_FIELD
     })
     wiredAbsencePicklistValues({ error, data }) {
         if (data) {
@@ -147,7 +131,6 @@ export default class TestLineItem extends LightningElement {
         this.dispatchEvent(evt);
     }
 
-    // Format a Date object as 'YYYY-MM-DD' (local date)
     formatDateYMD(date) {
         const y = date.getFullYear();
         const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -155,17 +138,12 @@ export default class TestLineItem extends LightningElement {
         return `${y}-${m}-${d}`;
     }
 
-    // Parse server-side date string and return a Date object representing local midnight for that date.
-    // Accepts "YYYY-MM-DD" or full ISO "YYYY-MM-DDTHH:MM:SSZ".
     localDateFromServer(dateStr) {
         if (!dateStr) return null;
-        // Take only the date portion before 'T' if present
         const dateOnly = String(dateStr).split('T')[0];
         const parts = dateOnly.split('-');
         if (parts.length !== 3) {
-            // fallback - let JS try to parse; may include timezone
             const fallback = new Date(dateStr);
-            // normalize to local midnight
             return new Date(fallback.getFullYear(), fallback.getMonth(), fallback.getDate());
         }
         const y = parseInt(parts[0], 10);
@@ -177,7 +155,6 @@ export default class TestLineItem extends LightningElement {
     connectedCallback() {
         const fetchPromise = new Promise((resolve, reject) => {
             this.fetchTimesheetData(this.recordId, result => {
-                // console.log('timesheet data',JSON.stringify(result));
                 this.wiredTimesheetResult = result;
                 resolve(result);
             });
@@ -187,7 +164,7 @@ export default class TestLineItem extends LightningElement {
             fetchPromise,
             this.loadTimesheet()
         ])
-            .then(([timesheetData , _loadResult]) => {
+            .then(([timesheetData, _loadResult]) => {
                 this.processTimesheetData(timesheetData, true);
             })
             .catch(error => {
@@ -208,7 +185,6 @@ export default class TestLineItem extends LightningElement {
     loadTimesheet() {
         return getTimesheet({ timesheetId: this.recordId })
             .then(result => {
-                // console.log('load timesheet',JSON.stringify(result));
                 this.EmployeeID = result.dbt__Employee__c;
                 this.TimesheetStartDate = result.dbt__Start_Date__c;
                 this.TimeSheetEndDate = result.dbt__End_Date__c;
@@ -227,7 +203,6 @@ export default class TestLineItem extends LightningElement {
     }
 
     createDays() {
-        // Defensive: if TimesheetStartDate is already a Date, normalize it; if it's a string, parse safely
         const startDateObj = (this.TimesheetStartDate instanceof Date)
             ? new Date(this.TimesheetStartDate.getFullYear(), this.TimesheetStartDate.getMonth(), this.TimesheetStartDate.getDate())
             : this.localDateFromServer(this.TimesheetStartDate);
@@ -244,8 +219,8 @@ export default class TestLineItem extends LightningElement {
         });
     }
 
-    loadPrevTimesheets(){
-        getEmployeeTimesheetItems({ empId: this.EmployeeID, recordId: this.recordId})
+    loadPrevTimesheets() {
+        getEmployeeTimesheetItems({ empId: this.EmployeeID, recordId: this.recordId })
             .then(result => {
                 this.prevTimesheets = result.map(item => ({
                     label: item.Name,
@@ -257,14 +232,14 @@ export default class TestLineItem extends LightningElement {
             });
     }
 
-    loadProjects() {
-        return getProjects({ empId: this.EmployeeID })
+    loadProjects(existingProjectIds = '') {
+        return getProjects({ empId: this.EmployeeID, existingProjectIds: existingProjectIds })
             .then(result => {
                 this.projectOptions = result.map(proj => ({
                     label: proj.dbt__Project__r.Name,
                     value: proj.dbt__Project__c,
                     billable: proj.dbt__Project__r?.dbt__Billable__c,
-                    hourly_rate: proj.dbt__Hourly_Rate__c || 0 
+                    hourly_rate: proj.dbt__Hourly_Rate__c || 0
                 }));
                 this.projectIds = result.map(proj => proj.dbt__Project__c);
             })
@@ -272,7 +247,6 @@ export default class TestLineItem extends LightningElement {
                 getProjectActivities({ projectIds: this.projectIds })
                     .then(result => {
                         console.log('Project Activities:', JSON.stringify(result));
-                        // Build a map of projectId -> array of option objects
                         this.ProjectActivityMap = new Map();
                         result.forEach(item => {
                             const pid = item.dbt__Project__c;
@@ -281,7 +255,6 @@ export default class TestLineItem extends LightningElement {
                             this.ProjectActivityMap.set(pid, arr);
                         });
 
-                        // After loading project activities, refresh per-row activity options
                         if (Array.isArray(this.projectsList) && this.projectsList.length) {
                             this.projectsList = this.projectsList.map(row => ({
                                 ...row,
@@ -289,20 +262,17 @@ export default class TestLineItem extends LightningElement {
                             }));
                         }
                         console.log('ProjectActivityMap ready');
-                    })
+                    });
             })
             .catch(error => {
                 console.error(error);
             });
     }
 
-    // Merge common options with project-specific ones (deduped by value)
     getActivityOptionsForProject(projectId) {
         const common = Array.isArray(this.activityOptions) ? this.activityOptions : [];
         const specific = (this.ProjectActivityMap && projectId && this.ProjectActivityMap.get(projectId)) || [];
-        // If no project-specific options, just return common
         if (!specific.length) return common;
-        // Merge with project-specific first, then common, with de-dup by value
         const seen = new Set();
         const merged = [];
         [...specific, ...common].forEach(opt => {
@@ -315,7 +285,7 @@ export default class TestLineItem extends LightningElement {
         return merged;
     }
 
-    processTimesheetData(data,includeId) {
+    processTimesheetData(data, includeId) {
         this.projectsList = [];
         this.absenceList = [];
 
@@ -326,29 +296,23 @@ export default class TestLineItem extends LightningElement {
         let attendanceData = {};
         let absenceData = {};
 
-        // console.log("data",JSON.stringify(data));
-  
         data.forEach(item => {
-            // Use localDateFromServer to get a local-midnight Date object (no TZ shift)
             const date = this.localDateFromServer(item.dbt__Date__c);
             const dayIndex = date.getDay() === 0 ? 6 : date.getDay() - 1;
 
-            if(includeId){
+            if (includeId) {
                 this.previousRecordIDs.add(item.Id);
             }
 
-            // Helper to update the date data
             const updateDate = record => {
                 record.dates[dayIndex].dur = item.dbt__Duration__c || 0;
                 record.dates[dayIndex].desc = item.dbt__Description__c || '';
-                record.dates[dayIndex].id = includeId ? item.Id : null; 
+                record.dates[dayIndex].id = includeId ? item.Id : null;
                 record.dates[dayIndex].isdisable = false;
             };
 
             if (item.dbt__Type__c === "Attendance") {
-
                 const key = `${item.dbt__Project__c}_${item.dbt__Activity__c}`;
-
                 if (!attendanceData[key]) {
                     const selectedProject = this.projectOptions.find(option => option.value === item.dbt__Project__c);
                     attendanceData[key] = {
@@ -359,7 +323,7 @@ export default class TestLineItem extends LightningElement {
                         hourlyRate: (selectedProject && selectedProject.hourly_rate) ? selectedProject.hourly_rate : 0
                     };
                 }
-                updateDate(attendanceData[key]); 
+                updateDate(attendanceData[key]);
             } else {
                 const key = item.dbt__Absence_Category__c;
                 if (!absenceData[key]) {
@@ -370,7 +334,6 @@ export default class TestLineItem extends LightningElement {
                 }
                 updateDate(absenceData[key]);
             }
-
         });
 
         this.projectsList = Object.values(attendanceData).map(row => ({
@@ -379,17 +342,23 @@ export default class TestLineItem extends LightningElement {
         }));
         this.absenceList = Object.values(absenceData);
 
-        if(this.projectsList.length === 0) {
+        if (this.projectsList.length === 0) {
             this.addNewProject();
         }
 
-        // calculate totals
-        this.calculateTotals();
+        // Reload projects including inactive ones used in existing records
+        if (includeId) {
+            const existingProjectIds = this.projectsList
+                .map(row => row.projectName)
+                .filter(id => id !== '')
+                .join(',');
+            this.loadProjects(existingProjectIds);
+        }
 
+        this.calculateTotals();
     }
 
     getBlankData(type) {
-        
         const dates = this.dayNames.map((name, index) => {
             return {
                 id: null,
@@ -408,7 +377,6 @@ export default class TestLineItem extends LightningElement {
                 activityName: "",
                 billable: "",
                 hourlyRate: 0,
-                // Default to common options; per-row options update when project changes
                 activityOptions: Array.isArray(this.activityOptions) ? this.activityOptions : [],
                 dates
             };
@@ -426,62 +394,44 @@ export default class TestLineItem extends LightningElement {
         const fieldName = event.target.name;
         const newValue = event.target.value;
 
-        // Get the current row
         const currentRow = this.projectsList[rowIndex];
-
-        // Create a temporary copy of the current row to test the change
         const tempRow = { ...this.projectsList[rowIndex] };
-        
-        // Apply the potential change to the temporary row
+
         if (fieldName === 'projectName') {
             tempRow.projectName = newValue;
         } else if (fieldName === 'activityName') {
             tempRow.activityName = newValue;
         }
 
-        // Only check for duplicates if both fields have values
         if (tempRow.projectName && tempRow.activityName) {
-            // Check if this combination would create a duplicate
-            const wouldCreateDuplicate = this.projectsList.some((row, index) => 
-                index !== parseInt(rowIndex) && 
-                row.projectName === tempRow.projectName && 
+            const wouldCreateDuplicate = this.projectsList.some((row, index) =>
+                index !== parseInt(rowIndex) &&
+                row.projectName === tempRow.projectName &&
                 row.activityName === tempRow.activityName
             );
 
             if (wouldCreateDuplicate) {
-                // Show error toast
-                this.showToast(
-                    'Error', 
-                    'A row with the same Project and Activity already exists.', 
-                    'error'
-                );
-
-                // Revert the change by setting the combobox value back
+                this.showToast('Error', 'A row with the same Project and Activity already exists.', 'error');
                 event.target.value = currentRow[fieldName];
-                return; // Exit without making any changes
+                return;
             }
         }
 
-       // Apply change since it's valid
         currentRow[fieldName] = newValue;
 
         if (fieldName === 'projectName') {
-            // Update billable/hourly based on the selected project
-        const selectedProject = this.projectOptions.find(option => option.value === newValue);
-        if (selectedProject) {
-            currentRow.billable = selectedProject.billable;
-            currentRow.hourlyRate = selectedProject.hourly_rate;
-        }
-            // Refresh per-row activity options for this project
+            const selectedProject = this.projectOptions.find(option => option.value === newValue);
+            if (selectedProject) {
+                currentRow.billable = selectedProject.billable;
+                currentRow.hourlyRate = selectedProject.hourly_rate;
+            }
             currentRow.activityOptions = this.getActivityOptionsForProject(newValue);
-            // If current activity is not in new options, clear it
             const stillValid = currentRow.activityOptions?.some(opt => opt.value === currentRow.activityName);
             if (!stillValid) {
                 currentRow.activityName = '';
             }
         }
-        
-        // Reassign array reference to trigger reactivity and recalc totals
+
         this.projectsList = [...this.projectsList];
         this.calculateTotals();
     }
@@ -493,8 +443,8 @@ export default class TestLineItem extends LightningElement {
     handleDurationChange(event) {
         const rowIndex = event.target.dataset.rowIndex;
         const dayIndex = event.target.dataset.dayIndex;
-        const dataFor = event.target.getAttribute('data-for'); // "project" or "absence"
-        
+        const dataFor = event.target.getAttribute('data-for');
+
         let rawStr = String(event.target.value);
         let wasTruncated = false;
 
@@ -508,7 +458,7 @@ export default class TestLineItem extends LightningElement {
         }
 
         let value = parseFloat(rawStr) || 0;
-        
+
         let list;
         let CalculateList;
         if (dataFor === 'project') {
@@ -536,11 +486,11 @@ export default class TestLineItem extends LightningElement {
 
         list[rowIndex].dates[dayIndex].dur = value;
         list[rowIndex].dates[dayIndex].isdisable = (value === 0);
-        
+
         if (wasTruncated) {
             try {
                 event.target.value = rawStr;
-            } catch(e) {}
+            } catch (e) {}
         }
     }
 
@@ -548,14 +498,13 @@ export default class TestLineItem extends LightningElement {
         const rowIndex = parseInt(event.target.dataset.rowIndex);
         const dayIndex = parseInt(event.target.dataset.dayIndex);
         const newValue = event.target.value;
-        const dataFor = event.target.getAttribute('data-for'); // "project" or "absence"
+        const dataFor = event.target.getAttribute('data-for');
         let list;
         if (dataFor === 'project') {
             list = this.projectsList;
         } else if (dataFor === 'absence') {
             list = this.absenceList;
         }
-        
         list[rowIndex].dates[dayIndex].desc = newValue;
     }
 
@@ -564,57 +513,38 @@ export default class TestLineItem extends LightningElement {
         const type = event.target.dataset.type;
 
         try {
-            if (type === 'project' && this.projectsList.length>0) {
-                // Remove row from projectsList
+            if (type === 'project' && this.projectsList.length > 0) {
                 this.projectsList = this.projectsList.filter((row, index) => index !== rowIndex);
-                
-                // If all projects are deleted, you might want to keep at least one empty row
                 if (this.projectsList.length === 0) {
                     this.addNewProject();
                 }
-            } else if (type === 'absence' && this.absenceList.length>0) {
-                // Remove row from absenceList
+            } else if (type === 'absence' && this.absenceList.length > 0) {
                 this.absenceList = this.absenceList.filter((row, index) => index !== rowIndex);
             }
-
-            // Show success toast
             this.showToast('warning', 'Row Removed. Please Click Save', 'warning');
         } catch (error) {
-            // Show error toast
             this.showToast('Error', 'Failed to delete row', 'error');
             console.error('Error deleting row:', error);
         }
 
-        // calculate totals
         this.calculateTotals();
     }
 
     handleAbsenceChange(event) {
         const rowIndex = event.target.dataset.rowIndex;
         const newValue = event.target.value;
-
-        // Get the current row's existing value
         const currentRow = this.absenceList[rowIndex];
 
-        // Check if this absence type is already selected in another row
-        const isDuplicate = this.absenceList.some((row, index) => 
+        const isDuplicate = this.absenceList.some((row, index) =>
             index !== parseInt(rowIndex) && row.absenceName === newValue
         );
 
         if (isDuplicate) {
-            // Show error toast if duplicate found
-            this.showToast(
-                'Error',
-                'This absence type is already selected in another row',
-                'error'
-            );
-
-            // Reset the value in UI to its previous state
+            this.showToast('Error', 'This absence type is already selected in another row', 'error');
             event.target.value = currentRow.absenceName;
             return;
         }
 
-        // Update the absence name if no duplicate
         currentRow.absenceName = newValue;
     }
 
@@ -628,18 +558,18 @@ export default class TestLineItem extends LightningElement {
         this.absenceList.push(newAbsence);
     }
 
-    handleSave(){
+    handleSave() {
         let upsertList = [];
         let deleteList;
         let currentRecordIDs = new Set();
 
         try {
-            let hasError = this.projectsList.some(project => 
+            let hasError = this.projectsList.some(project =>
                 project.dates.some(day => {
                     if (day.dur > 0) {
                         if (project.projectName === '' || project.activityName === '') {
                             this.showToast('Error', "Project name or Activity name cannot be blank", 'error');
-                            return true; // Stop iteration
+                            return true;
                         }
                         if (day.id) currentRecordIDs.add(day.id);
                         upsertList.push({
@@ -658,15 +588,15 @@ export default class TestLineItem extends LightningElement {
                     }
                 })
             );
-            
+
             if (hasError) return;
 
-            hasError = this.absenceList.some(absence => 
+            hasError = this.absenceList.some(absence =>
                 absence.dates.some(day => {
                     if (day.dur > 0) {
                         if (absence.absenceName === '') {
                             this.showToast('Error', "Absence name cannot be blank", 'error');
-                            return true; // Stop iteration
+                            return true;
                         }
                         if (day.id) currentRecordIDs.add(day.id);
                         upsertList.push({
@@ -694,56 +624,50 @@ export default class TestLineItem extends LightningElement {
         }
 
         (
-            (deleteList.length > 0 
+            (deleteList.length > 0
                 ? deleteTimesheetLineItems({ lineItemIds: deleteList.map(id => ({ Id: id })) })
                 : Promise.resolve()
             )
-            .then(res => {
-                if (res && res !== 'Success') throw new Error(res);
-                return upsertList.length > 0 ? upsertLineItems({ lineItems: upsertList }) : Promise.resolve();
-            })
-            .then(res => {
-                if (res && res !== 'Success') throw new Error(res);
-                this.showToast('Success', 'Records saved', 'success');
-            })
-            .catch(e => {
-                this.showToast('Error', e.message, 'error')
-            })
-            .finally(() => {
-                this.fetchTimesheetData(this.recordId, result => {
-                    this.wiredTimesheetResult = result;
-                    this.processTimesheetData(this.wiredTimesheetResult,true);
-                });
-            })
+                .then(res => {
+                    if (res && res !== 'Success') throw new Error(res);
+                    return upsertList.length > 0 ? upsertLineItems({ lineItems: upsertList }) : Promise.resolve();
+                })
+                .then(res => {
+                    if (res && res !== 'Success') throw new Error(res);
+                    this.showToast('Success', 'Records saved', 'success');
+                })
+                .catch(e => {
+                    this.showToast('Error', e.message, 'error');
+                })
+                .finally(() => {
+                    this.fetchTimesheetData(this.recordId, result => {
+                        this.wiredTimesheetResult = result;
+                        this.processTimesheetData(this.wiredTimesheetResult, true);
+                    });
+                })
         );
-        
     }
 
     calculateTotals() {
-        // Reset totals
         this.projectsTotals = [0, 0, 0, 0, 0, 0, 0];
         this.absenceTotals = [0, 0, 0, 0, 0, 0, 0];
         this.grandTotals = [0, 0, 0, 0, 0, 0, 0];
-        this.billableAmounts = [0, 0, 0, 0, 0, 0, 0]; 
+        this.billableAmounts = [0, 0, 0, 0, 0, 0, 0];
 
-        // Calculate Projects totals and billable amounts
         try {
             this.projectsList.forEach(project => {
-
                 project.dates.forEach((day, index) => {
                     const duration = parseFloat(day.dur) || 0;
                     this.projectsTotals[index] = parseFloat((this.projectsTotals[index] + duration).toFixed(2));
-                    
                     if (project.billable === "Yes") {
                         this.billableAmounts[index] = parseFloat((this.billableAmounts[index] + duration * parseFloat(project.hourlyRate || 0)).toFixed(2));
                     }
                 });
             });
-    
         } catch (error) {
             console.log(error);
         }
-        // Calculate Absence totals
+
         this.absenceList.forEach(absence => {
             absence.dates.forEach((day, index) => {
                 const duration = parseFloat(day.dur) || 0;
@@ -751,29 +675,26 @@ export default class TestLineItem extends LightningElement {
             });
         });
 
-        // Calculate Grand totals
         this.projectsTotals.forEach((total, index) => {
             this.grandTotals[index] = parseFloat((total + this.absenceTotals[index]).toFixed(2));
         });
     }
 
     prevTimesheet(event) {
-        this.prevTimesheetValue=event.detail.value;
+        this.prevTimesheetValue = event.detail.value;
     }
 
-    handleCopy(){
-        if(this.prevTimesheetValue != undefined){
-            // console.log(this.prevTimesheetValue);
+    handleCopy() {
+        if (this.prevTimesheetValue != undefined) {
             this.fetchTimesheetData(this.prevTimesheetValue, result => {
-                this.processTimesheetData(result,false);
+                this.processTimesheetData(result, false);
                 this.showToast('Success', 'Timesheet copied successfully', 'success');
             });
         }
     }
 
     handleCancel() {
-        this.processTimesheetData(this.wiredTimesheetResult,true);
-
+        this.processTimesheetData(this.wiredTimesheetResult, true);
         this.template.querySelectorAll('lightning-combobox[data-id="prevTimesheet"]').forEach(cb => {
             cb.value = undefined;
         });

@@ -3,6 +3,7 @@
     <fullName>Extra_Absence_Hours__c</fullName>
     <defaultValue>0</defaultValue>
     <externalId>false</externalId>
+    <inlineHelpText>Extra absence hours added manually to the employee&apos;s absence balance.</inlineHelpText>
     <label>Extra Absence Hours</label>
     <precision>18</precision>
     <required>false</required>

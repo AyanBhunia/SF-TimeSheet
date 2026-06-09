@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8" ?>
+<?xml version="1.0" encoding="UTF-8"?>
 <Report xmlns="http://soap.sforce.com/2006/04/metadata">
     <columns>
         <aggregateTypes>Sum</aggregateTypes>
@@ -10,7 +10,7 @@
             <columnToColumn>false</columnToColumn>
             <isUnlocked>true</isUnlocked>
             <operator>notEqual</operator>
-            <value />
+            <value></value>
         </criteriaItems>
         <criteriaItems>
             <column>Timesheet_Line_Item__c.Type__c</column>
@@ -31,8 +31,7 @@
         <name>co</name>
         <value>0</value>
     </params>
-    <reportType
-  >CustomEntityCustomEntity$Timesheet__c$Timesheet_Line_Item__c</reportType>
+    <reportType>CustomEntityCustomEntity$Timesheet__c$Timesheet_Line_Item__c</reportType>
     <scope>organization</scope>
     <showDetails>false</showDetails>
     <showGrandTotal>true</showGrandTotal>

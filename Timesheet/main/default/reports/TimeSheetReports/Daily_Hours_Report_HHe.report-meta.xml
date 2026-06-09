@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8" ?>
+<?xml version="1.0" encoding="UTF-8"?>
 <Report xmlns="http://soap.sforce.com/2006/04/metadata">
     <columns>
         <field>Timesheet_Line_Item__c.Description__c</field>
@@ -16,14 +16,14 @@
             <columnToColumn>false</columnToColumn>
             <isUnlocked>true</isUnlocked>
             <operator>equals</operator>
-            <value />
+            <value></value>
         </criteriaItems>
         <criteriaItems>
             <column>Timesheet_Line_Item__c.Project__c</column>
             <columnToColumn>false</columnToColumn>
             <isUnlocked>true</isUnlocked>
             <operator>equals</operator>
-            <value />
+            <value></value>
         </criteriaItems>
     </filter>
     <format>Summary</format>
@@ -37,8 +37,7 @@
         <name>co</name>
         <value>0</value>
     </params>
-    <reportType
-  >CustomEntityCustomEntity$Timesheet__c$Timesheet_Line_Item__c</reportType>
+    <reportType>CustomEntityCustomEntity$Timesheet__c$Timesheet_Line_Item__c</reportType>
     <scope>organization</scope>
     <showDetails>false</showDetails>
     <showGrandTotal>true</showGrandTotal>

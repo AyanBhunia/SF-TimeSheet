@@ -2,6 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Billable__c</fullName>
     <businessStatus>Active</businessStatus>
+    <deprecated>false</deprecated>
     <label>Billable</label>
     <required>false</required>
     <trackHistory>true</trackHistory>

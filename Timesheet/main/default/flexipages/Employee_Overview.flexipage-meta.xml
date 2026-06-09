@@ -17,7 +17,7 @@
                 </componentInstanceProperties>
                 <componentInstanceProperties>
                     <name>column3Fields</name>
-                    <value>TotalBillableHours,TotalNonBillableHours,TotalAbsenceHours,TotalHours,VacationsTaken</value>
+                    <value>TotalBillableHours,TotalNonBillableHours,ThisYearAbsenceHours,TotalHours,VacationsTaken</value>
                 </componentInstanceProperties>
                 <componentInstanceProperties>
                     <name>showNullFields</name>

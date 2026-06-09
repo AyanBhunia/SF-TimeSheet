@@ -2,6 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Hours_Limit_Exceeded__c</fullName>
     <defaultValue>false</defaultValue>
+    <deprecated>false</deprecated>
     <label>Hours Limit Exceeded</label>
     <trackHistory>true</trackHistory>
     <trackTrending>false</trackTrending>
