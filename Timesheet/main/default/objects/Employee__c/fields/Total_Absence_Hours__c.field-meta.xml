@@ -2,6 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Total_Absence_Hours__c</fullName>
     <defaultValue>0</defaultValue>
+    <deprecated>false</deprecated>
     <externalId>false</externalId>
     <label>Total Absence Hours</label>
     <precision>18</precision>

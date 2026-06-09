@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Billable_Hours__c</fullName>
+    <deprecated>false</deprecated>
     <label>Billable Hours</label>
     <summarizedField>Timesheet_Line_Item__c.Duration__c</summarizedField>
     <summaryFilterItems>

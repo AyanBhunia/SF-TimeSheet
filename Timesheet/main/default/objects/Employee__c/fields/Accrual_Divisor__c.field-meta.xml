@@ -2,6 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Accrual_Divisor__c</fullName>
     <defaultValue>9</defaultValue>
+    <deprecated>false</deprecated>
     <externalId>false</externalId>
     <label>Accrual Divisor</label>
     <precision>18</precision>

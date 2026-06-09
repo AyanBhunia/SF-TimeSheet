@@ -2,6 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Client_Manager__c</fullName>
     <deleteConstraint>SetNull</deleteConstraint>
+    <deprecated>false</deprecated>
     <label>Client Manager</label>
     <referenceTo>User</referenceTo>
     <relationshipName>Client_Employees</relationshipName>

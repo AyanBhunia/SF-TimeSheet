@@ -215,7 +215,7 @@
         </scheduledPaths>
         <triggerType>RecordAfterSave</triggerType>
     </start>
-    <status>Obsolete</status>
+    <status>Draft</status>
     <textTemplates>
         <name>SendingEmailtoAdmin</name>
         <isViewedAsPlainText>true</isViewedAsPlainText>

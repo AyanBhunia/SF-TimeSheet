@@ -127,7 +127,7 @@ public with sharing class GetDashboardProfileDetails {
     private static void populateTimesheetSummary(Map<String, Object> resultData, AggregateResult hours) {
         resultData.put('TotalBillableHours', (Decimal) hours.get('TotalBillableHours'));
         resultData.put('TotalNonBillableHours', (Decimal) hours.get('TotalNonBillableHours'));
-        resultData.put('TotalAbsenceHours', (Decimal) hours.get('TotalAbsenceHours'));
+        resultData.put('ThisYearAbsenceHours', (Decimal) hours.get('TotalAbsenceHours'));
         resultData.put('TotalHours', (Decimal) hours.get('TotalHours'));
     }
 }
