@@ -58,16 +58,15 @@ export default class CreateEmployeeTimesheet extends LightningElement {
      */
     initializePDFLibraries() {
         this.jsPDFInitialized = true;
-        try {
-            loadScript(this, JS_PDF)
+        loadScript(this, JS_PDF)
             .then(() => loadScript(this, jsPDFAutoTable))
             .then(() => { this.isLoading = false; })
-        } catch (error) {
-            console.error('Error loading PDF libraries:', error);
-            this.loadError = true;
-            this.isLoading = false;
-            this.showToast('Error', 'Failed to load PDF libraries', 'error');
-        }
+            .catch((error) => {
+                console.error('Error loading PDF libraries:', error);
+                this.loadError = true;
+                this.isLoading = false;
+                this.showToast('Error', 'Failed to load PDF libraries', 'error');
+            });
     }
 
     /**

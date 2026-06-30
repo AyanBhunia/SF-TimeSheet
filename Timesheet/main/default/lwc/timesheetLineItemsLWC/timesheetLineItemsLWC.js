@@ -164,7 +164,7 @@ export default class TimesheetLineItemsLWC extends LightningElement {
   }
 
   handleCancel() {
-    location.reload();
+    refreshApex(this.wiredLineItems);
   }
 
   handleData(data) {

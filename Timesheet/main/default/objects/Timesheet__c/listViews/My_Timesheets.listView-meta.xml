@@ -3,11 +3,11 @@
     <fullName>My_Timesheets</fullName>
     <columns>NAME</columns>
     <columns>Employee__c</columns>
-    <columns>OWNER.ALIAS</columns>
+
     <columns>LAST_UPDATE</columns>
     <columns>UPDATEDBY_USER.ALIAS</columns>
     <columns>Status__c</columns>
     <columns>Weekly_Goal_Completion__c</columns>
-    <filterScope>Mine</filterScope>
+    <filterScope>Everything</filterScope>
     <label>My Timesheets</label>
 </ListView>

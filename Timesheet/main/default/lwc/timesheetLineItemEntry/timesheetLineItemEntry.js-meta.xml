@@ -7,4 +7,9 @@
         <target>lightning__AppPage</target>
         <target>lightning__HomePage</target>
     </targets>
+    <targetConfigs>
+        <targetConfig targets="lightning__RecordPage">
+            <property name="recordId" type="String" />
+        </targetConfig>
+    </targetConfigs>
 </LightningComponentBundle>

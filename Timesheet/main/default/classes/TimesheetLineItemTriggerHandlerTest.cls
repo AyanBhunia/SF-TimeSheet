@@ -171,7 +171,6 @@ public class TimesheetLineItemTriggerHandlerTest {
         timesheet.End_Date__c = System.today()+6;
         timesheet.Name = 'Timesheet for ' + timesheet.Start_Date__c + ' to '+ timesheet.End_Date__c;
         timesheet.Employee__c = employeeId;
-        timesheet.OwnerId = userId;
         return timesheet;
     }
     

@@ -52,10 +52,7 @@
                 <behavior>Required</behavior>
                 <field>Employee__c</field>
             </layoutItems>
-            <layoutItems>
-                <behavior>Edit</behavior>
-                <field>OwnerId</field>
-            </layoutItems>
+
             <layoutItems>
                 <behavior>Required</behavior>
                 <field>End_Date__c</field>

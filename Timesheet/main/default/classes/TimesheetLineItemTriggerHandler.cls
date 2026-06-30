@@ -1,6 +1,14 @@
-public with sharing class TimesheetLineItemTriggerHandler {
+public with sharing class TimesheetLineItemTriggerHandler extends TriggerHandler {
     private static String errorMessage = 'You do not have access, Please contact system admin';
     
+    protected override void beforeInsert() {
+        beforeInsert((List<Timesheet_Line_Item__c>)Trigger.new);
+    }
+
+    protected override void beforeUpdate() {
+        beforeUpdate((List<Timesheet_Line_Item__c>)Trigger.new);
+    }
+
     public static void beforeInsert(List<Timesheet_Line_Item__c> timesheetLineItems){
         checkForDuplicateTimesheetLineItem(timesheetLineItems);
         updateEmployeeId(timesheetLineItems);
@@ -110,7 +118,7 @@ public with sharing class TimesheetLineItemTriggerHandler {
     }
     
     public static void updateBillableField(List<Timesheet_Line_Item__c> timesheetLineItems){
-        System.debug('Entering into updateBillableField method');
+        
         if(Project__c.SObjectType.getDescribe().isAccessible() 
             && Schema.SObjectType.Project__c.fields.Id.isAccessible() 
             && Schema.SObjectType.Project__c.fields.Billable__c.isAccessible()
@@ -140,7 +148,7 @@ public with sharing class TimesheetLineItemTriggerHandler {
     }
 
     private static void assignBillableField(List<Timesheet_Line_Item__c> timesheetLineItems){
-        System.debug('Entering into assignBillableField method');
+        
         List<Timesheet_Line_Item__c> newTimesheetLineItems = new List<Timesheet_Line_Item__c>();
         Set<Id> projectIds = new Set<Id>();
         for(Timesheet_Line_Item__c timesheetLineItem : timesheetLineItems){

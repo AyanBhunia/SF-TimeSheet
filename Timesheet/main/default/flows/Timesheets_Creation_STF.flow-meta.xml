@@ -44,13 +44,7 @@
                 <elementReference>Record_Name</elementReference>
             </value>
         </assignmentItems>
-        <assignmentItems>
-            <assignToReference>TimesheetMasterRecord.OwnerId</assignToReference>
-            <operator>Assign</operator>
-            <value>
-                <elementReference>Employee_Loop.User__c</elementReference>
-            </value>
-        </assignmentItems>
+
         <assignmentItems>
             <assignToReference>TimesheetMasterRecord.Manager__c</assignToReference>
             <operator>Assign</operator>

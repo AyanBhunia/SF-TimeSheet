@@ -156,13 +156,14 @@
     <flexiPageRegions>
         <itemInstances>
             <componentInstance>
-                <componentName>testLineItem</componentName>
-                <identifier>dbt_testLineItem</identifier>
+                <componentName>timesheetLineItemEntry</componentName>
+                <identifier>dbt_timesheetLineItemEntry</identifier>
             </componentInstance>
         </itemInstances>
         <name>Facet-ba444d48-5339-40e9-8dd8-d374f3827106</name>
         <type>Facet</type>
     </flexiPageRegions>
+
     <flexiPageRegions>
         <itemInstances>
             <componentInstance>
@@ -214,6 +215,7 @@
                 <identifier>flexipage_tab3</identifier>
             </componentInstance>
         </itemInstances>
+
         <mode>Replace</mode>
         <name>maintabs</name>
         <type>Facet</type>

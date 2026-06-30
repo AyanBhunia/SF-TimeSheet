@@ -10,7 +10,7 @@ import { getChartData } from 'c/dashboardSharedData';
 import USER_ID from '@salesforce/user/Id';
 
 // LMS imports for handling user selection
-import { subscribe, MessageContext } from 'lightning/messageService';
+import { subscribe, unsubscribe, MessageContext } from 'lightning/messageService';
 import SELECTED_USER_CHANNEL from '@salesforce/messageChannel/UserChannel__c';
 
 export default class dashboardPieChart extends LightningElement {
@@ -79,6 +79,16 @@ export default class dashboardPieChart extends LightningElement {
      */
     connectedCallback() {
         this.subscribeToMessageChannel();
+    }
+
+    /**
+     * @description Lifecycle hook when component is removed from DOM
+     */
+    disconnectedCallback() {
+        if (this.subscription) {
+            unsubscribe(this.subscription);
+            this.subscription = null;
+        }
     }
 
     /**

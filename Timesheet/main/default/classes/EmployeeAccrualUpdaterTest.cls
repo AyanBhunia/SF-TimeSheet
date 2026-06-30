@@ -54,7 +54,7 @@ private class EmployeeAccrualUpdaterTest {
             ts = [SELECT Id, Accrued_Hours__c FROM dbt__Timesheet__c WHERE Id = :ts.Id];
             
             Test.startTest();
-            EmployeeAccrualUpdater.EmployeeAccrualUpdater();
+            EmployeeAccrualUpdater.updateEmployeeAccruals();
             Test.stopTest();
             
             dbt__Employee__c res = [SELECT Total_Accrued_Hours__c FROM dbt__Employee__c WHERE Id = :emp.Id];

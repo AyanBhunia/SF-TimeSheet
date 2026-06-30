@@ -1,4 +1,18 @@
-public with sharing class EmployeeTriggerHandler {
+public with sharing class EmployeeTriggerHandler extends TriggerHandler {
+
+    protected override void beforeInsert() {
+        checkUserDuplicationForEmployeeBeforeInsert((List<Employee__c>)Trigger.new);
+        populateEmployeeFields((List<Employee__c>)Trigger.new);
+        populateEmployeeName((List<Employee__c>)Trigger.new);
+        populateClientManager((List<Employee__c>)Trigger.new);
+    }
+
+    protected override void beforeUpdate() {
+        checkUserDuplicationForEmployeeBeforeUpdate((List<Employee__c>)Trigger.new);
+        populateEmployeeFields((List<Employee__c>)Trigger.new);
+        populateEmployeeName((List<Employee__c>)Trigger.new);
+        populateClientManager((List<Employee__c>)Trigger.new);
+    }
 
     public static void populateClientManager(List<Employee__c> newList) {
         Set<Id> managerIds = new Set<Id>();
