@@ -1,83 +1,79 @@
 public with sharing class WeeklyTimesheetController {
 
-
-    @AuraEnabled(cacheable=true)
+     @AuraEnabled(cacheable=true)
     public static Timesheet__c getTimesheet(Id timesheetId){
         System.debug('begin getTimesheet: '+timesheetId);
-        Timesheet__c timesheet = [SELECT Id,
-                Name,
-                Employee__c,
-                Start_Date__c,
-                End_Date__c
-                FROM Timesheet__c
+        Timesheet__c timesheet = [select Id,
+                name,
+                Employee__c, 
+                Start_Date__c, 
+                End_Date__c 
+                from Timesheet__c 
                 WHERE Id = :timesheetId
                 WITH SECURITY_ENFORCED];
+
+
         System.debug('after getTimesheet: '+timesheet);
         return timesheet;
     }
 
-
     @AuraEnabled(cacheable=true)
     public static List<Timesheet__c> getEmployeeTimesheetItems(String empId, String recordId){
         System.debug('begin getEmployeeTimesheetItems: '+empId);
-        List<Timesheet__c> emp = [SELECT Id,
+        List<Timesheet__c> emp = [select Id,
                 Name,
-                Employee__c,
-                Start_Date__c,
-                End_Date__c
-                FROM Timesheet__c
+                Employee__c, 
+                Start_Date__c, 
+                End_Date__c 
+                from Timesheet__c 
                 WHERE Employee__c = :empId
-                AND Id != :recordId
+                and id != :recordId
                 WITH SECURITY_ENFORCED
                 ORDER BY Start_Date__c DESC
-                LIMIT 10];
+                LIMIT 10
+                ];
+
         System.debug('after getEmployeeTimesheetItems: '+emp);
         return emp;
     }
-   
+    
     @AuraEnabled(cacheable=true)
-    public static List<Project_Employee__c> getProjects(String empId, String existingProjectIds){
+    public static List<Project_Employee__c> getProjects(String empId){
         System.debug('begin getProjects: '+empId);
-       
-        List<String> existingIds = new List<String>();
-        if(existingProjectIds != null && existingProjectIds != ''){
-            existingIds = existingProjectIds.split(',');
-        }
-       
         List<Project_Employee__c> projects = [SELECT Id,
-                Name,
-                Project__c,
-                Project__r.Name,
-                Project__r.Billable__c,
-                Project__r.Active__c,        
+                Name, 
+                Project__c, 
+                Project__r.Name, 
                 Employee__c,
-                Hourly_Rate__c
-                FROM Project_Employee__c
+                Hourly_Rate__c,
+                Project__r.Billable__c
+                FROM Project_Employee__c 
                 WHERE Employee__c = :empId
-                AND (Project__r.Active__c = true OR Project__c IN :existingIds)
                 WITH SECURITY_ENFORCED];
-       
-        System.debug('after getProjects: '+projects);
-        return projects;
+        
+                System.debug('after getProjects: '+projects);
+                return projects;
     }
-
 
     @AuraEnabled(cacheable=true)
     public static List<Project_Activity__c> getProjectActivities(List<Id> projectIds){
-        List<Project_Activity__c> activities = [SELECT Id,
-                Name,
-                Project__c
-                FROM Project_Activity__c
+        // system.debug('begin getProjectActivities: '+projectIds);
+        List<Project_Activity__c> activities = [SELECT id,
+                name,
+                Project__c 
+                FROM Project_Activity__c 
                 WHERE Project__c IN :projectIds
                 WITH SECURITY_ENFORCED];
-        return activities;
+        // system.debug('after getProjectActivities: '+activities);
+
+                return activities;
     }
-   
+    
     @AuraEnabled
     public static List<Timesheet_Line_Item__c> getWeeklyTimesheetItems(Id timesheetId){
         System.debug('begin getWeeklyTimesheetItems: '+timesheetId);
         List<Timesheet_Line_Item__c> week = [SELECT Id,
-                Type__c,
+                Type__c, 
                 Timesheet__c,
                 Date__c,
                 Project__c,
@@ -90,21 +86,24 @@ public with sharing class WeeklyTimesheetController {
                 WHERE Timesheet__c = :timesheetId
                 WITH SECURITY_ENFORCED
                 ORDER BY Date__c ASC];
+
         System.debug('after getWeeklyTimesheetItems: '+week);
         return week;
     }
-   
+    
     @AuraEnabled
     public static String upsertLineItems(List<Timesheet_Line_Item__c> lineItems) {
         System.debug('begin upsertLineItems: '+lineItems);
-       
+        
         if(lineItems == null || lineItems.isEmpty()){
             return 'Error: No Timesheet Line Items provided.';
         }
-       
+        
         String result = 'Success';
+
         try {
-            SObjectAccessDecision decision = Security.stripInaccessible(
+            SObjectAccessDecision decision =
+            Security.stripInaccessible(
                 AccessType.CREATABLE,
                 lineItems,
                 true
@@ -254,11 +253,9 @@ public with sharing class WeeklyTimesheetController {
     public static String deleteTimesheetLineItems(List<Timesheet_Line_Item__c> lineItemIds) {
         System.debug('begin deleteTimesheetLineItems: '+lineItemIds);
 
-
         if(lineItemIds == null || lineItemIds.isEmpty()){
             return 'Error: No Timesheet Line Items provided.';
         }
-
 
         try {
             // The weekly grid deletes rows it shows with 0 hours; never delete a row with a running timer.
@@ -281,4 +278,5 @@ public with sharing class WeeklyTimesheetController {
         System.debug('after deleteTimesheetLineItems');
         return 'Success';
     }
+
 }
