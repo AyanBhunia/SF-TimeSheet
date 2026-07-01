@@ -14,10 +14,10 @@ padding: 1rem;
 
 /* Make the table fill the available width and fix column sizing */
 :host .slds-table {
-width: 100%;
-table-layout: fixed; /* Ensures columns remain equal widths */
-border-collapse: separate;
-border-spacing: 0;
+    width: 100%;
+    table-layout: fixed; /* Ensures columns remain equal widths */
+    border-collapse: separate;
+    border-spacing: 0;
 }
 
 :host .slds-table thead th {
@@ -54,11 +54,13 @@ width: 10%; /* Action column */
 
 /* Table cell styling */
 :host .slds-table tbody td {
-background-color: #ffffff;
-padding: 0.75rem;
-vertical-align: middle;
-text-align: center; /* Center-align table cells by default */
+    background-color: #ffffff;
+    padding: 0.75rem;
+    vertical-align: middle;
+    text-align: center; /* Center-align table cells by default */
 }
+
+
 
 /* Subtle row striping (optional) */
 :host .slds-table tbody tr:nth-child(even) td {
@@ -134,4 +136,51 @@ background-color: #f7fafc;
     z-index: 2;
     /* 3px is 50% wider than the 2px lines below */
     border-bottom: 3px solid white !important;
+}
+
+/* Note Button Styles */
+.note-button {
+    background: transparent;
+    border: 1px solid #d8dde6;
+    border-radius: 4px;
+    color: #0176d3; /* Standard link/brand color */
+    cursor: pointer;
+    font-size: 0.8125rem;
+    padding: 2px 8px;
+    transition: all 0.2s ease;
+    width: 100%;
+    margin-top: 4px;
+}
+
+.note-button:hover:not(:disabled) {
+    background-color: #f3f2f2;
+}
+
+.note-button:disabled {
+    color: #c9c7c5;
+    border-color: #e5e5e5;
+    cursor: not-allowed;
+    background-color: #f9f9f9;
+}
+
+.note-has-text {
+    color: #2e844a; /* Green success color */
+    font-weight: 600;
+    border-color: #2e844a;
+}
+
+.note-has-text:disabled {
+    color: #c9c7c5;
+    border-color: #e5e5e5;
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }

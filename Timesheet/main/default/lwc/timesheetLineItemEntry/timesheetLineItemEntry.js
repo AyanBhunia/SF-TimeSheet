@@ -79,7 +79,7 @@ export default class TimesheetLineItemEntry extends LightningElement {
     projectIds = [];
     
 
-    @track prevTimesheets= [];
+    @track prevTimesheets = [{ label: 'Select a previous Timesheet to copy', value: '' }];
     prevTimesheetValue;
 
     @track projectsTotals = [0, 0, 0, 0, 0, 0, 0];
@@ -99,6 +99,10 @@ export default class TimesheetLineItemEntry extends LightningElement {
 
     hasUnsavedChanges = false;
 
+    @track isNoteModalOpen = false;
+    currentNoteDesc = '';
+    currentNoteContext = null;
+
     dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     dayList=[];
     @track dayHeaders = [];
@@ -115,10 +119,12 @@ export default class TimesheetLineItemEntry extends LightningElement {
     wiredActivityPicklistValues({ error, data }) {
         if (data) {
             // Store the common picklist options
-            this.activityOptions = data.values.map(item => ({
+            this.activityOptions = [
+                { label: 'Select an Activity', value: '' },
+                ...data.values.map(item => ({
                 label: item.label,
                 value: item.value
-            }));
+            }))];
         } else if (error) {
             console.error('Error fetching Activity picklist values:', error);
         }
@@ -131,10 +137,12 @@ export default class TimesheetLineItemEntry extends LightningElement {
     })
     wiredAbsencePicklistValues({ error, data }) {
         if (data) {
-            this.absenceOptions = data.values.map(item => ({
+            this.absenceOptions = [
+                { label: 'Select an Absence Category', value: '' },
+                ...data.values.map(item => ({
                 label: item.label,
                 value: item.value
-            }));
+            }))];
         } else if (error) {
             console.error('Error fetching Absence picklist values:', error);
         }
@@ -267,10 +275,12 @@ export default class TimesheetLineItemEntry extends LightningElement {
     loadPrevTimesheets(){
         getEmployeeTimesheetItems({ empId: this.EmployeeID, recordId: this.recordId})
             .then(result => {
-                this.prevTimesheets = result.map(item => ({
+                this.prevTimesheets = [
+                    { label: 'Select a previous Timesheet to copy', value: '' },
+                    ...result.map(item => ({
                     label: item.Name,
                     value: item.Id
-                }));
+                }))];
             })
             .catch(error => {
                 console.error(error);
@@ -280,7 +290,9 @@ export default class TimesheetLineItemEntry extends LightningElement {
     loadProjects() {
         return getProjects({ empId: this.EmployeeID })
             .then(result => {
-                this.projectOptions = result.map(proj => {
+                this.projectOptions = [
+                    { label: 'Select a Project', value: '' },
+                    ...result.map(proj => {
                     let isActive = true;
                     if (proj.dbt__Project__r) {
                         if (proj.dbt__Project__r.dbt__Active__c !== undefined) {
@@ -296,7 +308,7 @@ export default class TimesheetLineItemEntry extends LightningElement {
                         hourly_rate: proj.dbt__Hourly_Rate__c || 0,
                         active: isActive
                     };
-                });
+                })];
                 this.projectIds = result.map(proj => proj.dbt__Project__c);
             })
             .then(() => {
@@ -329,10 +341,12 @@ export default class TimesheetLineItemEntry extends LightningElement {
 
     // Merge common options with project-specific ones (deduped by value)
     getActivityOptionsForProject(projectId) {
-        const common = Array.isArray(this.activityOptions) ? this.activityOptions : [];
+        const common = Array.isArray(this.activityOptions) ? this.activityOptions.filter(opt => opt.value !== '') : [];
         const specific = (this.ProjectActivityMap && projectId && this.ProjectActivityMap.get(projectId)) || [];
-        // If no project-specific options, just return common
-        if (!specific.length) return common;
+        if (!specific.length) return [
+            { label: 'Select an Activity', value: '' },
+            ...common
+        ];
         // Merge with project-specific first, then common, with de-dup by value
         const seen = new Set();
         const merged = [];
@@ -343,7 +357,10 @@ export default class TimesheetLineItemEntry extends LightningElement {
                 merged.push(opt);
             }
         });
-        return merged;
+        return [
+            { label: 'Select an Activity', value: '' },
+            ...merged
+        ];
     }
 
     processTimesheetData(data,includeId) {
@@ -368,12 +385,13 @@ export default class TimesheetLineItemEntry extends LightningElement {
                 this.previousRecordIDs.add(item.Id);
             }
 
-            // Helper to update the date data
             const updateDate = record => {
                 record.dates[dayIndex].dur = item.dbt__Duration__c || 0;
                 record.dates[dayIndex].desc = item.dbt__Description__c || '';
                 record.dates[dayIndex].id = includeId ? item.Id : null; 
                 record.dates[dayIndex].isdisable = false;
+                record.dates[dayIndex].noteLabel = item.dbt__Description__c ? 'Note ✓' : 'Note +';
+                record.dates[dayIndex].noteClass = item.dbt__Description__c ? 'note-button note-has-text' : 'note-button';
             };
 
             if (item.dbt__Type__c === "Attendance") {
@@ -428,7 +446,9 @@ export default class TimesheetLineItemEntry extends LightningElement {
                 date: this.dayList[index],
                 name,
                 dur: 0,
-                desc: ""
+                desc: "",
+                noteLabel: "Note +",
+                noteClass: "note-button"
             };
         });
 
@@ -440,7 +460,7 @@ export default class TimesheetLineItemEntry extends LightningElement {
                 billable: "",
                 hourlyRate: 0,
                 // Default to common options; per-row options update when project changes
-                activityOptions: Array.isArray(this.activityOptions) ? this.activityOptions : [],
+                activityOptions: Array.isArray(this.activityOptions) && this.activityOptions.length > 0 ? this.activityOptions : [{ label: 'Select an Activity', value: '' }],
                 dates
             };
         } else {
@@ -577,20 +597,40 @@ export default class TimesheetLineItemEntry extends LightningElement {
         this.hasUnsavedChanges = true;
     }
 
-    handleDescriptionChange(event) {
+    handleNoteClick(event) {
         const rowIndex = parseInt(event.target.dataset.rowIndex);
         const dayIndex = parseInt(event.target.dataset.dayIndex);
-        const newValue = event.target.value;
         const dataFor = event.target.getAttribute('data-for'); // "project" or "absence"
-        let list;
-        if (dataFor === 'project') {
-            list = this.projectsList;
-        } else if (dataFor === 'absence') {
-            list = this.absenceList;
-        }
         
-        list[rowIndex].dates[dayIndex].desc = newValue;
+        let list = dataFor === 'project' ? this.projectsList : this.absenceList;
+        this.currentNoteDesc = list[rowIndex].dates[dayIndex].desc || '';
+        
+        this.currentNoteContext = { rowIndex, dayIndex, dataFor };
+        this.isNoteModalOpen = true;
+    }
+
+    handleModalDescriptionChange(event) {
+        this.currentNoteDesc = event.target.value;
+    }
+
+    closeNoteModal() {
+        this.isNoteModalOpen = false;
+        this.currentNoteContext = null;
+    }
+
+    saveNoteModal() {
+        if (!this.currentNoteContext) return;
+        
+        const { rowIndex, dayIndex, dataFor } = this.currentNoteContext;
+        let list = dataFor === 'project' ? this.projectsList : this.absenceList;
+        
+        list[rowIndex].dates[dayIndex].desc = this.currentNoteDesc;
+        list[rowIndex].dates[dayIndex].noteLabel = this.currentNoteDesc ? 'Note ✓' : 'Note +';
+        list[rowIndex].dates[dayIndex].noteClass = this.currentNoteDesc ? 'note-button note-has-text' : 'note-button';
+        
         this.hasUnsavedChanges = true;
+        this.isNoteModalOpen = false;
+        this.currentNoteContext = null;
     }
 
     handleDeleteRow(event) {
@@ -674,7 +714,7 @@ export default class TimesheetLineItemEntry extends LightningElement {
         let errorMessages = new Set();
 
         // Clear previous validities
-        this.template.querySelectorAll('lightning-input, lightning-combobox').forEach(input => {
+        this.template.querySelectorAll('lightning-input, lightning-select').forEach(input => {
             input.setCustomValidity('');
             input.reportValidity();
         });
@@ -687,7 +727,7 @@ export default class TimesheetLineItemEntry extends LightningElement {
                     if (selectedProject && selectedProject.active === false) {
                         hasError = true;
                         errorMessages.add(`The project ${selectedProject.label} is inactive, not able to save the record.`);
-                        let combo = this.template.querySelector(`lightning-combobox[data-row-index="${rowIndex}"][name="projectName"]`);
+                        let combo = this.template.querySelector(`lightning-select[data-row-index="${rowIndex}"][name="projectName"]`);
                         if (combo) {
                             combo.setCustomValidity(`The project ${selectedProject.label} is inactive, not able to save the record.`);
                             combo.reportValidity();
@@ -710,7 +750,7 @@ export default class TimesheetLineItemEntry extends LightningElement {
                             hasError = true;
                             if (!project.projectName) {
                                 errorMessages.add("Project name cannot be blank");
-                                let combo = this.template.querySelector(`lightning-combobox[data-row-index="${rowIndex}"][name="projectName"]`);
+                                let combo = this.template.querySelector(`lightning-select[data-row-index="${rowIndex}"][name="projectName"]`);
                                 if (combo) {
                                     combo.setCustomValidity("Project name cannot be blank");
                                     combo.reportValidity();
@@ -718,7 +758,7 @@ export default class TimesheetLineItemEntry extends LightningElement {
                             }
                             if (!project.activityName) {
                                 errorMessages.add("Activity name cannot be blank");
-                                let combo = this.template.querySelector(`lightning-combobox[data-row-index="${rowIndex}"][name="activityName"]`);
+                                let combo = this.template.querySelector(`lightning-select[data-row-index="${rowIndex}"][name="activityName"]`);
                                 if (combo) {
                                     combo.setCustomValidity("Activity name cannot be blank");
                                     combo.reportValidity();
@@ -758,7 +798,7 @@ export default class TimesheetLineItemEntry extends LightningElement {
                         if (!absence.absenceName) {
                             hasError = true;
                             errorMessages.add("Absence name cannot be blank");
-                            let combo = this.template.querySelector(`lightning-combobox[data-row-index="${rowIndex}"][name="absenceName"]`);
+                            let combo = this.template.querySelector(`lightning-select[data-row-index="${rowIndex}"][name="absenceName"]`);
                             if (combo) {
                                 combo.setCustomValidity("Absence name cannot be blank");
                                 combo.reportValidity();
@@ -903,7 +943,7 @@ export default class TimesheetLineItemEntry extends LightningElement {
     handleCancel() {
         this.processTimesheetData(this.wiredTimesheetResult,true);
 
-        this.template.querySelectorAll('lightning-combobox[data-id="prevTimesheet"]').forEach(cb => {
+        this.template.querySelectorAll('lightning-select[data-id="prevTimesheet"]').forEach(cb => {
             cb.value = undefined;
         });
     }
