@@ -75,6 +75,25 @@ background-color: #f7fafc;
     color: White;
     font-weight: 600;
     text-align: center;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+:host .slds-table tbody tr.slds-theme_shade:hover td {
+    box-shadow: none !important;
+    border: none !important;
+}
+
+/* White lines between the top 4 rows */
+:host .slds-table tbody tr.slds-theme_shade:nth-child(1) td,
+:host .slds-table tbody tr.slds-theme_shade:nth-child(2) td {
+    border-bottom: 2px solid white !important;
+}
+
+/* Ensure hover state doesn't override the white border */
+:host .slds-table tbody tr.slds-theme_shade:nth-child(1):hover td,
+:host .slds-table tbody tr.slds-theme_shade:nth-child(2):hover td {
+    border-bottom: 2px solid white !important;
 }
 
 :host td.slds-theme_shade{
@@ -86,11 +105,13 @@ background-color: #f7fafc;
     text-align: center;
 }
 
-/* Style the description text areas (height = 30px, padding = 3px) */
+/* Style the description text areas. 
+   USER: You can manually edit the height and min-width values below to adjust the size of the description box. */
 :host lightning-textarea[title="Description"] .slds-form-element__control textarea {
-height: 30px !important;
-padding: 3px !important;
-resize: none; /* Prevent user from manually resizing if you want it fixed */
+    height: 80px !important;
+    min-width: 180px !important;
+    padding: 0px !important;
+    resize: vertical; /* Allow vertical resizing by user if desired */
 }
 
 /* Spacing for buttons at the bottom */
@@ -109,6 +130,8 @@ resize: none; /* Prevent user from manually resizing if you want it fixed */
 
 .slds-table thead th {
     position: sticky;
-    top: 8.5rem;
-    z-index: 1;
+    top: 0;
+    z-index: 2;
+    /* 3px is 50% wider than the 2px lines below */
+    border-bottom: 3px solid white !important;
 }

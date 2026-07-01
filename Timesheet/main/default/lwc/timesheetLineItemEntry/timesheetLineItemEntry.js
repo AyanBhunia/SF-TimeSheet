@@ -101,6 +101,7 @@ export default class TimesheetLineItemEntry extends LightningElement {
 
     dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     dayList=[];
+    @track dayHeaders = [];
 
     // Get object info to retrieve recordTypeId
     @wire(getObjectInfo, { objectApiName: TIMESHEET_LINE_ITEM_OBJECT })
@@ -256,6 +257,11 @@ export default class TimesheetLineItemEntry extends LightningElement {
             const temp = new Date(startDateObj.getFullYear(), startDateObj.getMonth(), startDateObj.getDate() + i);
             return this.formatDateYMD(temp);
         });
+
+        this.dayHeaders = this.dayNames.map((name, i) => ({
+            name: name,
+            date: this.dayList[i]
+        }));
     }
 
     loadPrevTimesheets(){
@@ -274,13 +280,23 @@ export default class TimesheetLineItemEntry extends LightningElement {
     loadProjects() {
         return getProjects({ empId: this.EmployeeID })
             .then(result => {
-                this.projectOptions = result.map(proj => ({
-                    label: proj.dbt__Project__r.Name,
-                    value: proj.dbt__Project__c,
-                    billable: proj.dbt__Project__r?.dbt__Billable__c,
-                    hourly_rate: proj.dbt__Hourly_Rate__c || 0,
-                    active: proj.dbt__Project__r?.dbt__Active__c
-                }));
+                this.projectOptions = result.map(proj => {
+                    let isActive = true;
+                    if (proj.dbt__Project__r) {
+                        if (proj.dbt__Project__r.dbt__Active__c !== undefined) {
+                            isActive = proj.dbt__Project__r.dbt__Active__c;
+                        } else if (proj.dbt__Project__r.Active__c !== undefined) {
+                            isActive = proj.dbt__Project__r.Active__c;
+                        }
+                    }
+                    return {
+                        label: proj.dbt__Project__r.Name,
+                        value: proj.dbt__Project__c,
+                        billable: proj.dbt__Project__r?.dbt__Billable__c,
+                        hourly_rate: proj.dbt__Hourly_Rate__c || 0,
+                        active: isActive
+                    };
+                });
                 this.projectIds = result.map(proj => proj.dbt__Project__c);
             })
             .then(() => {
@@ -670,10 +686,10 @@ export default class TimesheetLineItemEntry extends LightningElement {
                     const selectedProject = this.projectOptions.find(option => option.value === project.projectName);
                     if (selectedProject && selectedProject.active === false) {
                         hasError = true;
-                        errorMessages.add(`Selected Project: ${selectedProject.label} is inactive`);
+                        errorMessages.add(`The project ${selectedProject.label} is inactive, not able to save the record.`);
                         let combo = this.template.querySelector(`lightning-combobox[data-row-index="${rowIndex}"][name="projectName"]`);
                         if (combo) {
-                            combo.setCustomValidity(`Selected Project: ${selectedProject.label} is inactive`);
+                            combo.setCustomValidity(`The project ${selectedProject.label} is inactive, not able to save the record.`);
                             combo.reportValidity();
                         }
                     }
@@ -681,6 +697,15 @@ export default class TimesheetLineItemEntry extends LightningElement {
                 
                 project.dates.forEach((day, dayIndex) => {
                     if (parseFloat(day.dur) > 0) {
+                        if (day.desc && day.desc.length > 255) {
+                            hasError = true;
+                            errorMessages.add(`Description is too long on ${this.dayNames[dayIndex]} (max 255 characters).`);
+                            let input = this.template.querySelector(`lightning-textarea[data-for="project"][data-row-index="${rowIndex}"][data-day-index="${dayIndex}"]`);
+                            if (input) {
+                                input.setCustomValidity("Description is too long (max 255 characters).");
+                                input.reportValidity();
+                            }
+                        }
                         if (!project.projectName || !project.activityName) {
                             hasError = true;
                             if (!project.projectName) {
@@ -721,6 +746,15 @@ export default class TimesheetLineItemEntry extends LightningElement {
             this.absenceList.forEach((absence, rowIndex) => {
                 absence.dates.forEach((day, dayIndex) => {
                     if (parseFloat(day.dur) > 0) {
+                        if (day.desc && day.desc.length > 255) {
+                            hasError = true;
+                            errorMessages.add(`Description is too long on ${this.dayNames[dayIndex]} (max 255 characters).`);
+                            let input = this.template.querySelector(`lightning-textarea[data-for="absence"][data-row-index="${rowIndex}"][data-day-index="${dayIndex}"]`);
+                            if (input) {
+                                input.setCustomValidity("Description is too long (max 255 characters).");
+                                input.reportValidity();
+                            }
+                        }
                         if (!absence.absenceName) {
                             hasError = true;
                             errorMessages.add("Absence name cannot be blank");
@@ -776,7 +810,9 @@ export default class TimesheetLineItemEntry extends LightningElement {
             deleteList = [...this.previousRecordIDs].filter(id => !currentRecordIDs.has(id));
 
         } catch (error) {
-            this.showToast('Error', error.message || error, 'error', 'sticky');
+            let errorMsg = error.message || String(error);
+            errorMsg = errorMsg.replace(/.*first error:\s*[A-Z_]+,\s*/g, '').replace(/\[.*\]/g, '');
+            this.showToast('Error', errorMsg, 'error', 'sticky');
             return;
         }
 
@@ -799,7 +835,14 @@ export default class TimesheetLineItemEntry extends LightningElement {
                 });
             })
             .catch(e => {
-                this.showToast('Save Error', e.message, 'error', 'sticky');
+                let errorMsg = e.message || String(e);
+                errorMsg = errorMsg.replace(/.*first error:\s*[A-Z_]+,\s*/g, '').replace(/\[.*\]/g, '');
+                
+                if (errorMsg.includes('FIELD_FILTER_VALIDATION_EXCEPTION')) {
+                    errorMsg = 'A selected project is inactive, not able to save the record.';
+                }
+
+                this.showToast('Save Error', errorMsg, 'error', 'sticky');
             })
         );
         
