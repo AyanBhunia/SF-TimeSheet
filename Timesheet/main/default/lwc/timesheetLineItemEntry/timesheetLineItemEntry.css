@@ -184,3 +184,22 @@ background-color: #f7fafc;
         transform: translateY(0);
     }
 }
+
+/* Custom Error Styling */
+:host .custom-error {
+    --slds-c-input-color-border: #ea001e;
+    --slds-c-input-color-border-focus: #ea001e;
+    --sds-c-input-color-border: #ea001e;
+}
+
+:host button.custom-error {
+    border: 2px solid #ea001e !important;
+    border-radius: 4px;
+    padding: 1px;
+}
+
+:host .custom-error-wrapper {
+    border: 2px solid #ea001e !important;
+    border-radius: 4px;
+    padding: 2px;
+}

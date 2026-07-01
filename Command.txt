@@ -20,3 +20,6 @@ sfdx force:user:permset:assign -n Timesheet_HR_Admin -u testorg
 
 # To delete scratch org run this
 sf org delete scratch --target-org testorg --no-prompt
+
+# To deploy only current changes to scratch org:
+.\Deploy-Delta.ps1

@@ -714,6 +714,12 @@ export default class TimesheetLineItemEntry extends LightningElement {
         let errorMessages = new Set();
 
         // Clear previous validities
+        this.template.querySelectorAll('.custom-error').forEach(el => {
+            el.classList.remove('custom-error');
+        });
+        this.template.querySelectorAll('.custom-error-wrapper').forEach(el => {
+            el.classList.remove('custom-error-wrapper');
+        });
         this.template.querySelectorAll('lightning-input, lightning-select').forEach(input => {
             input.setCustomValidity('');
             input.reportValidity();
@@ -727,10 +733,9 @@ export default class TimesheetLineItemEntry extends LightningElement {
                     if (selectedProject && selectedProject.active === false) {
                         hasError = true;
                         errorMessages.add(`The project ${selectedProject.label} is inactive, not able to save the record.`);
-                        let combo = this.template.querySelector(`lightning-select[data-row-index="${rowIndex}"][name="projectName"]`);
-                        if (combo) {
-                            combo.setCustomValidity(`The project ${selectedProject.label} is inactive, not able to save the record.`);
-                            combo.reportValidity();
+                        let comboWrapper = this.template.querySelector(`div[data-wrapper="projectName"][data-row-index="${rowIndex}"]`);
+                        if (comboWrapper) {
+                            comboWrapper.classList.add('custom-error-wrapper');
                         }
                     }
                 }
@@ -740,28 +745,25 @@ export default class TimesheetLineItemEntry extends LightningElement {
                         if (day.desc && day.desc.length > 255) {
                             hasError = true;
                             errorMessages.add(`Description is too long on ${this.dayNames[dayIndex]} (max 255 characters).`);
-                            let input = this.template.querySelector(`lightning-textarea[data-for="project"][data-row-index="${rowIndex}"][data-day-index="${dayIndex}"]`);
+                            let input = this.template.querySelector(`button[data-for="project"][data-row-index="${rowIndex}"][data-day-index="${dayIndex}"]`);
                             if (input) {
-                                input.setCustomValidity("Description is too long (max 255 characters).");
-                                input.reportValidity();
+                                input.classList.add('custom-error');
                             }
                         }
                         if (!project.projectName || !project.activityName) {
                             hasError = true;
                             if (!project.projectName) {
                                 errorMessages.add("Project name cannot be blank");
-                                let combo = this.template.querySelector(`lightning-select[data-row-index="${rowIndex}"][name="projectName"]`);
-                                if (combo) {
-                                    combo.setCustomValidity("Project name cannot be blank");
-                                    combo.reportValidity();
+                                let comboWrapper = this.template.querySelector(`div[data-wrapper="projectName"][data-row-index="${rowIndex}"]`);
+                                if (comboWrapper) {
+                                    comboWrapper.classList.add('custom-error-wrapper');
                                 }
                             }
                             if (!project.activityName) {
                                 errorMessages.add("Activity name cannot be blank");
-                                let combo = this.template.querySelector(`lightning-select[data-row-index="${rowIndex}"][name="activityName"]`);
-                                if (combo) {
-                                    combo.setCustomValidity("Activity name cannot be blank");
-                                    combo.reportValidity();
+                                let comboWrapper = this.template.querySelector(`div[data-wrapper="activityName"][data-row-index="${rowIndex}"]`);
+                                if (comboWrapper) {
+                                    comboWrapper.classList.add('custom-error-wrapper');
                                 }
                             }
                         }
@@ -789,19 +791,17 @@ export default class TimesheetLineItemEntry extends LightningElement {
                         if (day.desc && day.desc.length > 255) {
                             hasError = true;
                             errorMessages.add(`Description is too long on ${this.dayNames[dayIndex]} (max 255 characters).`);
-                            let input = this.template.querySelector(`lightning-textarea[data-for="absence"][data-row-index="${rowIndex}"][data-day-index="${dayIndex}"]`);
+                            let input = this.template.querySelector(`button[data-for="absence"][data-row-index="${rowIndex}"][data-day-index="${dayIndex}"]`);
                             if (input) {
-                                input.setCustomValidity("Description is too long (max 255 characters).");
-                                input.reportValidity();
+                                input.classList.add('custom-error');
                             }
                         }
                         if (!absence.absenceName) {
                             hasError = true;
                             errorMessages.add("Absence name cannot be blank");
-                            let combo = this.template.querySelector(`lightning-select[data-row-index="${rowIndex}"][name="absenceName"]`);
-                            if (combo) {
-                                combo.setCustomValidity("Absence name cannot be blank");
-                                combo.reportValidity();
+                            let comboWrapper = this.template.querySelector(`div[data-wrapper="absenceName"][data-row-index="${rowIndex}"]`);
+                            if (comboWrapper) {
+                                comboWrapper.classList.add('custom-error-wrapper');
                             }
                         }
                         if (parseFloat(day.dur) > 8) {
@@ -809,8 +809,7 @@ export default class TimesheetLineItemEntry extends LightningElement {
                             errorMessages.add("Duration cannot be greater than 8 for Absence.");
                             let input = this.template.querySelector(`lightning-input[data-for="absence"][data-row-index="${rowIndex}"][data-day-index="${dayIndex}"]`);
                             if (input) {
-                                input.setCustomValidity("Duration cannot be greater than 8 for Absence.");
-                                input.reportValidity();
+                                input.classList.add('custom-error');
                             }
                         }
                         if (day.id) currentRecordIDs.add(day.id);
@@ -833,17 +832,16 @@ export default class TimesheetLineItemEntry extends LightningElement {
             this.grandTotals.forEach((total, dayIndex) => {
                 if (total > 24) {
                     hasError = true;
-                    errorMessages.add("Duration entered for the date has exceeded 24 hours");
+                    errorMessages.add(`Duration entered for ${this.dayNames[dayIndex]} has exceeded 24 hours`);
                     this.template.querySelectorAll(`lightning-input[data-day-index="${dayIndex}"]`).forEach(input => {
-                        input.setCustomValidity("Duration entered for the date has exceeded 24 hours");
-                        input.reportValidity();
+                        input.classList.add('custom-error');
                     });
                 }
             });
 
             if (hasError) {
                 let msg = Array.from(errorMessages).join('\n');
-                this.showToast('Validation Error', msg, 'error', 'sticky');
+                this.showToast('Validation Error', msg, 'error', 'dismissable');
                 return;
             }
 
@@ -852,7 +850,7 @@ export default class TimesheetLineItemEntry extends LightningElement {
         } catch (error) {
             let errorMsg = error.message || String(error);
             errorMsg = errorMsg.replace(/.*first error:\s*[A-Z_]+,\s*/g, '').replace(/\[.*\]/g, '');
-            this.showToast('Error', errorMsg, 'error', 'sticky');
+            this.showToast('Error', errorMsg, 'error', 'dismissable');
             return;
         }
 
@@ -882,7 +880,7 @@ export default class TimesheetLineItemEntry extends LightningElement {
                     errorMsg = 'A selected project is inactive, not able to save the record.';
                 }
 
-                this.showToast('Save Error', errorMsg, 'error', 'sticky');
+                this.showToast('Save Error', errorMsg, 'error', 'dismissable');
             })
         );
         
@@ -941,6 +939,14 @@ export default class TimesheetLineItemEntry extends LightningElement {
     }
 
     handleCancel() {
+        // Clear any validation highlights
+        this.template.querySelectorAll('.custom-error').forEach(el => {
+            el.classList.remove('custom-error');
+        });
+        this.template.querySelectorAll('.custom-error-wrapper').forEach(el => {
+            el.classList.remove('custom-error-wrapper');
+        });
+
         this.processTimesheetData(this.wiredTimesheetResult,true);
 
         this.template.querySelectorAll('lightning-select[data-id="prevTimesheet"]').forEach(cb => {
