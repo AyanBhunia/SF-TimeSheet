@@ -102,6 +102,8 @@ export default class TimesheetLineItemEntry extends LightningElement {
     @track isNoteModalOpen = false;
     currentNoteDesc = '';
     currentNoteContext = null;
+    @track addProjectClass = '';
+    @track addAbsenceClass = '';
 
     dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     dayList=[];
@@ -464,13 +466,15 @@ export default class TimesheetLineItemEntry extends LightningElement {
                 hourlyRate: 0,
                 // Default to common options; per-row options update when project changes
                 activityOptions: Array.isArray(this.activityOptions) && this.activityOptions.length > 0 ? this.activityOptions : [{ label: 'Select an Activity', value: '' }],
-                dates
+                dates,
+                deleteClass: ''
             };
         } else {
             return {
                 type: "Absence",
                 absenceName: "",
-                dates
+                dates,
+                deleteClass: ''
             };
         }
     }
@@ -674,11 +678,19 @@ export default class TimesheetLineItemEntry extends LightningElement {
     }
 
     handleDeleteRow(event) {
-        const rowIndex = parseInt(event.target.dataset.rowIndex);
-        const type = event.target.dataset.type;
+        const rowIndex = parseInt(event.currentTarget.dataset.rowIndex);
+        const type = event.currentTarget.dataset.type;
 
-        try {
-            if (type === 'project' && this.projectsList.length>0) {
+        if (type === 'project') {
+            this.projectsList[rowIndex].deleteClass = 'animate-shake';
+        } else if (type === 'absence') {
+            this.absenceList[rowIndex].deleteClass = 'animate-shake';
+        }
+
+        // Delay the deletion slightly to allow animation to complete
+        setTimeout(() => {
+            try {
+                if (type === 'project' && this.projectsList.length>0) {
                 // Remove row from projectsList
                 this.projectsList = this.projectsList.filter((row, index) => index !== rowIndex);
                 
@@ -699,9 +711,10 @@ export default class TimesheetLineItemEntry extends LightningElement {
             console.error('Error deleting row:', error);
         }
 
-        // calculate totals
-        this.calculateTotals();
-        this.hasUnsavedChanges = true;
+            // calculate totals
+            this.calculateTotals();
+            this.hasUnsavedChanges = true;
+        }, 400); // Wait for animation
     }
 
     handleAbsenceChange(event) {
@@ -734,13 +747,23 @@ export default class TimesheetLineItemEntry extends LightningElement {
         this.hasUnsavedChanges = true;
     }
 
-    addNewProject() {
+    addNewProject(event) {
+        this.addProjectClass = 'animate-spin';
+        setTimeout(() => {
+            this.addProjectClass = '';
+        }, 500);
+
         const newProject = this.getBlankData("Attendance");
         this.projectsList.push(newProject);
         this.hasUnsavedChanges = true;
     }
 
-    addNewAbsence() {
+    addNewAbsence(event) {
+        this.addAbsenceClass = 'animate-spin';
+        setTimeout(() => {
+            this.addAbsenceClass = '';
+        }, 500);
+
         const newAbsence = this.getBlankData("Absence");
         this.absenceList.push(newAbsence);
         this.hasUnsavedChanges = true;

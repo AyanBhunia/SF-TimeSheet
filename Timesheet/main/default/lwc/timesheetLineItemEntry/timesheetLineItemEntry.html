@@ -68,7 +68,9 @@
                                 </td>
                             </template>
                             <td class="slds-p-vertical_none">
-                                <lightning-button-icon icon-name="utility:add" alternative-text="Add Project" title="Add Project" variant="border-filled" onclick={addNewProject}></lightning-button-icon>
+                                <div class={addProjectClass} style="display:inline-block;">
+                                    <lightning-button-icon icon-name="utility:add" alternative-text="Add Project" title="Add Project" variant="border-filled" onclick={addNewProject}></lightning-button-icon>
+                                </div>
                             </td>
                         </tr>
 
@@ -109,9 +111,11 @@
                                 </template>
 
                                 <td>
-                                    <lightning-button-icon icon-name="utility:delete" alternative-text="Delete" class="slds-m-left_xx-small"
-                                        variant="border-filled" data-row-index={index} data-type="project" onclick={handleDeleteRow}>
-                                    </lightning-button-icon>
+                                    <div class={row.deleteClass} style="display:inline-block;">
+                                        <lightning-button-icon icon-name="utility:delete" alternative-text="Delete" class="slds-m-left_xx-small"
+                                            variant="border-filled" data-row-index={index} data-type="project" onclick={handleDeleteRow}>
+                                        </lightning-button-icon>
+                                    </div>
                                 </td>
                             </tr>
                         </template>
@@ -125,7 +129,9 @@
                                 </td>
                             </template>
                             <td class="slds-p-vertical_none">
-                                <lightning-button-icon icon-name="utility:add" alternative-text="Add Absence" title="Add Absence" variant="border-filled" onclick={addNewAbsence}></lightning-button-icon>
+                                <div class={addAbsenceClass} style="display:inline-block;">
+                                    <lightning-button-icon icon-name="utility:add" alternative-text="Add Absence" title="Add Absence" variant="border-filled" onclick={addNewAbsence}></lightning-button-icon>
+                                </div>
                             </td>
                         </tr>
 
@@ -158,9 +164,11 @@
                                 </template>
 
                                 <td>
-                                    <lightning-button-icon icon-name="utility:delete" alternative-text="Delete" class="slds-m-left_xx-small"
-                                        variant="border-filled" data-row-index={index} data-type="absence" onclick={handleDeleteRow}>
-                                    </lightning-button-icon>
+                                    <div class={row.deleteClass} style="display:inline-block;">
+                                        <lightning-button-icon icon-name="utility:delete" alternative-text="Delete" class="slds-m-left_xx-small"
+                                            variant="border-filled" data-row-index={index} data-type="absence" onclick={handleDeleteRow}>
+                                        </lightning-button-icon>
+                                    </div>
                                 </td>
                             </tr>
                         </template>

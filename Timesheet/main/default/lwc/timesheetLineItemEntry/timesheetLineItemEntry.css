@@ -221,8 +221,31 @@ background-color: #f7fafc;
 }
 
 :host .duration-empty {
-    --slds-c-input-color-border: hsl(20, 3%, 60%);
-    --sds-c-input-color-border: hsl(20, 3%, 60%);
-    --slds-c-input-text-color: hsl(20, 1%, 50%);
-    --sds-c-input-text-color: hsl(20, 1%, 50%);
+    --slds-c-input-color-border: #d8dde6;
+    --sds-c-input-color-border: #d8dde6;
+    --slds-c-input-text-color: #b0adab;
+    --sds-c-input-text-color: #b0adab;
+}
+
+/* Spin animation */
+@keyframes spin-circle {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+:host .animate-spin {
+    animation: spin-circle 0.5s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Shake / Trash Can animation */
+@keyframes shake-trash {
+    0% { transform: rotate(0deg); }
+    25% { transform: rotate(-15deg); }
+    50% { transform: rotate(0deg); }
+    75% { transform: rotate(15deg); }
+    100% { transform: rotate(0deg); }
+}
+
+:host .animate-shake {
+    animation: shake-trash 0.4s ease-in-out !important;
 }
