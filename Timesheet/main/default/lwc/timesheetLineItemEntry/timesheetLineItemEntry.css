@@ -249,3 +249,24 @@ background-color: #f7fafc;
 :host .animate-shake {
     animation: shake-trash 0.4s ease-in-out !important;
 }
+
+/* Magic Scanner Line */
+:host .magic-scanner-line {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -20px;
+    width: 6px;
+    background: linear-gradient(to right, rgba(11, 191, 230, 0) 0%, rgba(11, 191, 230, 1) 50%, rgba(11, 191, 230, 0) 100%);
+    box-shadow: 0 0 15px rgba(11, 191, 230, 0.8), 0 0 30px rgba(11, 191, 230, 0.4);
+    z-index: 9999;
+    pointer-events: none;
+    animation: scanner-sweep 0.7s cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+}
+
+@keyframes scanner-sweep {
+    0% { left: -20px; opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { left: 100%; opacity: 0; }
+}

@@ -19,8 +19,12 @@
                     </div>
                 </div>
 
-                <div class="slds-scrollable_x">
-                    <table class="slds-table slds-table_bordered slds-table_cell-buffer">
+                <div class="slds-is-relative" style="overflow: hidden;">
+                    <template if:true={isRefreshing}>
+                        <div class="magic-scanner-line"></div>
+                    </template>
+                    <div class="slds-scrollable_x">
+                        <table class="slds-table slds-table_bordered slds-table_cell-buffer">
                     <thead>
                         <tr class="slds-line-height_reset date-header-row">
                             <th class="slds-text-title_caps">Date</th>
@@ -175,6 +179,7 @@
 
                     </tbody>
                 </table>
+                </div>
                 </div>
 
                 <div class="slds-grid slds-grid_align-spread slds-p-top_medium">

@@ -104,6 +104,7 @@ export default class TimesheetLineItemEntry extends LightningElement {
     currentNoteContext = null;
     @track addProjectClass = '';
     @track addAbsenceClass = '';
+    @track isRefreshing = false;
 
     dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     dayList=[];
@@ -1010,10 +1011,19 @@ export default class TimesheetLineItemEntry extends LightningElement {
             el.classList.remove('custom-error-wrapper');
         });
 
-        this.processTimesheetData(this.wiredTimesheetResult,true);
+        this.isRefreshing = true;
 
-        this.template.querySelectorAll('lightning-select[data-id="prevTimesheet"]').forEach(cb => {
-            cb.value = undefined;
-        });
+        // Briefly delay data process to allow animation to render
+        setTimeout(() => {
+            this.processTimesheetData(this.wiredTimesheetResult,true);
+            
+            this.template.querySelectorAll('lightning-select[data-id="prevTimesheet"]').forEach(cb => {
+                cb.value = '';
+            });
+            
+            setTimeout(() => {
+                this.isRefreshing = false;
+            }, 800);
+        }, 50);
     }
 }
