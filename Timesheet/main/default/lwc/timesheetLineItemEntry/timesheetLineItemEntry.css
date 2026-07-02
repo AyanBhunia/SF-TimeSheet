@@ -24,14 +24,14 @@ padding: 1rem;
     text-transform: uppercase;
     font-weight: 600;
     color: #ffffff;
-    background-color: #1B5299;
+    background-color: #113c73; /* Darker than #1B5299 */
     text-align: center;
     padding: 0.75rem;
 }
 
 /* Header row styling */
 :host .slds-table thead {
-    --slds-g-color-neutral-base-95: #1B5299;
+    --slds-g-color-neutral-base-95: #113c73;
 }
 
 
@@ -79,6 +79,10 @@ background-color: #f7fafc;
     text-align: center;
     border: none !important;
     box-shadow: none !important;
+}
+
+:host tr.project-absence-header td {
+    background-color: #1f8eae !important; /* Lighter than #1b5299 */
 }
 
 :host .slds-table tbody tr.slds-theme_shade:hover td {
@@ -206,8 +210,8 @@ background-color: #f7fafc;
 }
 
 :host .custom-note-textarea {
-    --slds-c-textarea-sizing-min-height: 150px;
-    --sds-c-textarea-sizing-min-height: 150px;
+    --slds-c-textarea-sizing-min-height: 120px;
+    --sds-c-textarea-sizing-min-height: 120px;
 }
 
 :host .note-has-text {

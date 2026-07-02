@@ -22,7 +22,7 @@
                 <div class="slds-scrollable_x">
                     <table class="slds-table slds-table_bordered slds-table_cell-buffer">
                     <thead>
-                        <tr class="slds-line-height_reset">
+                        <tr class="slds-line-height_reset date-header-row">
                             <th class="slds-text-title_caps">Date</th>
                             <template for:each={dayHeaders} for:item="day">
                                 <th key={day.name} class="slds-text-title_caps slds-text-align_center">
@@ -37,17 +37,6 @@
                     </thead>
                     <tbody>
 
-                        <!-- Section Header for Totals -->
-                        <tr class="slds-theme_shade slds-line-height_reset" style="height: 2rem;">
-                            <td class="slds-text-title_bold slds-p-vertical_none slds-p-horizontal_x-small">Total Hours</td>
-                            <template for:each={grandTotals} for:item="total" for:index="index">
-                                <td key={grandTotals.index} class="slds-text-title_bold slds-text-align_center slds-p-vertical_none">
-                                    {total}
-                                </td>
-                            </template>
-                            <td></td>
-                        </tr>
-
                         <!-- Section Header for Billable Amounts -->
                         <tr class="slds-theme_shade slds-line-height_reset" style="height: 2rem;">
                             <td class="slds-text-title_bold slds-p-vertical_none slds-p-horizontal_x-small">Billable Amount</td>
@@ -59,8 +48,19 @@
                             <td></td>
                         </tr>
 
+                        <!-- Section Header for Totals -->
+                        <tr class="slds-theme_shade slds-line-height_reset" style="height: 2rem;">
+                            <td class="slds-text-title_bold slds-p-vertical_none slds-p-horizontal_x-small">Total Hours</td>
+                            <template for:each={grandTotals} for:item="total" for:index="index">
+                                <td key={grandTotals.index} class="slds-text-title_bold slds-text-align_center slds-p-vertical_none">
+                                    {total}
+                                </td>
+                            </template>
+                            <td></td>
+                        </tr>
+
                         <!-- Section Header for Projects -->
-                        <tr class="slds-theme_shade slds-line-height_reset" style="height: 3rem;">
+                        <tr class="slds-theme_shade project-absence-header" style="height: 3rem;">
                             <td class="slds-text-title_bold slds-p-vertical_none slds-p-horizontal_x-small">Projects Hours</td>
                             <template for:each={projectsTotals} for:item="total" for:index="index">
                                 <td key={projectsTotals.index} class="slds-text-title_bold slds-text-align_center slds-p-vertical_none">
@@ -117,7 +117,7 @@
                         </template>
 
                         <!-- Section Header for Absence -->
-                        <tr class="slds-theme_shade slds-line-height_reset" style="height: 3rem;">
+                        <tr class="slds-theme_shade project-absence-header" style="height: 3rem;">
                             <td class="slds-text-title_bold slds-p-vertical_none slds-p-horizontal_x-small">Absence Hours</td>
                             <template for:each={absenceTotals} for:item="total" for:index="index">
                                 <td key={absenceTotals.index} class="slds-text-title_bold slds-text-align_center slds-p-vertical_none">
