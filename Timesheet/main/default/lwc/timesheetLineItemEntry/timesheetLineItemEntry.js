@@ -386,11 +386,12 @@ export default class TimesheetLineItemEntry extends LightningElement {
             }
 
             const updateDate = record => {
-                record.dates[dayIndex].dur = item.dbt__Duration__c || 0;
+                let dur = parseFloat(item.dbt__Duration__c) || 0;
+                record.dates[dayIndex].dur = dur;
                 record.dates[dayIndex].desc = item.dbt__Description__c || '';
                 record.dates[dayIndex].id = includeId ? item.Id : null; 
-                record.dates[dayIndex].isdisable = false;
-                record.dates[dayIndex].noteLabel = item.dbt__Description__c ? 'Note ✓' : 'Note +';
+                record.dates[dayIndex].isdisable = (dur === 0);
+                record.dates[dayIndex].noteLabel = item.dbt__Description__c ? 'Note ✓' : (dur === 0 ? 'Note' : 'Note +');
                 record.dates[dayIndex].noteClass = item.dbt__Description__c ? 'note-button note-has-text' : 'note-button';
             };
 
@@ -447,7 +448,7 @@ export default class TimesheetLineItemEntry extends LightningElement {
                 name,
                 dur: 0,
                 desc: "",
-                noteLabel: "Note +",
+                noteLabel: "Note",
                 noteClass: "note-button"
             };
         });
@@ -587,7 +588,10 @@ export default class TimesheetLineItemEntry extends LightningElement {
         }
 
         list[rowIndex].dates[dayIndex].dur = value;
-        list[rowIndex].dates[dayIndex].isdisable = (value === 0);
+        let isdisable = (value === 0);
+        list[rowIndex].dates[dayIndex].isdisable = isdisable;
+        let hasDesc = !!list[rowIndex].dates[dayIndex].desc;
+        list[rowIndex].dates[dayIndex].noteLabel = hasDesc ? 'Note ✓' : (isdisable ? 'Note' : 'Note +');
         
         if (wasTruncated) {
             try {
@@ -595,6 +599,38 @@ export default class TimesheetLineItemEntry extends LightningElement {
             } catch(e) {}
         }
         this.hasUnsavedChanges = true;
+    }
+
+    get characterCount() {
+        return this.currentNoteDesc ? this.currentNoteDesc.length : 0;
+    }
+
+    async handlePasteText() {
+        try {
+            const text = await navigator.clipboard.readText();
+            if (text) {
+                let current = this.currentNoteDesc || '';
+                let newText = current + text;
+                if (newText.length > 255) {
+                    newText = newText.substring(0, 255);
+                    this.showToast('Warning', 'Pasted text was truncated to 255 characters.', 'warning');
+                }
+                this.currentNoteDesc = newText;
+            }
+        } catch (err) {
+            this.showToast('Error', 'Failed to paste text. Clipboard access may be denied.', 'error');
+        }
+    }
+
+    async handleCopyText() {
+        if (this.currentNoteDesc) {
+            try {
+                await navigator.clipboard.writeText(this.currentNoteDesc);
+                this.showToast('Success', 'Text copied to clipboard!', 'success');
+            } catch (err) {
+                this.showToast('Error', 'Failed to copy text.', 'error');
+            }
+        }
     }
 
     handleNoteClick(event) {
@@ -624,8 +660,9 @@ export default class TimesheetLineItemEntry extends LightningElement {
         const { rowIndex, dayIndex, dataFor } = this.currentNoteContext;
         let list = dataFor === 'project' ? this.projectsList : this.absenceList;
         
+        let isdisable = list[rowIndex].dates[dayIndex].isdisable;
         list[rowIndex].dates[dayIndex].desc = this.currentNoteDesc;
-        list[rowIndex].dates[dayIndex].noteLabel = this.currentNoteDesc ? 'Note ✓' : 'Note +';
+        list[rowIndex].dates[dayIndex].noteLabel = this.currentNoteDesc ? 'Note ✓' : (isdisable ? 'Note' : 'Note +');
         list[rowIndex].dates[dayIndex].noteClass = this.currentNoteDesc ? 'note-button note-has-text' : 'note-button';
         
         this.hasUnsavedChanges = true;
