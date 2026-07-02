@@ -219,3 +219,10 @@ background-color: #f7fafc;
     color: #004d40 !important;
     border-color: #80cbc4 !important;
 }
+
+:host .duration-empty {
+    --slds-c-input-color-border: hsl(20, 3%, 60%);
+    --sds-c-input-color-border: hsl(20, 3%, 60%);
+    --slds-c-input-text-color: hsl(20, 1%, 50%);
+    --sds-c-input-text-color: hsl(20, 1%, 50%);
+}

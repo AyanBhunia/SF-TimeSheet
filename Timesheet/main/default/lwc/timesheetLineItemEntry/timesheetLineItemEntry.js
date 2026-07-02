@@ -393,6 +393,7 @@ export default class TimesheetLineItemEntry extends LightningElement {
                 record.dates[dayIndex].isdisable = (dur === 0);
                 record.dates[dayIndex].noteLabel = item.dbt__Description__c ? 'Note ✓' : (dur === 0 ? 'Note' : 'Note +');
                 record.dates[dayIndex].noteClass = item.dbt__Description__c ? 'note-button note-has-text' : 'note-button';
+                record.dates[dayIndex].inputClass = (dur === 0) ? 'duration-empty' : '';
             };
 
             if (item.dbt__Type__c === "Attendance") {
@@ -449,7 +450,8 @@ export default class TimesheetLineItemEntry extends LightningElement {
                 dur: 0,
                 desc: "",
                 noteLabel: "Note",
-                noteClass: "note-button"
+                noteClass: "note-button",
+                inputClass: "duration-empty"
             };
         });
 
@@ -592,6 +594,7 @@ export default class TimesheetLineItemEntry extends LightningElement {
         list[rowIndex].dates[dayIndex].isdisable = isdisable;
         let hasDesc = !!list[rowIndex].dates[dayIndex].desc;
         list[rowIndex].dates[dayIndex].noteLabel = hasDesc ? 'Note ✓' : (isdisable ? 'Note' : 'Note +');
+        list[rowIndex].dates[dayIndex].inputClass = isdisable ? 'duration-empty' : '';
         
         if (wasTruncated) {
             try {
