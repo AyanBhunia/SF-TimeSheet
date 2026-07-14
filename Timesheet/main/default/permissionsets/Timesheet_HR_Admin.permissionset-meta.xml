@@ -16,6 +16,10 @@
         <apexClass>EmployeeTriggerHandler</apexClass>
         <enabled>true</enabled>
     </classAccesses>
+      <classAccesses>
+        <apexClass>TimesheetApprovalController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
     <classAccesses>
         <apexClass>GetDashboardManagerEmployeeDetails</apexClass>
         <enabled>true</enabled>
@@ -627,6 +631,10 @@
     </tabSettings>
     <tabSettings>
         <tab>Timesheet__c</tab>
+        <visibility>Visible</visibility>
+    </tabSettings>
+    <tabSettings>
+        <tab>Timesheet_Approval</tab>
         <visibility>Visible</visibility>
     </tabSettings>
     <userPermissions>

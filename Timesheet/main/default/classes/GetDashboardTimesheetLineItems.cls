@@ -24,7 +24,7 @@ public with sharing class GetDashboardTimesheetLineItems {
                 from 
                     Timesheet_Line_Item__c
                 where 
-                    Employee__c IN (select id from Employee__c where User__c = :userID) 
+                    (Employee__r.User__c = :userID OR Employee__c = :userID)
                     AND 
                     Date__c >= LAST_N_YEARS:5
                 WITH SECURITY_ENFORCED

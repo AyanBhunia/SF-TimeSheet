@@ -47,7 +47,7 @@ export default class dashboardEmployeePicklist extends LightningElement {
                 // Transform employee data into picklist options
                 const employeeOptions = result.map((emp) => ({
                     label: emp.Name,
-                    value: emp.dbt__User__c
+                    value: emp.dbt__User__c || emp.User__c || emp.Id
                 }));
 
                 // Combine current user and employee options

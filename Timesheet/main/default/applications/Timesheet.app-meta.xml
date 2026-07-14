@@ -13,6 +13,7 @@
     <label>Timesheet</label>
     <navType>Standard</navType>
     <tabs>Overview</tabs>
+    <tabs>Timesheet_Approval</tabs>
     <tabs>Timesheet__c</tabs>
     <tabs>PTO</tabs>
     <tabs>Employee__c</tabs>

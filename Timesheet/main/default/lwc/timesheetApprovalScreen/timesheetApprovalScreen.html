@@ -1,0 +1,80 @@
+<template>
+    <lightning-card title="Timesheet Approval" icon-name="standard:timesheet">
+        <div class="slds-m-around_medium">
+            <div class="slds-grid slds-gutters slds-m-bottom_medium slds-align-items-end">
+                <div class="slds-col slds-grow-none" style="min-width: 15rem;">
+                    <lightning-combobox
+                        name="dateRange"
+                        label="Date Range"
+                        value={dateRange}
+                        options={dateRangeOptions}
+                        onchange={handleDateRangeChange}
+                    ></lightning-combobox>
+                </div>
+                <template if:true={isCustomDate}>
+                    <div class="slds-col slds-grow-none" style="min-width: 12rem;">
+                        <lightning-input type="date" name="startDate" label="Start Date" value={customStartDate} onchange={handleCustomDateChange}></lightning-input>
+                    </div>
+                    <div class="slds-col slds-grow-none" style="min-width: 12rem;">
+                        <lightning-input type="date" name="endDate" label="End Date" value={customEndDate} onchange={handleCustomDateChange}></lightning-input>
+                    </div>
+                </template>
+                <div class="slds-col slds-text-align_right slds-grow">
+                    <lightning-button variant="brand" label="Approve Selected" onclick={handleApprove}></lightning-button>
+                </div>
+            </div>
+
+            <!-- Timesheets Datatable -->
+            <lightning-datatable
+                key-field="id"
+                data={timesheets}
+                columns={columns}
+                onrowaction={handleRowAction}
+                onrowselection={handleRowSelection}
+                onsort={handleSort}
+                sorted-by={sortBy}
+                sorted-direction={sortDirection}
+                show-row-number-column
+            ></lightning-datatable>
+
+            <!-- Bottom Summary -->
+            <div class="slds-m-top_large slds-box slds-theme_default">
+                <h2 class="slds-text-heading_small slds-m-bottom_small"><strong>Project Summary</strong></h2>
+                <ul class="slds-list_dotted">
+                    <template for:each={projectSummaries} for:item="summary">
+                        <li key={summary.id}>
+                            {summary.projectName}: {summary.totalDuration} hours
+                        </li>
+                    </template>
+                </ul>
+            </div>
+        </div>
+    </lightning-card>
+
+    <!-- Modal for Line Items -->
+    <template if:true={isModalOpen}>
+        <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true" aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open slds-modal_large">
+            <div class="slds-modal__container">
+                <header class="slds-modal__header">
+                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={closeModal}>
+                        <lightning-icon icon-name="utility:close" alternative-text="close" variant="inverse" size="small"></lightning-icon>
+                        <span class="slds-assistive-text">Close</span>
+                    </button>
+                    <h2 id="modal-heading-01" class="slds-modal__title slds-hyphenate">Line Item Details</h2>
+                </header>
+                <div class="slds-modal__content slds-p-around_medium" id="modal-content-id-1">
+                    <lightning-datatable
+                        key-field="Id"
+                        data={selectedLineItems}
+                        columns={lineItemColumns}
+                        hide-checkbox-column>
+                    </lightning-datatable>
+                </div>
+                <footer class="slds-modal__footer">
+                    <lightning-button label="Close" variant="neutral" onclick={closeModal}></lightning-button>
+                </footer>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+</template>
