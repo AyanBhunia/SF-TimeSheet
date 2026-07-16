@@ -3,15 +3,17 @@ public with sharing class TimesheetApprovalController {
     public class TimesheetWrapper {
         @AuraEnabled public String id { get; set; }
         @AuraEnabled public String timesheetId { get; set; }
+        @AuraEnabled public String timesheetName { get; set; }
         @AuraEnabled public String employeeName { get; set; }
         @AuraEnabled public String projectName { get; set; }
         @AuraEnabled public Decimal duration { get; set; }
         @AuraEnabled public String timesheetPeriod { get; set; }
         @AuraEnabled public List<Timesheet_Line_Item__c> lineItems { get; set; }
         
-        public TimesheetWrapper(String id, String timesheetId, String employeeName, String projectName, String timesheetPeriod) {
+        public TimesheetWrapper(String id, String timesheetId, String timesheetName, String employeeName, String projectName, String timesheetPeriod) {
             this.id = id;
             this.timesheetId = timesheetId;
+            this.timesheetName = timesheetName;
             this.employeeName = employeeName;
             this.projectName = projectName;
             this.timesheetPeriod = timesheetPeriod;
@@ -45,7 +47,7 @@ public with sharing class TimesheetApprovalController {
         String userId = UserInfo.getUserId();
         
         String query = 'SELECT Id, Name, Employee__r.Name, Start_Date__c, End_Date__c, Status__c, ' +
-                       '(SELECT Id, Date__c, Duration__c, Project__c, Project__r.Name, Type__c, Description__c ' +
+                       '(SELECT Id, Date__c, Duration__c, Project__c, Project__r.Name, Type__c, Description__c, Billable__c ' +
                        'FROM Timesheets__r ' + 
                        'ORDER BY Date__c ASC) ' +
                        'FROM Timesheet__c ' +
@@ -66,10 +68,13 @@ public with sharing class TimesheetApprovalController {
             if (ts.Timesheets__r != null && !ts.Timesheets__r.isEmpty()) {
                 for (Timesheet_Line_Item__c line : ts.Timesheets__r) {
                     String projName = (line.Project__c != null) ? line.Project__r.Name : line.Type__c; 
+                    if (line.Type__c == 'Absence') {
+                        projName = 'Absence';
+                    }
                     String key = ts.Id + '_' + projName;
                     
                     if (!wrapperMap.containsKey(key)) {
-                        wrapperMap.put(key, new TimesheetWrapper(key, ts.Id, ts.Employee__r.Name, projName, period));
+                        wrapperMap.put(key, new TimesheetWrapper(key, ts.Id, ts.Name, ts.Employee__r.Name, projName, period));
                     }
                     
                     TimesheetWrapper tw = wrapperMap.get(key);
@@ -86,7 +91,6 @@ public with sharing class TimesheetApprovalController {
     public static void approveTimesheets(List<Id> timesheetIds) {
         if (timesheetIds == null || timesheetIds.isEmpty()) return;
         
-        // Remove duplicates just in case multiple rows for same timesheet were selected
         Set<Id> uniqueIds = new Set<Id>(timesheetIds);
         
         List<Timesheet__c> toUpdate = new List<Timesheet__c>();

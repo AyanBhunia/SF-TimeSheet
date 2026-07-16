@@ -1,5 +1,5 @@
 <template>
-    <lightning-card title="Timesheet Approval" icon-name="standard:timesheet">
+    <lightning-card title="Manager Approval" icon-name="standard:timesheet">
         <div class="slds-m-around_medium">
             <div class="slds-grid slds-gutters slds-m-bottom_medium slds-align-items-end">
                 <div class="slds-col slds-grow-none" style="min-width: 15rem;">
@@ -51,7 +51,7 @@
         </div>
     </lightning-card>
 
-    <!-- Modal for Line Items -->
+    <!-- Modal for Popups -->
     <template if:true={isModalOpen}>
         <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true" aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open slds-modal_large">
             <div class="slds-modal__container">
@@ -60,13 +60,13 @@
                         <lightning-icon icon-name="utility:close" alternative-text="close" variant="inverse" size="small"></lightning-icon>
                         <span class="slds-assistive-text">Close</span>
                     </button>
-                    <h2 id="modal-heading-01" class="slds-modal__title slds-hyphenate">Line Item Details</h2>
+                    <h2 id="modal-heading-01" class="slds-modal__title slds-hyphenate">{popupTitle}</h2>
                 </header>
                 <div class="slds-modal__content slds-p-around_medium" id="modal-content-id-1">
                     <lightning-datatable
-                        key-field="Id"
-                        data={selectedLineItems}
-                        columns={lineItemColumns}
+                        key-field="id"
+                        data={popupData}
+                        columns={popupColumns}
                         hide-checkbox-column>
                     </lightning-datatable>
                 </div>

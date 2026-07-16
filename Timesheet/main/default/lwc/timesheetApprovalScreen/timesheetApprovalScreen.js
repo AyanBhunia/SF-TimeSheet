@@ -4,36 +4,56 @@ import approveTimesheets from '@salesforce/apex/TimesheetApprovalController.appr
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 
 const COLUMNS = [
-    { label: 'Employee Name', fieldName: 'employeeName', sortable: true },
-    { label: 'Project / Type', fieldName: 'projectName', sortable: true },
-    { label: 'Period', fieldName: 'timesheetPeriod', sortable: true },
-    { label: 'Total Duration', fieldName: 'duration', type: 'number', sortable: true },
-    {
-        type: 'button-icon',
-        typeAttributes: {
+    { 
+        label: 'Timesheet', 
+        fieldName: 'timesheetName',
+        type: 'button', 
+        sortable: true,
+        typeAttributes: { 
+            label: { fieldName: 'timesheetName' }, 
+            name: 'timesheet_action', 
+            variant: 'base',
             iconName: 'utility:chevronright',
-            name: 'view_details',
-            title: 'View Details',
-            variant: 'border-filled',
-            alternativeText: 'View Details'
-        }
-    }
-];
-
-const LINE_ITEM_COLUMNS = [
-    { label: 'Date', fieldName: 'Date__c', type: 'date' },
-    { label: 'Type', fieldName: 'Type__c' },
-    { label: 'Duration', fieldName: 'Duration__c', type: 'number' },
-    { label: 'Description', fieldName: 'Description__c' }
+            iconPosition: 'right'
+        } 
+    },
+    { 
+        label: 'Project', 
+        fieldName: 'projectName',
+        type: 'button', 
+        sortable: true,
+        typeAttributes: { 
+            label: { fieldName: 'projectName' }, 
+            name: 'project_action', 
+            variant: 'base',
+            iconName: 'utility:chevronright',
+            iconPosition: 'right'
+        } 
+    },
+    { 
+        label: 'Employee', 
+        fieldName: 'employeeName',
+        type: 'button', 
+        sortable: true,
+        typeAttributes: { 
+            label: { fieldName: 'employeeName' }, 
+            name: 'employee_action', 
+            variant: 'base',
+            iconName: 'utility:chevronright',
+            iconPosition: 'right'
+        } 
+    },
+    { label: 'Cumulative Duration', fieldName: 'duration', type: 'number', sortable: true }
 ];
 
 export default class TimesheetApprovalScreen extends LightningElement {
     @track dateRange = 'Current Week';
     @track timesheets = [];
     @track columns = COLUMNS;
-    @track lineItemColumns = LINE_ITEM_COLUMNS;
     @track isModalOpen = false;
-    @track selectedLineItems = [];
+    @track popupColumns = [];
+    @track popupData = [];
+    @track popupTitle = '';
     @track projectSummaries = [];
     @track sortBy;
     @track sortDirection;
@@ -116,23 +136,95 @@ export default class TimesheetApprovalScreen extends LightningElement {
     handleRowAction(event) {
         const actionName = event.detail.action.name;
         const row = event.detail.row;
-        if (actionName === 'view_details') {
-            this.selectedLineItems = row.lineItems.map(item => {
+        
+        if (actionName === 'timesheet_action') {
+            let billable = 0;
+            let nonBillable = 0;
+            let absence = 0;
+            let employees = new Set();
+            
+            this.timesheets.forEach(ts => {
+                if (ts.timesheetId === row.timesheetId) {
+                    employees.add(ts.employeeName);
+                    if (ts.lineItems) {
+                        ts.lineItems.forEach(line => {
+                            let dur = line.Duration__c || line.dbt__Duration__c || 0;
+                            let type = line.Type__c || line.dbt__Type__c;
+                            let isBill = line.Billable__c || line.dbt__Billable__c;
+                            
+                            if (type === 'Absence') {
+                                absence += dur;
+                            } else if (isBill === 'Yes') {
+                                billable += dur;
+                            } else {
+                                nonBillable += dur;
+                            }
+                        });
+                    }
+                }
+            });
+            
+            this.popupColumns = [
+                { label: 'Category', fieldName: 'label' },
+                { label: 'Value', fieldName: 'value' }
+            ];
+            
+            this.popupData = [
+                { id: '1', label: 'Total Billable project', value: billable },
+                { id: '2', label: 'Total non-billable project', value: nonBillable },
+                { id: '3', label: 'Total absence hours', value: absence },
+                { id: '4', label: 'Total Number of employee', value: employees.size }
+            ];
+            this.popupTitle = 'Timesheet Details - ' + row.timesheetName;
+            this.isModalOpen = true;
+            
+        } else if (actionName === 'project_action') {
+            let employeeDurations = {};
+            this.timesheets.forEach(ts => {
+                if (ts.projectName === row.projectName) {
+                    if (!employeeDurations[ts.employeeName]) {
+                        employeeDurations[ts.employeeName] = 0;
+                    }
+                    employeeDurations[ts.employeeName] += ts.duration;
+                }
+            });
+            
+            this.popupColumns = [
+                { label: 'Employee Name', fieldName: 'empName' },
+                { label: 'Total Duration', fieldName: 'totalDuration', type: 'number' }
+            ];
+            
+            this.popupData = Object.keys(employeeDurations).map((emp, index) => {
+                return { id: String(index), empName: emp, totalDuration: employeeDurations[emp] };
+            });
+            this.popupTitle = 'Project Details - ' + row.projectName;
+            this.isModalOpen = true;
+            
+        } else if (actionName === 'employee_action') {
+            this.popupColumns = [
+                { label: 'Date', fieldName: 'Date__c', type: 'date' },
+                { label: 'Type', fieldName: 'Type__c' },
+                { label: 'Duration', fieldName: 'Duration__c', type: 'number' },
+                { label: 'Description', fieldName: 'Description__c' }
+            ];
+            
+            this.popupData = row.lineItems ? row.lineItems.map((item, index) => {
                 return {
-                    Id: item.Id,
+                    id: item.Id || String(index),
                     Date__c: item.Date__c || item.dbt__Date__c,
                     Type__c: item.Type__c || item.dbt__Type__c,
                     Duration__c: item.Duration__c || item.dbt__Duration__c,
                     Description__c: item.Description__c || item.dbt__Description__c
                 };
-            });
+            }) : [];
+            this.popupTitle = 'Employee Details - ' + row.employeeName;
             this.isModalOpen = true;
         }
     }
     
     closeModal() {
         this.isModalOpen = false;
-        this.selectedLineItems = [];
+        this.popupData = [];
     }
     
     handleRowSelection(event) {
