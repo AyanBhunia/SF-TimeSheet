@@ -49,3 +49,6 @@ new.txt
 import.ps1
 vsc_history.txt
 data/
+
+# SF-Auto local state
+sf-auto-state.txt

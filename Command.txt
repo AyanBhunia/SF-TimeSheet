@@ -1,9 +1,14 @@
 # To create package version run this
-# Before this change package version and ansector version
+# Before this change package version and ansector version:
+
+1. Managed:
+    A. With Code-coverage:
 sfdx force:package:version:create --package Timesheet --installation-key-bypass -v pbo --json --code-coverage --post-install-script TimesheetPostInstallScript --wait 30
 
-Without validation: sfdx force:package:version:create --package Timesheet --installation-key-bypass -v pbo --json --post-install-script TimesheetPostInstallScript --wait 30 --skipvalidation
+    B. without Code-coverage:
+sfdx force:package:version:create --package Timesheet --installation-key-bypass -v pbo --json --post-install-script TimesheetPostInstallScript --wait 30 --skipvalidation
 
+2. UnLocked:
 sfdx force:package:version:create --package TimesheetUnlocked --installation-key-bypass -v pbo --json --wait 30
 
 # then promote the package version
