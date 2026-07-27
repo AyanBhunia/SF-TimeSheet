@@ -5,6 +5,10 @@
         <visible>true</visible>
     </applicationVisibilities>
     <classAccesses>
+        <apexClass>DemoDataController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
         <apexClass>EmployeeAccrualUpdater</apexClass>
         <enabled>true</enabled>
     </classAccesses>
@@ -451,6 +455,10 @@
     </objectPermissions>
     <tabSettings>
         <tab>Charge_Code__c</tab>
+        <visibility>Visible</visibility>
+    </tabSettings>
+    <tabSettings>
+        <tab>Demo_Data_Setup</tab>
         <visibility>Visible</visibility>
     </tabSettings>
     <tabSettings>

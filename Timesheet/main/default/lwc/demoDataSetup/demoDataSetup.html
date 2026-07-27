@@ -1,0 +1,159 @@
+<!--
+  @file demoDataSetup.html
+  @description Retro Salesforce Classic/Lightning visual structure for Demo Data Setup
+-->
+<template>
+    <div class="demo-setup-container">
+        <!-- Classic Retro Page Header -->
+        <div class="retro-header slds-m-bottom_medium">
+            <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+                <div class="slds-media slds-media_center">
+                    <div class="slds-media__figure">
+                        <lightning-icon icon-name="custom:custom63" size="small"></lightning-icon>
+                    </div>
+                    <div class="slds-media__body">
+                        <h1 class="header-title" title="Demo Data Setup">
+                            Timesheet Demo Data Setup
+                        </h1>
+                        <p class="header-subtitle">
+                            Create, inspect, and manage sample datasets for evaluation and testing
+                        </p>
+                    </div>
+                </div>
+                <div>
+                    <!-- Show Delete button if create button was clicked or test records exist -->
+                    <template if:true={showDeleteButton}>
+                        <lightning-button
+                            label="Delete test records"
+                            title="Delete all demo records related to the current user"
+                            icon-name="utility:delete"
+                            variant="destructive"
+                            onclick={handleDeleteTestRecords}
+                            disabled={isDeleting}>
+                        </lightning-button>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- Spinner while loading -->
+        <template if:true={isLoading}>
+            <div class="retro-card slds-is-relative slds-p-around_large loading-card">
+                <lightning-spinner alternative-text="Loading Demo Status..." size="medium"></lightning-spinner>
+            </div>
+        </template>
+
+        <!-- STATE 1: Ready to create demo data (No employee record exists) -->
+        <template if:true={showCreateButton}>
+            <div class="retro-card slds-p-around_medium slds-m-bottom_medium">
+                <div class="slds-text-align_center slds-p-around_medium">
+                    <h2 class="section-title slds-m-bottom_small">
+                        No Sample Data Found
+                    </h2>
+                    <p class="slds-m-bottom_medium" style="max-width: 600px; margin-left: auto; margin-right: auto;">
+                        Clicking the button below will create an employee profile named <strong>Test T.</strong>, configure 3 projects (Billable, Non-Billable, and Legacy), assign project memberships, and generate 4 weekly timesheets with sample attendance and sick leave line items.
+                    </p>
+                    <lightning-button
+                        label="Create Demo Data"
+                        icon-name="utility:add"
+                        variant="brand"
+                        onclick={handleCreateDemoData}
+                        disabled={isCreating}>
+                    </lightning-button>
+                </div>
+            </div>
+        </template>
+
+        <!-- STATE 2: Created Records View (Employee 'Test T.' exists) -->
+        <template if:true={showCreatedRecordsView}>
+            <div class="retro-card slds-m-bottom_medium">
+                <div class="retro-card-header">
+                    <h2 class="section-title">
+                        Created Test Records &amp; Step-by-Step Process (Employee: <strong>{employeeName}</strong>)
+                    </h2>
+                    <p class="section-subtitle">
+                        Every record created during demo setup is listed below with its summary, role in the application, and a direct link to view or modify it in Salesforce.
+                    </p>
+                </div>
+                <div class="slds-p-around_medium">
+                    <div class="slds-grid slds-grid_vertical slds-gutters">
+                        <template for:each={demoRecords} for:item="rec">
+                            <div key={rec.recordId} class="slds-col slds-m-bottom_medium">
+                                <div class="step-box">
+                                    <div class="step-box-header slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+                                        <div class="slds-grid slds-grid_vertical-align-center">
+                                            <span class="step-badge slds-m-right_small">Step {rec.stepNumber}</span>
+                                            <span class="step-title">{rec.stepTitle}</span>
+                                        </div>
+                                        <div class="slds-grid slds-grid_vertical-align-center">
+                                            <span class="object-badge slds-m-right_small">{rec.objectLabel}</span>
+                                            <lightning-button
+                                                label="View Record"
+                                                icon-name="utility:preview"
+                                                variant="neutral"
+                                                size="small"
+                                                data-url={rec.recordUrl}
+                                                onclick={handleOpenUrl}>
+                                            </lightning-button>
+                                        </div>
+                                    </div>
+                                    <div class="slds-m-top_small">
+                                        <!-- Summary Highlight Box -->
+                                        <div class="summary-box slds-m-bottom_small">
+                                            <strong>Summary:</strong> {rec.summary}
+                                        </div>
+                                        <!-- Details -->
+                                        <div class="details-text slds-m-bottom_small">
+                                            <strong>Details:</strong> {rec.details}
+                                        </div>
+                                        <!-- What it does -->
+                                        <div class="what-it-does-box">
+                                            <div class="what-title slds-m-bottom_xx-small">What it does:</div>
+                                            <p class="what-desc">{rec.whatItDoes}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <!-- STATE 3: Access Terminated (User clicked Delete test records) -->
+        <template if:true={showAccessTerminated}>
+            <div class="retro-card slds-p-around_medium slds-text-align_center">
+                <h2 class="section-title slds-m-bottom_small">
+                    Test Records Have Been Deleted
+                </h2>
+                <p class="slds-m-bottom_medium">
+                    All demo test records related to your current user have been removed from the application. This demo setup tab is no longer accessible for this session.
+                </p>
+                <lightning-button
+                    label="Return to Overview"
+                    icon-name="utility:back"
+                    variant="brand"
+                    onclick={handleReturnToOverview}>
+                </lightning-button>
+            </div>
+        </template>
+
+        <!-- STATE 4: Inaccessible Employee (Employee exists and is not 'Test T.') -->
+        <template if:true={showInaccessibleEmployee}>
+            <div class="retro-card slds-p-around_medium slds-text-align_center">
+                <h2 class="section-title slds-m-bottom_small">
+                    Demo Setup Not Accessible
+                </h2>
+                <p class="slds-m-bottom_medium">
+                    An active employee record (<strong>{employeeName}</strong>) already exists for your user account. This setup tab is only accessible when no employee record exists or when the current employee is named <strong>Test T.</strong>.
+                </p>
+                <lightning-button
+                    label="Return to Overview"
+                    icon-name="utility:back"
+                    variant="brand"
+                    onclick={handleReturnToOverview}>
+                </lightning-button>
+            </div>
+        </template>
+    </div>
+</template>

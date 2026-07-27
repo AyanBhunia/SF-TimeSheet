@@ -168,8 +168,24 @@ export default class dashboardProfile extends LightningElement {
                 this.processFieldOrder();
             })
             .catch((error) => {
-                this.showToast('Info', "No Employee record is for the current User.", 'info');
-                console.log('Error fetching employee details',error);
+                if (this.hasAdminPermission) {
+                    const evt = new ShowToastEvent({
+                        title: 'Info',
+                        message: 'No Employee record is for the current User. {0}',
+                        messageData: [
+                            {
+                                url: '/lightning/n/dbt__Demo_Data_Setup',
+                                label: 'Create Dummy Data'
+                            }
+                        ],
+                        variant: 'info',
+                        mode: 'sticky'
+                    });
+                    this.dispatchEvent(evt);
+                } else {
+                    this.showToast('Info', "No Employee record is for the current User.", 'info');
+                }
+                console.log('Error fetching employee details', error);
             });
     }
 

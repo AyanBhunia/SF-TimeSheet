@@ -1,0 +1,137 @@
+/**
+ * @file demoDataSetup.css
+ * @description Retro Salesforce Classic / Lightning styling for Demo Data Setup LWC
+ */
+
+.demo-setup-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem;
+    color: #3e3e3c;
+    font-size: 0.8125rem;
+}
+
+/* Classic Retro SLDS Header */
+.retro-header {
+    background-color: #f3f2f2;
+    border: 1px solid #c9c7c5;
+    border-radius: 0.25rem;
+    padding: 0.75rem 1rem;
+    border-bottom: 2px solid #0070d2;
+}
+
+.header-title {
+    color: #080707;
+    font-size: 1.125rem;
+    font-weight: bold;
+}
+
+.header-subtitle {
+    color: #514f4d;
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+}
+
+/* Standard Retro Cards */
+.retro-card {
+    background-color: #ffffff;
+    border: 1px solid #dddbda;
+    border-radius: 0.25rem;
+}
+
+.retro-card-header {
+    background-color: #f3f2f2;
+    border-bottom: 1px solid #dddbda;
+    padding: 0.75rem 1rem;
+}
+
+.section-title {
+    font-size: 1rem;
+    font-weight: bold;
+    color: #080707;
+}
+
+.section-subtitle {
+    color: #514f4d;
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+}
+
+/* Step-by-Step Retro Boxes */
+.step-box {
+    background-color: #ffffff;
+    border: 1px solid #dddbda;
+    border-radius: 0.25rem;
+    padding: 1rem;
+}
+
+.step-box-header {
+    border-bottom: 1px solid #e5e5e5;
+    padding-bottom: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.step-badge {
+    background-color: #ecebea;
+    color: #080707;
+    border: 1px solid #c9c7c5;
+    font-weight: bold;
+    font-size: 0.75rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 0.15rem;
+    text-transform: uppercase;
+}
+
+.step-title {
+    font-size: 0.95rem;
+    font-weight: bold;
+    color: #080707;
+}
+
+.object-badge {
+    background-color: #f3f2f2;
+    color: #3e3e3c;
+    border: 1px solid #dddbda;
+    font-size: 0.7rem;
+    font-weight: bold;
+    padding: 0.15rem 0.5rem;
+    border-radius: 0.15rem;
+}
+
+.summary-box {
+    background-color: #f3f2f2;
+    border-left: 3px solid #0070d2;
+    padding: 0.5rem 0.75rem;
+    color: #080707;
+}
+
+.details-text {
+    color: #3e3e3c;
+    line-height: 1.4;
+}
+
+.what-it-does-box {
+    background-color: #fcf8e3;
+    border: 1px solid #faebcc;
+    border-radius: 0.15rem;
+    padding: 0.5rem 0.75rem;
+    color: #8a6d3b;
+    margin-top: 0.5rem;
+}
+
+.what-title {
+    color: #8a6d3b;
+    font-weight: bold;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+}
+
+.what-desc {
+    color: #66512c;
+    margin: 0;
+    line-height: 1.4;
+}
+
+.loading-card {
+    min-height: 150px;
+}
