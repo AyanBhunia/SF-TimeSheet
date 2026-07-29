@@ -16,6 +16,11 @@
                 <label>New</label>
             </value>
             <value>
+                <fullName>Partial</fullName>
+                <default>false</default>
+                <label>Partial</label>
+            </value>
+            <value>
                 <fullName>Submitted</fullName>
                 <default>false</default>
                 <label>Submitted</label>

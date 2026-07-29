@@ -9,6 +9,22 @@ public with sharing class TimesheetLineItemTriggerHandler extends TriggerHandler
         beforeUpdate((List<Timesheet_Line_Item__c>)Trigger.new);
     }
 
+    protected override void afterInsert() {
+        updateTimesheetAccruals((List<Timesheet_Line_Item__c>)Trigger.new);
+    }
+
+    protected override void afterUpdate() {
+        updateTimesheetAccruals((List<Timesheet_Line_Item__c>)Trigger.new);
+    }
+
+    protected override void afterDelete() {
+        updateTimesheetAccruals((List<Timesheet_Line_Item__c>)Trigger.old);
+    }
+
+    protected override void afterUndelete() {
+        updateTimesheetAccruals((List<Timesheet_Line_Item__c>)Trigger.new);
+    }
+
     public static void beforeInsert(List<Timesheet_Line_Item__c> timesheetLineItems){
         checkForDuplicateTimesheetLineItem(timesheetLineItems);
         updateEmployeeId(timesheetLineItems);
@@ -88,6 +104,41 @@ public with sharing class TimesheetLineItemTriggerHandler extends TriggerHandler
 
     private static String dayKey(Id employeeId, Date day){
         return employeeId + '|' + String.valueOf(day);
+    }
+
+    public static void updateTimesheetAccruals(List<Timesheet_Line_Item__c> lineItems) {
+        if (lineItems == null || lineItems.isEmpty()) return;
+        Set<Id> tsIds = new Set<Id>();
+        for (Timesheet_Line_Item__c li : lineItems) {
+            if (li.Timesheet__c != null) {
+                tsIds.add(li.Timesheet__c);
+            }
+        }
+        if (tsIds.isEmpty()) return;
+        List<Timesheet__c> timesheets = [
+            SELECT Id, Status__c, Employee__c, Accrued_Hours__c
+            FROM Timesheet__c
+            WHERE Id IN :tsIds
+            WITH SECURITY_ENFORCED
+        ];
+        List<Timesheet__c> eligible = new List<Timesheet__c>();
+        Set<Id> empIds = new Set<Id>();
+        for (Timesheet__c ts : timesheets) {
+            if (AccrualCalculationService.isAccrualEligible(ts)) {
+                eligible.add(ts);
+                if (ts.Employee__c != null) {
+                    empIds.add(ts.Employee__c);
+                }
+            }
+        }
+        if (!eligible.isEmpty()) {
+            AccrualCalculationService.calculateTimesheetAccruals(eligible);
+            SObjectAccessDecision securityDecision = Security.stripInaccessible(AccessType.UPDATABLE, eligible);
+            Database.update(securityDecision.getRecords(), false);
+            if (!empIds.isEmpty()) {
+                AccrualCalculationService.recalculateEmployeeTotals(empIds);
+            }
+        }
     }
     
     public static void updateEmployeeId(List<Timesheet_Line_Item__c> timesheetLineItems){

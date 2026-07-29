@@ -9,12 +9,20 @@
                         </lightning-select>
                     </div>
                     <div class="slds-col slds-p-top_x-small">
-                        <lightning-button label="Copy" onclick={handleCopy}></lightning-button>
+                        <lightning-button label="Copy" onclick={handleCopy} disabled={isTimesheetLocked}></lightning-button>
                     </div>
                     <div class="slds-col slds-text-align_right">
+                        <template if:true={showPartialSubmitButton}>
+                            <lightning-button label="Partial Submit" onclick={handlePartialSubmit} variant="brand-outline" class="slds-m-right_x-small" disabled={isTimesheetLocked}>
+                            </lightning-button>
+                        </template>
+                        <template if:true={showSubmitButton}>
+                            <lightning-button label="Submit" onclick={handleSubmit} variant="brand" class="slds-m-right_x-small" disabled={isTimesheetLocked}>
+                            </lightning-button>
+                        </template>
                         <lightning-button label="Refresh" onclick={handleCancel} variant="neutral" class="slds-m-right_x-small">
                         </lightning-button>
-                        <lightning-button label="Save" onclick={handleSave} variant="brand" class="slds-m-right_x-small">
+                        <lightning-button label="Save" onclick={handleSave} variant="brand" class="slds-m-right_x-small" disabled={isTimesheetLocked}>
                         </lightning-button>
                     </div>
                 </div>
@@ -73,7 +81,7 @@
                             </template>
                             <td class="slds-p-vertical_none">
                                 <div class={addProjectClass} style="display:inline-block;">
-                                    <lightning-button-icon icon-name="utility:add" alternative-text="Add Project" title="Add Project" variant="border-filled" onclick={addNewProject}></lightning-button-icon>
+                                    <lightning-button-icon icon-name="utility:add" alternative-text="Add Project" title="Add Project" variant="border-filled" onclick={addNewProject} disabled={isTimesheetLocked}></lightning-button-icon>
                                 </div>
                             </td>
                         </tr>
@@ -84,14 +92,14 @@
                                     <div data-wrapper="projectName" data-row-index={index} class="select-wrapper slds-m-bottom_xx-small">
                                         <lightning-select name="projectName" variant="label-hidden" value={row.projectName}
                                             options={projectOptions} data-row-index={index}
-                                            onchange={handleProjectChange}>
+                                            onchange={handleProjectChange} disabled={row.isRowLocked}>
                                         </lightning-select>
                                     </div>
 
                                     <div data-wrapper="activityName" data-row-index={index} class="select-wrapper">
                                         <lightning-select name="activityName" variant="label-hidden" value={row.activityName}
                                             options={row.activityOptions} data-row-index={index}
-                                            onchange={handleProjectChange}>
+                                            onchange={handleProjectChange} disabled={row.isRowLocked}>
                                         </lightning-select>
                                     </div>
                                 </td>
@@ -101,12 +109,12 @@
                                         <div class="slds-grid slds-grid_vertical slds-p-horizontal_xx-small">
                                             <div class="slds-col slds-m-bottom_x-small">
                                                 <lightning-input type="number" label="Duration" variant="label-hidden" title="Duration" value={day.dur}
-                                                    step="0.01" min="0" max="24" data-for="project" class={day.inputClass}
+                                                    step="0.01" min="0" max="24" data-for="project" class={day.inputClass} disabled={day.disabledInput}
                                                     data-row-index={index} data-day-index={dayIndex} onchange={handleDurationChange} onkeydown={handleKeyDown}>
                                                 </lightning-input>
                                             </div>
                                             <div class="slds-col slds-text-align_center">
-                                                <button class={day.noteClass} title="Add Description" disabled={day.isdisable} data-for="project" data-row-index={index} data-day-index={dayIndex} onclick={handleNoteClick}>
+                                                <button class={day.noteClass} title={day.tooltip} disabled={day.isdisable} data-for="project" data-row-index={index} data-day-index={dayIndex} onclick={handleNoteClick}>
                                                     {day.noteLabel}
                                                 </button>
                                             </div>
@@ -117,7 +125,7 @@
                                 <td>
                                     <div class={row.deleteClass} style="display:inline-block;">
                                         <lightning-button-icon icon-name="utility:delete" alternative-text="Delete" class="slds-m-left_xx-small"
-                                            variant="border-filled" data-row-index={index} data-type="project" onclick={handleDeleteRow}>
+                                            variant="border-filled" data-row-index={index} data-type="project" onclick={handleDeleteRow} disabled={row.isRowLocked}>
                                         </lightning-button-icon>
                                     </div>
                                 </td>
@@ -134,7 +142,7 @@
                             </template>
                             <td class="slds-p-vertical_none">
                                 <div class={addAbsenceClass} style="display:inline-block;">
-                                    <lightning-button-icon icon-name="utility:add" alternative-text="Add Absence" title="Add Absence" variant="border-filled" onclick={addNewAbsence}></lightning-button-icon>
+                                    <lightning-button-icon icon-name="utility:add" alternative-text="Add Absence" title="Add Absence" variant="border-filled" onclick={addNewAbsence} disabled={isTimesheetLocked}></lightning-button-icon>
                                 </div>
                             </td>
                         </tr>
@@ -145,7 +153,7 @@
                                     <div data-wrapper="absenceName" data-row-index={index} class="select-wrapper">
                                         <lightning-select name="absenceName" variant="label-hidden" value={row.absenceName} 
                                             options={absenceOptions}
-                                            data-row-index={index} onchange={handleAbsenceChange}>
+                                            data-row-index={index} onchange={handleAbsenceChange} disabled={row.isRowLocked}>
                                         </lightning-select>
                                     </div>
                                 </td>
@@ -154,12 +162,12 @@
                                     <td key={day.name} class="slds-p-around_xx-small">
                                         <div class="slds-grid slds-grid_vertical slds-p-horizontal_xx-small">
                                             <div class="slds-col slds-m-bottom_x-small">
-                                                <lightning-input type="number" label="Duration" variant="label-hidden" title="Duration" value={day.dur} step="0.01" min="0" max="24" data-for="absence" class={day.inputClass}
+                                                <lightning-input type="number" label="Duration" variant="label-hidden" title="Duration" value={day.dur} step="0.01" min="0" max="24" data-for="absence" class={day.inputClass} disabled={day.disabledInput}
                                                     data-row-index={index} data-day-index={dayIndex} onchange={handleDurationChange} onkeydown={handleKeyDown}>
                                                 </lightning-input>
                                             </div>
                                             <div class="slds-col slds-text-align_center">
-                                                <button class={day.noteClass} title="Add Description" disabled={day.isdisable} data-for="absence" data-row-index={index} data-day-index={dayIndex} onclick={handleNoteClick}>
+                                                <button class={day.noteClass} title={day.tooltip} disabled={day.isdisable} data-for="absence" data-row-index={index} data-day-index={dayIndex} onclick={handleNoteClick}>
                                                     {day.noteLabel}
                                                 </button>
                                             </div>
@@ -170,7 +178,7 @@
                                 <td>
                                     <div class={row.deleteClass} style="display:inline-block;">
                                         <lightning-button-icon icon-name="utility:delete" alternative-text="Delete" class="slds-m-left_xx-small"
-                                            variant="border-filled" data-row-index={index} data-type="absence" onclick={handleDeleteRow}>
+                                            variant="border-filled" data-row-index={index} data-type="absence" onclick={handleDeleteRow} disabled={row.isRowLocked}>
                                         </lightning-button-icon>
                                     </div>
                                 </td>
@@ -185,17 +193,25 @@
                 <div class="slds-grid slds-grid_align-spread slds-p-top_medium">
                     <!-- Left group -->
                     <div class="slds-col">
-                        <lightning-button label="Add Project" onclick={addNewProject} variant="neutral" class="slds-m-right_x-small">
+                        <lightning-button label="Add Project" onclick={addNewProject} variant="neutral" class="slds-m-right_x-small" disabled={isTimesheetLocked}>
                         </lightning-button>
-                        <lightning-button label="Add Absence" onclick={addNewAbsence} variant="neutral" class="slds-m-right_x-small">
+                        <lightning-button label="Add Absence" onclick={addNewAbsence} variant="neutral" class="slds-m-right_x-small" disabled={isTimesheetLocked}>
                         </lightning-button>
                     </div>
                 
                     <!-- Right group -->
                     <div class="slds-col slds-text-align_right">
+                        <template if:true={showPartialSubmitButton}>
+                            <lightning-button label="Partial Submit" onclick={handlePartialSubmit} variant="brand-outline" class="slds-m-right_x-small" disabled={isTimesheetLocked}>
+                            </lightning-button>
+                        </template>
+                        <template if:true={showSubmitButton}>
+                            <lightning-button label="Submit" onclick={handleSubmit} variant="brand" class="slds-m-right_x-small" disabled={isTimesheetLocked}>
+                            </lightning-button>
+                        </template>
                         <lightning-button label="Refresh" onclick={handleCancel} variant="neutral" class="slds-m-right_x-small">
                         </lightning-button>
-                        <lightning-button label="Save" onclick={handleSave} variant="brand" class="slds-m-right_x-small">
+                        <lightning-button label="Save" onclick={handleSave} variant="brand" class="slds-m-right_x-small" disabled={isTimesheetLocked}>
                         </lightning-button>
                     </div>
                 </div>

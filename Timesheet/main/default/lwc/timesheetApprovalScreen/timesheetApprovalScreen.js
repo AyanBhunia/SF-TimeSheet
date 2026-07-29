@@ -1,6 +1,8 @@
 import { LightningElement, track } from 'lwc';
 import getTimesheetData from '@salesforce/apex/TimesheetApprovalController.getTimesheetData';
 import approveTimesheets from '@salesforce/apex/TimesheetApprovalController.approveTimesheets';
+import approveLineItems from '@salesforce/apex/TimesheetApprovalController.approveLineItems';
+import rejectLineItemsWithNotes from '@salesforce/apex/TimesheetApprovalController.rejectLineItemsWithNotes';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 
 const COLUMNS = [
@@ -57,6 +59,13 @@ export default class TimesheetApprovalScreen extends LightningElement {
     @track projectSummaries = [];
     @track sortBy;
     @track sortDirection;
+    @track isEmployeePopup = false;
+    @track rejectionNoteInput = '';
+    selectedPopupRowIds = [];
+
+    get hidePopupCheckboxes() {
+        return !this.isEmployeePopup;
+    }
     
     @track customStartDate;
     @track customEndDate;
@@ -138,6 +147,7 @@ export default class TimesheetApprovalScreen extends LightningElement {
         const row = event.detail.row;
         
         if (actionName === 'timesheet_action') {
+            this.isEmployeePopup = false;
             let billable = 0;
             let nonBillable = 0;
             let absence = 0;
@@ -179,6 +189,7 @@ export default class TimesheetApprovalScreen extends LightningElement {
             this.isModalOpen = true;
             
         } else if (actionName === 'project_action') {
+            this.isEmployeePopup = false;
             let employeeDurations = {};
             this.timesheets.forEach(ts => {
                 if (ts.projectName === row.projectName) {
@@ -201,11 +212,16 @@ export default class TimesheetApprovalScreen extends LightningElement {
             this.isModalOpen = true;
             
         } else if (actionName === 'employee_action') {
+            this.isEmployeePopup = true;
+            this.rejectionNoteInput = '';
+            this.selectedPopupRowIds = [];
             this.popupColumns = [
                 { label: 'Date', fieldName: 'Date__c', type: 'date' },
                 { label: 'Type', fieldName: 'Type__c' },
                 { label: 'Duration', fieldName: 'Duration__c', type: 'number' },
-                { label: 'Description', fieldName: 'Description__c' }
+                { label: 'Description', fieldName: 'Description__c' },
+                { label: 'Status', fieldName: 'Line_Item_Status__c' },
+                { label: 'Rejection Notes', fieldName: 'Rejection_Notes__c' }
             ];
             
             this.popupData = row.lineItems ? row.lineItems.map((item, index) => {
@@ -214,7 +230,9 @@ export default class TimesheetApprovalScreen extends LightningElement {
                     Date__c: item.Date__c || item.dbt__Date__c,
                     Type__c: item.Type__c || item.dbt__Type__c,
                     Duration__c: item.Duration__c || item.dbt__Duration__c,
-                    Description__c: item.Description__c || item.dbt__Description__c
+                    Description__c: item.Description__c || item.dbt__Description__c,
+                    Line_Item_Status__c: item.Line_Item_Status__c || item.dbt__Line_Item_Status__c || 'New',
+                    Rejection_Notes__c: item.Rejection_Notes__c || item.dbt__Rejection_Notes__c || ''
                 };
             }) : [];
             this.popupTitle = 'Employee Details - ' + row.employeeName;
@@ -227,6 +245,50 @@ export default class TimesheetApprovalScreen extends LightningElement {
         this.popupData = [];
     }
     
+    handlePopupRowSelection(event) {
+        this.selectedPopupRowIds = event.detail.selectedRows.map(row => row.id).filter(id => id && id.length > 5);
+    }
+
+    handleRejectionNoteChange(event) {
+        this.rejectionNoteInput = event.target.value;
+    }
+
+    handleApproveLineItems() {
+        if (!this.selectedPopupRowIds || this.selectedPopupRowIds.length === 0) {
+            this.showToast('Warning', 'Please select at least one line item to approve.', 'warning');
+            return;
+        }
+        approveLineItems({ lineItemIds: this.selectedPopupRowIds })
+            .then(() => {
+                this.showToast('Success', 'Selected line items approved successfully.', 'success');
+                this.closeModal();
+                this.fetchData();
+            })
+            .catch(error => {
+                this.showToast('Error', error.body ? error.body.message : error.message, 'error');
+            });
+    }
+
+    handleRejectLineItems() {
+        if (!this.selectedPopupRowIds || this.selectedPopupRowIds.length === 0) {
+            this.showToast('Warning', 'Please select at least one line item to reject.', 'warning');
+            return;
+        }
+        if (!this.rejectionNoteInput || !this.rejectionNoteInput.trim()) {
+            this.showToast('Warning', 'Please provide a reason in Rejection Note before rejecting.', 'warning');
+            return;
+        }
+        rejectLineItemsWithNotes({ lineItemIds: this.selectedPopupRowIds, rejectionNotes: this.rejectionNoteInput.trim() })
+            .then(() => {
+                this.showToast('Success', 'Selected line items rejected with notes.', 'success');
+                this.closeModal();
+                this.fetchData();
+            })
+            .catch(error => {
+                this.showToast('Error', error.body ? error.body.message : error.message, 'error');
+            });
+    }
+
     handleRowSelection(event) {
         const selectedRows = event.detail.selectedRows;
         this.selectedTimesheetIds = selectedRows.map(row => row.timesheetId);

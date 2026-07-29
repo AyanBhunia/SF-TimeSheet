@@ -1,10 +1,15 @@
 public with sharing class AccrualCalculationService {
 
+    public static Boolean isAccrualEligible(Timesheet__c ts) {
+        if (ts == null) return false;
+        return ts.Status__c == 'Approved' || ts.Status__c == 'Partial';
+    }
+
     public static void calculateTimesheetAccruals(List<Timesheet__c> timesheets) {
         Set<Id> timesheetIds = new Set<Id>();
         Set<Id> empIdsForDivisor = new Set<Id>();
         for (Timesheet__c ts : timesheets) {
-            if (ts.Status__c == 'Approved' && ts.Employee__c != null) {
+            if (isAccrualEligible(ts) && ts.Employee__c != null) {
                 empIdsForDivisor.add(ts.Employee__c);
                 if (ts.Id != null) {
                     timesheetIds.add(ts.Id);
@@ -37,7 +42,7 @@ public with sharing class AccrualCalculationService {
         Map<Id, Decimal> timesheetToBillableHours = new Map<Id, Decimal>();
         if (!timesheetIds.isEmpty() && !empAccrualStartMap.isEmpty()) {
             for (Timesheet_Line_Item__c li : [
-                SELECT Timesheet__c, Duration__c, Date__c, Timesheet__r.Employee__c
+                SELECT Timesheet__c, Duration__c, Date__c, Timesheet__r.Employee__c, Timesheet__r.Status__c, Line_Item_Status__c
                 FROM Timesheet_Line_Item__c
                 WHERE Timesheet__c IN :timesheetIds
                 AND Billable__c = 'Yes'
@@ -49,17 +54,22 @@ public with sharing class AccrualCalculationService {
             ]) {
                 Date accrualStart = empAccrualStartMap.get(li.Timesheet__r.Employee__c);
                 if (accrualStart != null && li.Date__c != null && li.Date__c >= accrualStart) {
-                    Decimal running = timesheetToBillableHours.containsKey(li.Timesheet__c)
-                        ? timesheetToBillableHours.get(li.Timesheet__c)
-                        : 0;
-                    running += (li.Duration__c == null ? 0 : li.Duration__c);
-                    timesheetToBillableHours.put(li.Timesheet__c, running);
+                    Boolean shouldInclude = li.Timesheet__r.Status__c == 'Approved' || 
+                                            li.Line_Item_Status__c == 'Approved' || 
+                                            li.Line_Item_Status__c == 'Partial Approved';
+                    if (shouldInclude) {
+                        Decimal running = timesheetToBillableHours.containsKey(li.Timesheet__c)
+                            ? timesheetToBillableHours.get(li.Timesheet__c)
+                            : 0;
+                        running += (li.Duration__c == null ? 0 : li.Duration__c);
+                        timesheetToBillableHours.put(li.Timesheet__c, running);
+                    }
                 }
             }
         }
 
         for (Timesheet__c ts : timesheets) {
-            if (ts.Status__c == 'Approved' && ts.Employee__c != null) {
+            if (isAccrualEligible(ts) && ts.Employee__c != null) {
                 Decimal totalBillableHours = timesheetToBillableHours.get(ts.Id);
                 Decimal divisor = empDivisorMap.get(ts.Employee__c);
 
@@ -108,7 +118,7 @@ public with sharing class AccrualCalculationService {
                 SELECT Employee__c, Accrued_Hours__c, Absence_Hours__c, End_Date__c
                 FROM Timesheet__c 
                 WHERE Employee__c IN :empIds
-                AND Status__c = 'Approved'
+                AND (Status__c = 'Approved' OR Status__c = 'Partial')
                 AND End_Date__c >= :minAccrualDate
                 AND Employee__r.Accrual_Start_Date__c != NULL
                 WITH SECURITY_ENFORCED

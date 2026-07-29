@@ -42,4 +42,8 @@
         <field>Working_Hours_Per_Day__c</field>
         <value xsi:type="xsd:double">8.0</value>
     </values>
+    <values>
+        <field>Allow_Partial_Submit__c</field>
+        <value xsi:type="xsd:boolean">true</value>
+    </values>
 </CustomMetadata>

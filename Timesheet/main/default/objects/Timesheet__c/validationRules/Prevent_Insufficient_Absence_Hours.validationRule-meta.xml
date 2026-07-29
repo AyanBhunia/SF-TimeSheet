@@ -9,7 +9,8 @@
     ISCHANGED(Status__c),
     OR(
         ISPICKVAL(Status__c, &quot;Submitted&quot;),
-        ISPICKVAL(Status__c, &quot;Approved&quot;)
+        ISPICKVAL(Status__c, &quot;Approved&quot;),
+        ISPICKVAL(Status__c, &quot;Partial&quot;)
     ),
     Absence_Hours__c &gt; (
         Employee__r.Total_Absence_Hours_Available__c +

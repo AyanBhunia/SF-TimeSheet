@@ -8,6 +8,9 @@ import getTimesheet from '@salesforce/apex/WeeklyTimesheetController.getTimeshee
 import getEmployeeTimesheetItems from '@salesforce/apex/WeeklyTimesheetController.getEmployeeTimesheetItems';
 import upsertLineItems from '@salesforce/apex/WeeklyTimesheetController.upsertLineItems';
 import deleteTimesheetLineItems from '@salesforce/apex/WeeklyTimesheetController.deleteTimesheetLineItems';
+import isPartialSubmitAllowed from '@salesforce/apex/WeeklyTimesheetController.isPartialSubmitAllowed';
+import submitPartialLineItems from '@salesforce/apex/WeeklyTimesheetController.submitPartialLineItems';
+import submitTimesheet from '@salesforce/apex/WeeklyTimesheetController.submitTimesheet';
 import { getPicklistValues, getObjectInfo } from 'lightning/uiObjectInfoApi';
 import TIMESHEET_LINE_ITEM_OBJECT from '@salesforce/schema/Timesheet_Line_Item__c';
 import ACTIVITY_CATEGORY_FIELD from '@salesforce/schema/Timesheet_Line_Item__c.Activity__c';
@@ -86,6 +89,57 @@ export default class TimesheetLineItemEntry extends LightningElement {
     @track absenceTotals = [0, 0, 0, 0, 0, 0, 0];
     @track grandTotals = [0, 0, 0, 0, 0, 0, 0];
     @track billableAmounts = [0, 0, 0, 0, 0, 0, 0];
+
+    @track allowPartialSubmit = false;
+    @track TimesheetStatus = '';
+
+    @wire(isPartialSubmitAllowed)
+    wiredAllowPartialSubmit({ error, data }) {
+        if (data !== undefined) {
+            this.allowPartialSubmit = data;
+        } else if (error) {
+            console.error('Error fetching Allow_Partial_Submit__c setting', error);
+        }
+    }
+
+    get isTimesheetLocked() {
+        return this.TimesheetStatus === 'Submitted' || this.TimesheetStatus === 'Approved';
+    }
+
+    get showPartialSubmitButton() {
+        if (!this.allowPartialSubmit) return false;
+        if (this.isTimesheetLocked) return false;
+        const todayStr = this.formatDateYMD(new Date());
+        let hasEligible = false;
+        const checkEligible = (row) => {
+            (row.dates || []).forEach(day => {
+                if (parseFloat(day.dur) > 0 && day.date <= todayStr) {
+                    if (day.status !== 'Partial Submitted' && day.status !== 'Partial Approved' && day.status !== 'Approved') {
+                        hasEligible = true;
+                    }
+                }
+            });
+        };
+        (this.projectsList || []).forEach(checkEligible);
+        (this.absenceList || []).forEach(checkEligible);
+        return hasEligible;
+    }
+
+    get showSubmitButton() {
+        if (this.isTimesheetLocked) return false;
+        let hasHours = false;
+        const checkHours = (row) => {
+            (row.dates || []).forEach(day => {
+                if (parseFloat(day.dur) > 0) {
+                    hasHours = true;
+                }
+            });
+        };
+        (this.projectsList || []).forEach(checkHours);
+        (this.absenceList || []).forEach(checkHours);
+        return hasHours;
+    }
+
 
     TimesheetStartDate='';
     TimeSheetEndDate='';
@@ -235,10 +289,11 @@ export default class TimesheetLineItemEntry extends LightningElement {
         return getTimesheet({ timesheetId: this.recordId })
             .then(result => {
                 // console.log('load timesheet',JSON.stringify(result));
-                this.EmployeeID = result.dbt__Employee__c;
-                this.TimesheetStartDate = result.dbt__Start_Date__c;
-                this.TimeSheetEndDate = result.dbt__End_Date__c;
-                this.TimeSheetName = result.name;
+                this.EmployeeID = result.dbt__Employee__c || result.Employee__c;
+                this.TimesheetStartDate = result.dbt__Start_Date__c || result.Start_Date__c;
+                this.TimeSheetEndDate = result.dbt__End_Date__c || result.End_Date__c;
+                this.TimeSheetName = result.name || result.Name;
+                this.TimesheetStatus = result.dbt__Status__c || result.Status__c;
             })
             .then(() => {
                 this.createDays();
@@ -389,13 +444,31 @@ export default class TimesheetLineItemEntry extends LightningElement {
             }
 
             const updateDate = record => {
-                let dur = parseFloat(item.dbt__Duration__c) || 0;
+                let dur = parseFloat(item.dbt__Duration__c || item.Duration__c) || 0;
+                const liStatus = item.dbt__Line_Item_Status__c || item.Line_Item_Status__c;
+                const rNotes = item.dbt__Rejection_Notes__c || item.Rejection_Notes__c;
+                const isLocked = (liStatus === 'Partial Submitted' || liStatus === 'Partial Approved' || liStatus === 'Submitted' || liStatus === 'Approved' || this.isTimesheetLocked);
+
                 record.dates[dayIndex].dur = dur;
-                record.dates[dayIndex].desc = item.dbt__Description__c || '';
+                record.dates[dayIndex].desc = (item.dbt__Description__c || item.Description__c) || '';
                 record.dates[dayIndex].id = includeId ? item.Id : null; 
-                record.dates[dayIndex].isdisable = (dur === 0);
-                record.dates[dayIndex].noteLabel = item.dbt__Description__c ? 'Note ✓' : (dur === 0 ? 'Note' : 'Note +');
-                record.dates[dayIndex].noteClass = item.dbt__Description__c ? 'note-button note-has-text' : 'note-button';
+                record.dates[dayIndex].isdisable = (dur === 0) || isLocked;
+                record.dates[dayIndex].disabledInput = isLocked;
+                record.dates[dayIndex].status = liStatus;
+                record.dates[dayIndex].rejectionNotes = rNotes;
+
+                let tooltip = (item.dbt__Description__c || item.Description__c) || '';
+                if (rNotes) {
+                    tooltip = (tooltip ? tooltip + '\n' : '') + 'Rejection Reason: ' + rNotes;
+                }
+                record.dates[dayIndex].tooltip = tooltip || 'Add Description';
+
+                let btnClass = (item.dbt__Description__c || item.Description__c) ? 'note-button note-has-text' : 'note-button';
+                if (rNotes) {
+                    btnClass += ' slds-button_destructive';
+                }
+                record.dates[dayIndex].noteClass = btnClass;
+                record.dates[dayIndex].noteLabel = (item.dbt__Description__c || item.Description__c) ? 'Note ✓' : (dur === 0 ? 'Note' : 'Note +');
                 record.dates[dayIndex].inputClass = (dur === 0) ? 'duration-empty' : '';
             };
 
@@ -429,9 +502,13 @@ export default class TimesheetLineItemEntry extends LightningElement {
 
         this.projectsList = Object.values(attendanceData).map(row => ({
             ...row,
+            isRowLocked: (row.dates || []).some(day => day.disabledInput),
             activityOptions: this.getActivityOptionsForProject(row.projectName)
         }));
-        this.absenceList = Object.values(absenceData);
+        this.absenceList = Object.values(absenceData).map(row => ({
+            ...row,
+            isRowLocked: (row.dates || []).some(day => day.disabledInput)
+        }));
 
         if(this.projectsList.length === 0) {
             this.addNewProject();
@@ -447,7 +524,11 @@ export default class TimesheetLineItemEntry extends LightningElement {
         const dates = this.dayNames.map((name, index) => {
             return {
                 id: null,
-                isdisable: true,
+                isdisable: true || this.isTimesheetLocked,
+                disabledInput: this.isTimesheetLocked,
+                status: null,
+                rejectionNotes: null,
+                tooltip: 'Add Description',
                 date: this.dayList[index],
                 name,
                 dur: 0,
@@ -595,7 +676,7 @@ export default class TimesheetLineItemEntry extends LightningElement {
         }
 
         list[rowIndex].dates[dayIndex].dur = value;
-        let isdisable = (value === 0);
+        let isdisable = (value === 0) || list[rowIndex].dates[dayIndex].disabledInput;
         list[rowIndex].dates[dayIndex].isdisable = isdisable;
         let hasDesc = !!list[rowIndex].dates[dayIndex].desc;
         list[rowIndex].dates[dayIndex].noteLabel = hasDesc ? 'Note ✓' : (isdisable ? 'Note' : 'Note +');
@@ -771,184 +852,259 @@ export default class TimesheetLineItemEntry extends LightningElement {
     }
 
     handleSave(){
-        let upsertList = [];
-        let deleteList;
-        let currentRecordIDs = new Set();
-        let hasError = false;
-        let errorMessages = new Set();
+        return new Promise((resolve) => {
+            let upsertList = [];
+            let deleteList;
+            let currentRecordIDs = new Set();
+            let hasError = false;
+            let errorMessages = new Set();
 
-        // Clear previous validities
-        this.template.querySelectorAll('.custom-error').forEach(el => {
-            el.classList.remove('custom-error');
-        });
-        this.template.querySelectorAll('.custom-error-wrapper').forEach(el => {
-            el.classList.remove('custom-error-wrapper');
-        });
-        this.template.querySelectorAll('lightning-input, lightning-select').forEach(input => {
-            input.setCustomValidity('');
-            input.reportValidity();
-        });
-
-        try {
-            this.projectsList.forEach((project, rowIndex) => {
-                let hasDuration = project.dates.some(day => parseFloat(day.dur) > 0);
-                if (hasDuration && project.projectName) {
-                    const selectedProject = this.projectOptions.find(option => option.value === project.projectName);
-                    if (selectedProject && selectedProject.active === false) {
-                        hasError = true;
-                        errorMessages.add(`The project ${selectedProject.label} is inactive, not able to save the record.`);
-                        let comboWrapper = this.template.querySelector(`div[data-wrapper="projectName"][data-row-index="${rowIndex}"]`);
-                        if (comboWrapper) {
-                            comboWrapper.classList.add('custom-error-wrapper');
-                        }
-                    }
-                }
-                
-                project.dates.forEach((day, dayIndex) => {
-                    if (parseFloat(day.dur) > 0) {
-                        if (day.desc && day.desc.length > 255) {
-                            hasError = true;
-                            errorMessages.add(`Description is too long on ${this.dayNames[dayIndex]} (max 255 characters).`);
-                            let input = this.template.querySelector(`button[data-for="project"][data-row-index="${rowIndex}"][data-day-index="${dayIndex}"]`);
-                            if (input) {
-                                input.classList.add('custom-error');
-                            }
-                        }
-                        if (!project.projectName || !project.activityName) {
-                            hasError = true;
-                            if (!project.projectName) {
-                                errorMessages.add("Project name cannot be blank");
-                                let comboWrapper = this.template.querySelector(`div[data-wrapper="projectName"][data-row-index="${rowIndex}"]`);
-                                if (comboWrapper) {
-                                    comboWrapper.classList.add('custom-error-wrapper');
-                                }
-                            }
-                            if (!project.activityName) {
-                                errorMessages.add("Activity name cannot be blank");
-                                let comboWrapper = this.template.querySelector(`div[data-wrapper="activityName"][data-row-index="${rowIndex}"]`);
-                                if (comboWrapper) {
-                                    comboWrapper.classList.add('custom-error-wrapper');
-                                }
-                            }
-                        }
-                        if (day.id) currentRecordIDs.add(day.id);
-                        upsertList.push({
-                            sobjectType: 'dbt__Timesheet_Line_Item__c',
-                            Id: day.id,
-                            dbt__Timesheet__c: this.recordId,
-                            dbt__Type__c: "Attendance",
-                            dbt__Project__c: project.projectName,
-                            dbt__Activity__c: project.activityName,
-                            dbt__Duration__c: day.dur,
-                            dbt__Description__c: day.desc,
-                            dbt__Date__c: day.date,
-                            dbt__Billable__c: this.projectOptions.find(option => option.value === project.projectName)?.billable || "No",
-                            dbt__Hours_Limit_Exceeded__c: false
-                        });
-                    }
-                });
+            // Clear previous validities
+            this.template.querySelectorAll('.custom-error').forEach(el => {
+                el.classList.remove('custom-error');
+            });
+            this.template.querySelectorAll('.custom-error-wrapper').forEach(el => {
+                el.classList.remove('custom-error-wrapper');
+            });
+            this.template.querySelectorAll('lightning-input, lightning-select').forEach(input => {
+                input.setCustomValidity('');
+                input.reportValidity();
             });
 
-            this.absenceList.forEach((absence, rowIndex) => {
-                absence.dates.forEach((day, dayIndex) => {
-                    if (parseFloat(day.dur) > 0) {
-                        if (day.desc && day.desc.length > 255) {
+            try {
+                this.projectsList.forEach((project, rowIndex) => {
+                    let hasDuration = project.dates.some(day => parseFloat(day.dur) > 0);
+                    if (hasDuration && project.projectName) {
+                        const selectedProject = this.projectOptions.find(option => option.value === project.projectName);
+                        if (selectedProject && selectedProject.active === false) {
                             hasError = true;
-                            errorMessages.add(`Description is too long on ${this.dayNames[dayIndex]} (max 255 characters).`);
-                            let input = this.template.querySelector(`button[data-for="absence"][data-row-index="${rowIndex}"][data-day-index="${dayIndex}"]`);
-                            if (input) {
-                                input.classList.add('custom-error');
-                            }
-                        }
-                        if (!absence.absenceName) {
-                            hasError = true;
-                            errorMessages.add("Absence name cannot be blank");
-                            let comboWrapper = this.template.querySelector(`div[data-wrapper="absenceName"][data-row-index="${rowIndex}"]`);
+                            errorMessages.add(`The project ${selectedProject.label} is inactive, not able to save the record.`);
+                            let comboWrapper = this.template.querySelector(`div[data-wrapper="projectName"][data-row-index="${rowIndex}"]`);
                             if (comboWrapper) {
                                 comboWrapper.classList.add('custom-error-wrapper');
                             }
                         }
-                        if (parseFloat(day.dur) > 8) {
-                            hasError = true;
-                            errorMessages.add("Duration cannot be greater than 8 for Absence.");
-                            let input = this.template.querySelector(`lightning-input[data-for="absence"][data-row-index="${rowIndex}"][data-day-index="${dayIndex}"]`);
-                            if (input) {
-                                input.classList.add('custom-error');
+                    }
+                    
+                    project.dates.forEach((day, dayIndex) => {
+                        if (parseFloat(day.dur) > 0) {
+                            if (day.desc && day.desc.length > 255) {
+                                hasError = true;
+                                errorMessages.add(`Description is too long on ${this.dayNames[dayIndex]} (max 255 characters).`);
+                                let input = this.template.querySelector(`button[data-for="project"][data-row-index="${rowIndex}"][data-day-index="${dayIndex}"]`);
+                                if (input) {
+                                    input.classList.add('custom-error');
+                                }
                             }
+                            if (!project.projectName || !project.activityName) {
+                                hasError = true;
+                                if (!project.projectName) {
+                                    errorMessages.add("Project name cannot be blank");
+                                    let comboWrapper = this.template.querySelector(`div[data-wrapper="projectName"][data-row-index="${rowIndex}"]`);
+                                    if (comboWrapper) {
+                                        comboWrapper.classList.add('custom-error-wrapper');
+                                    }
+                                }
+                                if (!project.activityName) {
+                                    errorMessages.add("Activity name cannot be blank");
+                                    let comboWrapper = this.template.querySelector(`div[data-wrapper="activityName"][data-row-index="${rowIndex}"]`);
+                                    if (comboWrapper) {
+                                        comboWrapper.classList.add('custom-error-wrapper');
+                                    }
+                                }
+                            }
+                            if (day.id) currentRecordIDs.add(day.id);
+                            upsertList.push({
+                                sobjectType: 'dbt__Timesheet_Line_Item__c',
+                                Id: day.id,
+                                dbt__Timesheet__c: this.recordId,
+                                dbt__Type__c: "Attendance",
+                                dbt__Project__c: project.projectName,
+                                dbt__Activity__c: project.activityName,
+                                dbt__Duration__c: day.dur,
+                                dbt__Description__c: day.desc,
+                                dbt__Date__c: day.date,
+                                dbt__Billable__c: this.projectOptions.find(option => option.value === project.projectName)?.billable || "No",
+                                dbt__Hours_Limit_Exceeded__c: false
+                            });
                         }
-                        if (day.id) currentRecordIDs.add(day.id);
-                        upsertList.push({
-                            sobjectType: 'dbt__Timesheet_Line_Item__c',
-                            Id: day.id,
-                            dbt__Timesheet__c: this.recordId,
-                            dbt__Type__c: "Absence",
-                            dbt__Absence_Category__c: absence.absenceName,
-                            dbt__Duration__c: day.dur,
-                            dbt__Description__c: day.desc,
-                            dbt__Date__c: day.date,
-                            dbt__Billable__c: "No",
-                            dbt__Hours_Limit_Exceeded__c: false
+                    });
+                });
+
+                this.absenceList.forEach((absence, rowIndex) => {
+                    absence.dates.forEach((day, dayIndex) => {
+                        if (parseFloat(day.dur) > 0) {
+                            if (day.desc && day.desc.length > 255) {
+                                hasError = true;
+                                errorMessages.add(`Description is too long on ${this.dayNames[dayIndex]} (max 255 characters).`);
+                                let input = this.template.querySelector(`button[data-for="absence"][data-row-index="${rowIndex}"][data-day-index="${dayIndex}"]`);
+                                if (input) {
+                                    input.classList.add('custom-error');
+                                }
+                            }
+                            if (!absence.absenceName) {
+                                hasError = true;
+                                errorMessages.add("Absence name cannot be blank");
+                                let comboWrapper = this.template.querySelector(`div[data-wrapper="absenceName"][data-row-index="${rowIndex}"]`);
+                                if (comboWrapper) {
+                                    comboWrapper.classList.add('custom-error-wrapper');
+                                }
+                            }
+                            if (parseFloat(day.dur) > 8) {
+                                hasError = true;
+                                errorMessages.add("Duration cannot be greater than 8 for Absence.");
+                                let input = this.template.querySelector(`lightning-input[data-for="absence"][data-row-index="${rowIndex}"][data-day-index="${dayIndex}"]`);
+                                if (input) {
+                                    input.classList.add('custom-error');
+                                }
+                            }
+                            if (day.id) currentRecordIDs.add(day.id);
+                            upsertList.push({
+                                sobjectType: 'dbt__Timesheet_Line_Item__c',
+                                Id: day.id,
+                                dbt__Timesheet__c: this.recordId,
+                                dbt__Type__c: "Absence",
+                                dbt__Absence_Category__c: absence.absenceName,
+                                dbt__Duration__c: day.dur,
+                                dbt__Description__c: day.desc,
+                                dbt__Date__c: day.date,
+                                dbt__Billable__c: "No",
+                                dbt__Hours_Limit_Exceeded__c: false
+                            });
+                        }
+                    });
+                });
+                
+                this.grandTotals.forEach((total, dayIndex) => {
+                    if (total > 24) {
+                        hasError = true;
+                        errorMessages.add(`Duration entered for ${this.dayNames[dayIndex]} has exceeded 24 hours`);
+                        this.template.querySelectorAll(`lightning-input[data-day-index="${dayIndex}"]`).forEach(input => {
+                            input.classList.add('custom-error');
                         });
                     }
                 });
-            });
-            
-            this.grandTotals.forEach((total, dayIndex) => {
-                if (total > 24) {
-                    hasError = true;
-                    errorMessages.add(`Duration entered for ${this.dayNames[dayIndex]} has exceeded 24 hours`);
-                    this.template.querySelectorAll(`lightning-input[data-day-index="${dayIndex}"]`).forEach(input => {
-                        input.classList.add('custom-error');
-                    });
-                }
-            });
 
-            if (hasError) {
-                let msg = Array.from(errorMessages).join('\n');
-                this.showToast('Validation Error', msg, 'error', 'dismissable');
+                if (hasError) {
+                    let msg = Array.from(errorMessages).join('\n');
+                    this.showToast('Validation Error', msg, 'error', 'dismissable');
+                    resolve(false);
+                    return;
+                }
+
+                deleteList = [...this.previousRecordIDs].filter(id => !currentRecordIDs.has(id));
+
+            } catch (error) {
+                let errorMsg = error.message || String(error);
+                errorMsg = errorMsg.replace(/.*first error:\s*[A-Z_]+,\s*/g, '').replace(/\[.*\]/g, '');
+                this.showToast('Error', errorMsg, 'error', 'dismissable');
+                resolve(false);
                 return;
             }
 
-            deleteList = [...this.previousRecordIDs].filter(id => !currentRecordIDs.has(id));
+            (
+                (deleteList.length > 0 
+                    ? deleteTimesheetLineItems({ lineItemIds: deleteList.map(id => ({ Id: id })) })
+                    : Promise.resolve()
+                )
+                .then(res => {
+                    if (res && res !== 'Success') throw new Error(res);
+                    return upsertList.length > 0 ? upsertLineItems({ lineItems: upsertList }) : Promise.resolve();
+                })
+                .then(res => {
+                    if (res && res !== 'Success') throw new Error(res);
+                    this.hasUnsavedChanges = false;
+                    this.showToast('Success', 'Records saved', 'success');
+                    this.fetchTimesheetData(this.recordId, result => {
+                        this.wiredTimesheetResult = result;
+                        this.processTimesheetData(this.wiredTimesheetResult, true);
+                        resolve(true);
+                    });
+                })
+                .catch(e => {
+                    let errorMsg = e.message || String(e);
+                    errorMsg = errorMsg.replace(/.*first error:\s*[A-Z_]+,\s*/g, '').replace(/\[.*\]/g, '');
+                    
+                    if (errorMsg.includes('FIELD_FILTER_VALIDATION_EXCEPTION')) {
+                        errorMsg = 'A selected project is inactive, not able to save the record.';
+                    }
 
-        } catch (error) {
-            let errorMsg = error.message || String(error);
-            errorMsg = errorMsg.replace(/.*first error:\s*[A-Z_]+,\s*/g, '').replace(/\[.*\]/g, '');
-            this.showToast('Error', errorMsg, 'error', 'dismissable');
-            return;
-        }
+                    this.showToast('Save Error', errorMsg, 'error', 'dismissable');
+                    resolve(false);
+                })
+            );
+        });
+    }
 
-        (
-            (deleteList.length > 0 
-                ? deleteTimesheetLineItems({ lineItemIds: deleteList.map(id => ({ Id: id })) })
-                : Promise.resolve()
-            )
-            .then(res => {
-                if (res && res !== 'Success') throw new Error(res);
-                return upsertList.length > 0 ? upsertLineItems({ lineItems: upsertList }) : Promise.resolve();
-            })
-            .then(res => {
-                if (res && res !== 'Success') throw new Error(res);
-                this.hasUnsavedChanges = false;
-                this.showToast('Success', 'Records saved', 'success');
+    async handlePartialSubmit() {
+        try {
+            if (this.hasUnsavedChanges) {
+                const saved = await this.handleSave();
+                if (!saved) return;
+            }
+            const todayStr = this.formatDateYMD(new Date());
+            const eligibleIds = [];
+            const checkEligible = (row) => {
+                (row.dates || []).forEach(day => {
+                    if (day.id && parseFloat(day.dur) > 0 && day.date <= todayStr) {
+                        if (day.status !== 'Partial Submitted' && day.status !== 'Partial Approved' && day.status !== 'Approved') {
+                            eligibleIds.push(day.id);
+                        }
+                    }
+                });
+            };
+            (this.projectsList || []).forEach(checkEligible);
+            (this.absenceList || []).forEach(checkEligible);
+
+            if (eligibleIds.length === 0) {
+                this.showToast('Info', 'No eligible line items up to today to partially submit.', 'info');
+                return;
+            }
+
+            const res = await submitPartialLineItems({
+                timesheetId: this.recordId,
+                lineItemIds: eligibleIds
+            });
+
+            if (res === 'Success') {
+                this.showToast('Success', 'Line items up to today partially submitted.', 'success');
                 this.fetchTimesheetData(this.recordId, result => {
                     this.wiredTimesheetResult = result;
                     this.processTimesheetData(this.wiredTimesheetResult, true);
                 });
-            })
-            .catch(e => {
-                let errorMsg = e.message || String(e);
-                errorMsg = errorMsg.replace(/.*first error:\s*[A-Z_]+,\s*/g, '').replace(/\[.*\]/g, '');
-                
-                if (errorMsg.includes('FIELD_FILTER_VALIDATION_EXCEPTION')) {
-                    errorMsg = 'A selected project is inactive, not able to save the record.';
-                }
-
-                this.showToast('Save Error', errorMsg, 'error', 'dismissable');
-            })
-        );
-        
+                this.loadTimesheet();
+            } else {
+                this.showToast('Error', res, 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            this.showToast('Error', err.message || String(err), 'error');
+        }
     }
+
+    async handleSubmit() {
+        try {
+            if (this.hasUnsavedChanges) {
+                const saved = await this.handleSave();
+                if (!saved) return;
+            }
+            const res = await submitTimesheet({ timesheetId: this.recordId });
+            if (res === 'Success') {
+                this.showToast('Success', 'Timesheet submitted successfully.', 'success');
+                this.fetchTimesheetData(this.recordId, result => {
+                    this.wiredTimesheetResult = result;
+                    this.processTimesheetData(this.wiredTimesheetResult, true);
+                });
+                this.loadTimesheet();
+            } else {
+                this.showToast('Error', res, 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            this.showToast('Error', err.message || String(err), 'error');
+        }
+    }
+
 
     calculateTotals() {
         // Reset totals

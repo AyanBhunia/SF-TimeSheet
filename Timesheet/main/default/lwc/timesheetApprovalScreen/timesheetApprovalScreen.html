@@ -67,10 +67,16 @@
                         key-field="id"
                         data={popupData}
                         columns={popupColumns}
-                        hide-checkbox-column>
+                        onrowselection={handlePopupRowSelection}
+                        hide-checkbox-column={hidePopupCheckboxes}>
                     </lightning-datatable>
                 </div>
                 <footer class="slds-modal__footer">
+                    <template if:true={isEmployeePopup}>
+                        <lightning-input type="text" label="Rejection Note" placeholder="Reason for rejection..." value={rejectionNoteInput} onchange={handleRejectionNoteChange} class="slds-m-bottom_small slds-text-align_left"></lightning-input>
+                        <lightning-button label="Reject Selected" variant="destructive" onclick={handleRejectLineItems} class="slds-m-right_x-small"></lightning-button>
+                        <lightning-button label="Approve Selected" variant="success" onclick={handleApproveLineItems} class="slds-m-right_x-small"></lightning-button>
+                    </template>
                     <lightning-button label="Close" variant="neutral" onclick={closeModal}></lightning-button>
                 </footer>
             </div>

@@ -47,11 +47,11 @@ public with sharing class TimesheetApprovalController {
         String userId = UserInfo.getUserId();
         
         String query = 'SELECT Id, Name, Employee__r.Name, Start_Date__c, End_Date__c, Status__c, ' +
-                       '(SELECT Id, Date__c, Duration__c, Project__c, Project__r.Name, Type__c, Description__c, Billable__c ' +
+                       '(SELECT Id, Date__c, Duration__c, Project__c, Project__r.Name, Type__c, Description__c, Billable__c, Line_Item_Status__c, Rejection_Notes__c ' +
                        'FROM Timesheets__r ' + 
                        'ORDER BY Date__c ASC) ' +
                        'FROM Timesheet__c ' +
-                       'WHERE Manager__c = :userId AND Status__c = \'Submitted\' ';
+                       'WHERE Manager__c = :userId AND Status__c IN (\'Submitted\', \'Partial\') ';
         
         if (startDate != null && endDate != null) {
             query += 'AND Start_Date__c >= :startDate AND Start_Date__c <= :endDate';
@@ -97,7 +97,135 @@ public with sharing class TimesheetApprovalController {
         for (Id tsId : uniqueIds) {
             toUpdate.add(new Timesheet__c(Id = tsId, Status__c = 'Approved'));
         }
-        
         update toUpdate;
+
+        List<Timesheet_Line_Item__c> children = [
+            SELECT Id, Line_Item_Status__c
+            FROM Timesheet_Line_Item__c
+            WHERE Timesheet__c IN :uniqueIds
+        ];
+        if (!children.isEmpty()) {
+            for (Timesheet_Line_Item__c li : children) {
+                li.Line_Item_Status__c = 'Approved';
+            }
+            update children;
+        }
+    }
+
+    @AuraEnabled
+    public static String approveLineItems(List<Id> lineItemIds) {
+        if (lineItemIds == null || lineItemIds.isEmpty()) return 'Error: No line items provided.';
+        try {
+            List<Timesheet_Line_Item__c> items = [
+                SELECT Id, Line_Item_Status__c, Timesheet__c
+                FROM Timesheet_Line_Item__c
+                WHERE Id IN :lineItemIds
+                WITH SECURITY_ENFORCED
+            ];
+            Set<Id> tsIds = new Set<Id>();
+            for (Timesheet_Line_Item__c li : items) {
+                li.Line_Item_Status__c = 'Partial Approved';
+                tsIds.add(li.Timesheet__c);
+            }
+            SObjectAccessDecision decision = Security.stripInaccessible(AccessType.UPDATABLE, items, true);
+            update decision.getRecords();
+
+            updateParentPartialStatus(tsIds);
+            return 'Success';
+        } catch (Exception e) {
+            return 'Error: ' + e.getMessage();
+        }
+    }
+
+    @AuraEnabled
+    public static String rejectLineItemsWithNotes(List<Id> lineItemIds, String rejectionNotes) {
+        if (lineItemIds == null || lineItemIds.isEmpty()) return 'Error: No line items provided.';
+        try {
+            List<Timesheet_Line_Item__c> items = [
+                SELECT Id, Line_Item_Status__c, Rejection_Notes__c, Timesheet__c
+                FROM Timesheet_Line_Item__c
+                WHERE Id IN :lineItemIds
+                WITH SECURITY_ENFORCED
+            ];
+            Set<Id> tsIds = new Set<Id>();
+            for (Timesheet_Line_Item__c li : items) {
+                li.Line_Item_Status__c = 'New';
+                li.Rejection_Notes__c = rejectionNotes;
+                tsIds.add(li.Timesheet__c);
+            }
+            SObjectAccessDecision decision = Security.stripInaccessible(AccessType.UPDATABLE, items, true);
+            update decision.getRecords();
+
+            updateParentPartialStatus(tsIds);
+            return 'Success';
+        } catch (Exception e) {
+            return 'Error: ' + e.getMessage();
+        }
+    }
+
+    private static void updateParentPartialStatus(Set<Id> tsIds) {
+        if (tsIds == null || tsIds.isEmpty()) return;
+        List<Timesheet__c> parents = [
+            SELECT Id, Status__c,
+                   (SELECT Id, Line_Item_Status__c FROM Timesheets__r)
+            FROM Timesheet__c
+            WHERE Id IN :tsIds
+            WITH SECURITY_ENFORCED
+        ];
+        List<Timesheet__c> toUpdate = new List<Timesheet__c>();
+        for (Timesheet__c ts : parents) {
+            Boolean allNew = true;
+            for (Timesheet_Line_Item__c li : ts.Timesheets__r) {
+                if (li.Line_Item_Status__c != 'New') {
+                    allNew = false;
+                    break;
+                }
+            }
+
+            if (allNew) {
+                // All items are New → revert Timesheet to New
+                if (ts.Status__c != 'New') {
+                    ts.Status__c = 'New';
+                    toUpdate.add(ts);
+                }
+            } else {
+                if (ts.Status__c != 'Partial') {
+                    ts.Status__c = 'Partial';
+                    toUpdate.add(ts);
+                }
+            }
+        }
+        if (!toUpdate.isEmpty()) {
+            SObjectAccessDecision decision = Security.stripInaccessible(AccessType.UPDATABLE, toUpdate, true);
+            update decision.getRecords();
+        }
+    }
+
+    @AuraEnabled
+    public static void rejectTimesheets(List<Id> timesheetIds) {
+        if (timesheetIds == null || timesheetIds.isEmpty()) return;
+
+        Set<Id> uniqueIds = new Set<Id>(timesheetIds);
+
+        // Update Timesheet to New
+        List<Timesheet__c> toUpdate = new List<Timesheet__c>();
+        for (Id tsId : uniqueIds) {
+            toUpdate.add(new Timesheet__c(Id = tsId, Status__c = 'New'));
+        }
+        update toUpdate;
+
+        // Update all line items to New, EXCEPT Partial Approved
+        List<Timesheet_Line_Item__c> children = [
+            SELECT Id, Line_Item_Status__c
+            FROM Timesheet_Line_Item__c
+            WHERE Timesheet__c IN :uniqueIds
+            AND Line_Item_Status__c != 'Partial Approved'
+        ];
+        if (!children.isEmpty()) {
+            for (Timesheet_Line_Item__c li : children) {
+                li.Line_Item_Status__c = 'New';
+            }
+            update children;
+        }
     }
 }
