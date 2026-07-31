@@ -1,0 +1,237 @@
+/* ══════════════════════════════════════════════════════════
+   Manager Approval — Expanded/Collapsed Table Styles
+   ══════════════════════════════════════════════════════════ */
+
+.tli-container {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    color: #1e293b;
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px 0 rgba(0,0,0,0.05), 0 1px 2px -1px rgba(0,0,0,0.05);
+}
+
+/* ── Filter Toolbar ─────────────────────────── */
+.tli-toolbar {
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #f1f5f9;
+    margin-bottom: 0.75rem;
+}
+
+/* ── Status Badges ────────────────────────────── */
+.status-pill {
+    display: inline-block;
+    padding: 0.15rem 0.6rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.25;
+    text-align: center;
+}
+.status-approved {
+    background-color: #dcfce7;
+    color: #15803d;
+    border: 1px solid #bbf7d0;
+}
+.status-submitted {
+    background-color: #dbeafe;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+}
+.status-partial {
+    background-color: #fef9c3;
+    color: #854d0e;
+    border: 1px solid #fde047;
+}
+.status-rejected {
+    background-color: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fca5a5;
+}
+
+/* ── Large-Dataset Banner ─────────────────────── */
+.tli-sticky-banner {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: #fef3c7;
+    border: 1px solid #f59e0b;
+    border-radius: 0.375rem;
+    font-size: 0.8125rem;
+    color: #92400e;
+    margin-bottom: 0.75rem;
+}
+
+/* ── Table Wrap ───────────────────────────────── */
+.tli-table-wrap {
+    position: relative;
+    overflow-x: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+}
+
+/* ── Loading Overlay ──────────────────────────── */
+.tli-loading-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0.72);
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 10rem;
+    border-radius: 0.5rem;
+}
+
+/* ── Table Core ───────────────────────────────── */
+.tli-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: auto;
+    font-size: 0.8125rem;
+}
+
+/* ── Table Headers ────────────────────────────── */
+.tli-thead-row {
+    background: #f8fafc;
+    border-bottom: 2px solid #e2e8f0;
+}
+.tli-th {
+    padding: 0.5rem 0.65rem;
+    border-right: 1px solid #e2e8f0;
+    white-space: nowrap;
+    user-select: none;
+    vertical-align: middle;
+    cursor: grab;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #334155;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+.tli-th:last-child { border-right: none; }
+.tli-th-num {
+    width: 2.5rem;
+    text-align: center;
+    cursor: default;
+    color: #64748b;
+}
+.tli-th-inner {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+.tli-th-label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.tli-drag-handle {
+    color: #94a3b8;
+    font-size: 0.7rem;
+    line-height: 1;
+    cursor: grab;
+    letter-spacing: -0.1em;
+}
+
+/* ── Expand / Collapse Column Type Button ─────── */
+.tli-col-type-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    padding: 0.1rem 0.25rem;
+    line-height: 1;
+    transition: background 0.12s ease, border-color 0.12s ease;
+    flex-shrink: 0;
+}
+.tli-col-type-btn:hover {
+    background: #eff6ff;
+    border-color: #3b82f6;
+}
+/* Expanded column: vertical bars icon */
+.tli-icon-expanded {
+    font-size: 0.65rem;
+    letter-spacing: -0.05em;
+    color: #0284c7;
+    font-weight: 900;
+}
+/* Collapsed column: horizontal bars icon */
+.tli-icon-collapsed {
+    font-size: 0.85rem;
+    color: #64748b;
+    font-weight: 900;
+}
+
+/* ── Checkboxes ───────────────────────────────── */
+.tli-col-checkbox {
+    width: 0.9rem;
+    height: 0.9rem;
+    cursor: pointer;
+    accent-color: #0284c7;
+}
+
+/* ── Table Body ───────────────────────────────── */
+.tli-tr {
+    border-bottom: 1px solid #f1f5f9;
+    transition: background-color 0.12s ease;
+}
+.tli-tr:hover { background-color: #f8fafc; }
+
+.tli-td {
+    padding: 0.5rem 0.65rem;
+    vertical-align: middle;
+    border-right: 1px solid #f1f5f9;
+    border-bottom: 1px solid #e8edf3;
+    color: #1e293b;
+    font-size: 0.8125rem;
+}
+.tli-td:last-child { border-right: none; }
+
+/* Merged (rowspan > 1) cells get a subtle left accent and background tint */
+.tli-td[data-rowspan="2"],
+.tli-td[data-rowspan="3"],
+.tli-td[data-rowspan="4"],
+.tli-td[data-rowspan="5"],
+.tli-td[data-rowspan="6"],
+.tli-td[data-rowspan="7"],
+.tli-td[data-rowspan="8"],
+.tli-td[data-rowspan="9"],
+.tli-td[data-rowspan="10"] {
+    background-color: #f0f7ff;
+    border-left: 2px solid #bfdbfe;
+    font-weight: 600;
+    color: #0f172a;
+    vertical-align: top;
+}
+
+.tli-td-num {
+    text-align: center;
+    color: #64748b;
+    font-size: 0.75rem;
+    width: 2.5rem;
+}
+.tli-cell-text {
+    font-weight: 500;
+    color: #1e293b;
+}
+.tli-cell-num {
+    font-weight: 600;
+    color: #0f172a;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ── Empty State ──────────────────────────────── */
+.tli-empty-state {
+    padding: 2.5rem 1rem;
+    text-align: center;
+    color: #64748b;
+    font-size: 0.875rem;
+}

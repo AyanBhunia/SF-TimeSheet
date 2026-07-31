@@ -8,15 +8,19 @@ public with sharing class TimesheetApprovalController {
         @AuraEnabled public String projectName { get; set; }
         @AuraEnabled public Decimal duration { get; set; }
         @AuraEnabled public String timesheetPeriod { get; set; }
+        @AuraEnabled public String timesheetStatus { get; set; }
+        @AuraEnabled public Date startDate { get; set; }
         @AuraEnabled public List<Timesheet_Line_Item__c> lineItems { get; set; }
         
-        public TimesheetWrapper(String id, String timesheetId, String timesheetName, String employeeName, String projectName, String timesheetPeriod) {
+        public TimesheetWrapper(String id, String timesheetId, String timesheetName, String employeeName, String projectName, String timesheetPeriod, String timesheetStatus, Date startDate) {
             this.id = id;
             this.timesheetId = timesheetId;
             this.timesheetName = timesheetName;
             this.employeeName = employeeName;
             this.projectName = projectName;
             this.timesheetPeriod = timesheetPeriod;
+            this.timesheetStatus = timesheetStatus;
+            this.startDate = startDate;
             this.duration = 0;
             this.lineItems = new List<Timesheet_Line_Item__c>();
         }
@@ -47,7 +51,7 @@ public with sharing class TimesheetApprovalController {
         String userId = UserInfo.getUserId();
         
         String query = 'SELECT Id, Name, Employee__r.Name, Start_Date__c, End_Date__c, Status__c, ' +
-                       '(SELECT Id, Date__c, Duration__c, Project__c, Project__r.Name, Type__c, Description__c, Billable__c, Line_Item_Status__c, Rejection_Notes__c ' +
+                       '(SELECT Id, Date__c, Duration__c, Project__c, Project__r.Name, Type__c, Description__c, Billable__c, Line_Item_Status__c, Rejection_Notes__c, Activity__c, Absence_Category__c ' +
                        'FROM Timesheets__r ' + 
                        'ORDER BY Date__c ASC) ' +
                        'FROM Timesheet__c ' +
@@ -74,7 +78,7 @@ public with sharing class TimesheetApprovalController {
                     String key = ts.Id + '_' + projName;
                     
                     if (!wrapperMap.containsKey(key)) {
-                        wrapperMap.put(key, new TimesheetWrapper(key, ts.Id, ts.Name, ts.Employee__r.Name, projName, period));
+                        wrapperMap.put(key, new TimesheetWrapper(key, ts.Id, ts.Name, ts.Employee__r.Name, projName, period, ts.Status__c, ts.Start_Date__c));
                     }
                     
                     TimesheetWrapper tw = wrapperMap.get(key);

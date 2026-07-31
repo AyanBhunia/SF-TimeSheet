@@ -1,83 +1,228 @@
 <template>
-    <lightning-card title="Manager Approval" icon-name="standard:timesheet">
-        <div class="slds-m-around_medium">
-            <div class="slds-grid slds-gutters slds-m-bottom_medium slds-align-items-end">
-                <div class="slds-col slds-grow-none" style="min-width: 15rem;">
-                    <lightning-combobox
-                        name="dateRange"
-                        label="Date Range"
-                        value={dateRange}
-                        options={dateRangeOptions}
-                        onchange={handleDateRangeChange}
-                    ></lightning-combobox>
-                </div>
-                <template if:true={isCustomDate}>
-                    <div class="slds-col slds-grow-none" style="min-width: 12rem;">
-                        <lightning-input type="date" name="startDate" label="Start Date" value={customStartDate} onchange={handleCustomDateChange}></lightning-input>
-                    </div>
-                    <div class="slds-col slds-grow-none" style="min-width: 12rem;">
-                        <lightning-input type="date" name="endDate" label="End Date" value={customEndDate} onchange={handleCustomDateChange}></lightning-input>
-                    </div>
-                </template>
-                <div class="slds-col slds-text-align_right slds-grow">
-                    <lightning-button variant="brand" label="Approve Selected" onclick={handleApprove}></lightning-button>
-                </div>
+    <div class="tli-container slds-box slds-theme_default">
+
+        <!-- Compact Filter & Search Toolbar -->
+        <div class="tli-toolbar slds-grid slds-wrap slds-gutters slds-align-items-end">
+            <div class="slds-col slds-size_1-of-1 slds-medium-size_2-of-12 slds-m-bottom_x-small">
+                <lightning-combobox
+                    name="dateRange"
+                    label="Date Range"
+                    value={dateRange}
+                    options={dateRangeOptions}
+                    onchange={handleDateRangeChange}
+                ></lightning-combobox>
             </div>
-
-            <!-- Timesheets Datatable -->
-            <lightning-datatable
-                key-field="id"
-                data={timesheets}
-                columns={columns}
-                onrowaction={handleRowAction}
-                onrowselection={handleRowSelection}
-                onsort={handleSort}
-                sorted-by={sortBy}
-                sorted-direction={sortDirection}
-                show-row-number-column
-            ></lightning-datatable>
-
-            <!-- Bottom Summary -->
-            <div class="slds-m-top_large slds-box slds-theme_default">
-                <h2 class="slds-text-heading_small slds-m-bottom_small"><strong>Project Summary</strong></h2>
-                <ul class="slds-list_dotted">
-                    <template for:each={projectSummaries} for:item="summary">
-                        <li key={summary.id}>
-                            {summary.projectName}: {summary.totalDuration} hours
-                        </li>
-                    </template>
-                </ul>
+            <template if:true={isCustomDate}>
+                <div class="slds-col slds-size_1-of-1 slds-medium-size_2-of-12 slds-m-bottom_x-small">
+                    <lightning-input type="date" name="startDate" label="Start Date" value={customStartDate} onchange={handleCustomDateChange}></lightning-input>
+                </div>
+                <div class="slds-col slds-size_1-of-1 slds-medium-size_2-of-12 slds-m-bottom_x-small">
+                    <lightning-input type="date" name="endDate" label="End Date" value={customEndDate} onchange={handleCustomDateChange}></lightning-input>
+                </div>
+            </template>
+            <div class="slds-col slds-size_1-of-1 slds-medium-size_2-of-12 slds-m-bottom_x-small">
+                <lightning-combobox
+                    name="statusFilter"
+                    label="Status Filter"
+                    value={statusFilter}
+                    options={statusOptions}
+                    onchange={handleStatusFilterChange}
+                ></lightning-combobox>
+            </div>
+            <div class="slds-col slds-size_1-of-1 slds-medium-size_3-of-12 slds-m-bottom_x-small">
+                <lightning-input
+                    type="search"
+                    label="Employee Search"
+                    placeholder="Search by employee name..."
+                    value={employeeSearch}
+                    onchange={handleEmployeeSearchChange}
+                ></lightning-input>
+            </div>
+            <div class="slds-col slds-size_1-of-1 slds-medium-size_2-of-12 slds-m-bottom_x-small">
+                <lightning-combobox
+                    name="projectFilter"
+                    label="Project Filter"
+                    value={projectFilter}
+                    options={projectOptions}
+                    onchange={handleProjectFilterChange}
+                ></lightning-combobox>
+            </div>
+            <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-12 slds-m-bottom_x-small slds-text-align_right">
+                <lightning-button
+                    variant="destructive"
+                    label="Reject"
+                    icon-name="utility:close"
+                    onclick={handleBulkReject}
+                    class="slds-m-right_x-small"
+                    disabled={isNoSelection}
+                ></lightning-button>
+                <lightning-button
+                    variant="success"
+                    label="Approve"
+                    icon-name="utility:check"
+                    onclick={handleApprove}
+                    disabled={isNoSelection}
+                ></lightning-button>
             </div>
         </div>
-    </lightning-card>
 
-    <!-- Modal for Popups -->
-    <template if:true={isModalOpen}>
-        <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true" aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open slds-modal_large">
+        <!-- Large-Dataset Banner -->
+        <template if:true={isCountExceeded}>
+            <div class="tli-sticky-banner" role="alert">
+                <lightning-icon icon-name="utility:info" size="x-small" class="slds-m-right_x-small"></lightning-icon>
+                <span>Showing first {maxLimit} of {totalCount} records.</span>
+            </div>
+        </template>
+
+        <!-- Main Table -->
+        <div class="tli-table-wrap">
+            <template if:true={isTableLoading}>
+                <div class="tli-loading-overlay">
+                    <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
+                </div>
+            </template>
+
+            <table class="tli-table" role="grid">
+                <thead>
+                    <tr class="tli-thead-row">
+                        <!-- Select-all checkbox -->
+                        <th class="tli-th tli-th-num" scope="col">
+                            <input
+                                type="checkbox"
+                                class="tli-col-checkbox"
+                                checked={isAllSelected}
+                                onchange={handleSelectAll}
+                                title="Select / Deselect All"
+                            />
+                        </th>
+                        <!-- Row number -->
+                        <th class="tli-th tli-th-num" scope="col">#</th>
+
+                        <!-- Dynamic column headers -->
+                        <template for:each={orderedColumns} for:item="col">
+                            <th
+                                key={col.id}
+                                class="tli-th"
+                                scope="col"
+                                draggable="true"
+                                data-col-id={col.id}
+                                ondragstart={handleColDragStart}
+                                ondragover={handleColDragOver}
+                                ondragleave={handleColDragLeave}
+                                ondrop={handleColDrop}
+                            >
+                                <div class="tli-th-inner">
+                                    <!-- Expand/Collapse toggle button -->
+                                    <button
+                                        class="tli-col-type-btn"
+                                        data-col-id={col.id}
+                                        onclick={handleColTypeToggle}
+                                        title={col.typeTitle}
+                                    >
+                                        <template if:true={col.isExpanded}>
+                                            <!-- 3 vertical bars = Expanded -->
+                                            <span class="tli-icon-expanded">&#x2551;&#x2551;&#x2551;</span>
+                                        </template>
+                                        <template if:false={col.isExpanded}>
+                                            <!-- 3 horizontal bars = Collapsed -->
+                                            <span class="tli-icon-collapsed">&#x2261;</span>
+                                        </template>
+                                    </button>
+                                    <span class="tli-th-label">{col.label}</span>
+                                    <span class="tli-drag-handle" title="Drag to reorder">&#8942;&#8942;</span>
+                                </div>
+                            </th>
+                        </template>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    <!--
+                        Flat row rendering with rowspan.
+                        Each row has a `cells` array with one entry per column.
+                        cell.rowspan === 0 → this cell is covered by a rowspan above → render nothing.
+                        row.hidden === true → row is "covered" by a collapsed merge → render nothing.
+                    -->
+                    <template for:each={tableRows} for:item="row">
+                        <template if:false={row.hidden}>
+                            <tr key={row.id} class="tli-tr">
+                                <!-- Checkbox -->
+                                <td class="tli-td tli-td-num">
+                                    <input
+                                        type="checkbox"
+                                        class="tli-col-checkbox"
+                                        checked={row.selected}
+                                        data-id={row.id}
+                                        onchange={handleRowSelect}
+                                    />
+                                </td>
+                                <!-- Row number -->
+                                <td class="tli-td tli-td-num">{row.rowNum}</td>
+
+                                <!-- Data cells -->
+                                <template for:each={row.cells} for:item="cell">
+                                    <template if:true={cell.rowspan}>
+                                        <td
+                                            key={cell.id}
+                                            class="tli-td"
+                                            rowspan={cell.rowspan}
+                                            data-rowspan={cell.rowspan}
+                                        >
+                                            <template if:true={cell.isStatus}>
+                                                <span class={cell.statusClass}>{cell.value}</span>
+                                            </template>
+                                            <template if:false={cell.isStatus}>
+                                                <template if:true={cell.isDuration}>
+                                                    <span class="tli-cell-num">{cell.value}</span>
+                                                </template>
+                                                <template if:false={cell.isDuration}>
+                                                    <span class="tli-cell-text">{cell.value}</span>
+                                                </template>
+                                            </template>
+                                        </td>
+                                    </template>
+                                </template>
+                            </tr>
+                        </template>
+                    </template>
+                </tbody>
+            </table>
+
+            <!-- Empty state -->
+            <template if:true={isTableEmpty}>
+                <div class="tli-empty-state">
+                    <lightning-icon icon-name="utility:info" size="small" class="slds-m-bottom_x-small"></lightning-icon>
+                    <p>No timesheets found matching the selected filters.</p>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- Bulk Reject Modal -->
+    <template if:true={isBulkRejectModalOpen}>
+        <section role="dialog" tabindex="-1" aria-labelledby="bulk-reject-heading" aria-modal="true" class="slds-modal slds-fade-in-open">
             <div class="slds-modal__container">
                 <header class="slds-modal__header">
-                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={closeModal}>
+                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={closeBulkRejectModal}>
                         <lightning-icon icon-name="utility:close" alternative-text="close" variant="inverse" size="small"></lightning-icon>
                         <span class="slds-assistive-text">Close</span>
                     </button>
-                    <h2 id="modal-heading-01" class="slds-modal__title slds-hyphenate">{popupTitle}</h2>
+                    <h2 id="bulk-reject-heading" class="slds-modal__title slds-hyphenate">Bulk Reject Timesheets</h2>
                 </header>
-                <div class="slds-modal__content slds-p-around_medium" id="modal-content-id-1">
-                    <lightning-datatable
-                        key-field="id"
-                        data={popupData}
-                        columns={popupColumns}
-                        onrowselection={handlePopupRowSelection}
-                        hide-checkbox-column={hidePopupCheckboxes}>
-                    </lightning-datatable>
+                <div class="slds-modal__content slds-p-around_medium">
+                    <p class="slds-m-bottom_small">You have selected <strong>{selectedTimesheetIds.length}</strong> timesheet(s) to reject.</p>
+                    <lightning-input
+                        type="text"
+                        label="Rejection Reason"
+                        placeholder="Provide a reason for bulk rejection..."
+                        value={bulkRejectionReason}
+                        onchange={handleBulkRejectionReasonChange}
+                        required
+                    ></lightning-input>
                 </div>
                 <footer class="slds-modal__footer">
-                    <template if:true={isEmployeePopup}>
-                        <lightning-input type="text" label="Rejection Note" placeholder="Reason for rejection..." value={rejectionNoteInput} onchange={handleRejectionNoteChange} class="slds-m-bottom_small slds-text-align_left"></lightning-input>
-                        <lightning-button label="Reject Selected" variant="destructive" onclick={handleRejectLineItems} class="slds-m-right_x-small"></lightning-button>
-                        <lightning-button label="Approve Selected" variant="success" onclick={handleApproveLineItems} class="slds-m-right_x-small"></lightning-button>
-                    </template>
-                    <lightning-button label="Close" variant="neutral" onclick={closeModal}></lightning-button>
+                    <lightning-button label="Cancel" variant="neutral" onclick={closeBulkRejectModal} class="slds-m-right_x-small"></lightning-button>
+                    <lightning-button label="Confirm Reject" variant="destructive" onclick={confirmBulkReject}></lightning-button>
                 </footer>
             </div>
         </section>
