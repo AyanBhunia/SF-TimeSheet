@@ -44,7 +44,7 @@ private class DemoDataControllerTest {
 
         // Verify Timesheets created
         List<Timesheet__c> tsList = [
-            SELECT Id, Start_Date__c, Status__c 
+            SELECT Id, Start_Date__c, Status__c, Manager__c
             FROM Timesheet__c 
             WHERE Employee__c = :emps[0].Id 
             ORDER BY Start_Date__c ASC
@@ -52,8 +52,42 @@ private class DemoDataControllerTest {
         System.assertEquals(4, tsList.size(), 'Should create 4 timesheets');
         System.assertEquals('Approved', tsList[0].Status__c, 'Last last week timesheet should be Approved');
         System.assertEquals('Approved', tsList[1].Status__c, 'Last week timesheet should be Approved');
-        System.assertEquals('New', tsList[2].Status__c, 'Current week timesheet should be New');
+        System.assertEquals('Submitted', tsList[2].Status__c, 'Current week timesheet should be submitted for approval');
         System.assertEquals('New', tsList[3].Status__c, 'Next week timesheet should be New');
+        for (Timesheet__c ts : tsList) {
+            System.assertEquals(emps[0].Manager__c, ts.Manager__c, 'Each demo timesheet should inherit the employee manager');
+        }
+    }
+
+    @IsTest
+    static void testCreateDemoDataRequiresUserManager() {
+        Profile p = [SELECT Id FROM Profile WHERE Name = 'Standard User' LIMIT 1];
+        User noManagerUser = new User(
+            FirstName = 'No',
+            LastName = 'Manager',
+            Alias = 'nmgr',
+            Email = 'no.manager.' + Datetime.now().getTime() + '@example.com',
+            Username = 'no.manager.' + Datetime.now().getTime() + '@example.com',
+            CommunityNickname = 'noManager',
+            TimeZoneSidKey = 'America/Los_Angeles',
+            LocaleSidKey = 'en_US',
+            EmailEncodingKey = 'UTF-8',
+            LanguageLocaleKey = 'en_US',
+            ProfileId = p.Id
+        );
+        insert noManagerUser;
+
+        PermissionSet ps = [SELECT Id FROM PermissionSet WHERE Name = 'Timesheet_HR_Admin' LIMIT 1];
+        insert new PermissionSetAssignment(AssigneeId = noManagerUser.Id, PermissionSetId = ps.Id);
+
+        System.runAs(noManagerUser) {
+            try {
+                DemoDataController.createDemoData();
+                System.assert(false, 'Expected createDemoData to throw when current user has no manager');
+            } catch (AuraHandledException e) {
+                System.assertEquals('Please assign a manager in your User record before creating demo data.', e.getMessage());
+            }
+        }
     }
 
     @IsTest

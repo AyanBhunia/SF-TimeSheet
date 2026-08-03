@@ -235,9 +235,9 @@ export default class TimesheetLineItemEntry extends LightningElement {
         return getTimesheet({ timesheetId: this.recordId })
             .then(result => {
                 // console.log('load timesheet',JSON.stringify(result));
-                this.EmployeeID = result.dbt__Employee__c;
-                this.TimesheetStartDate = result.dbt__Start_Date__c;
-                this.TimeSheetEndDate = result.dbt__End_Date__c;
+                this.EmployeeID = result.Employee__c;
+                this.TimesheetStartDate = result.Start_Date__c;
+                this.TimeSheetEndDate = result.End_Date__c;
                 this.TimeSheetName = result.name;
             })
             .then(() => {
@@ -297,22 +297,22 @@ export default class TimesheetLineItemEntry extends LightningElement {
                     { label: 'Select a Project', value: '' },
                     ...result.map(proj => {
                     let isActive = true;
-                    if (proj.dbt__Project__r) {
-                        if (proj.dbt__Project__r.dbt__Active__c !== undefined) {
-                            isActive = proj.dbt__Project__r.dbt__Active__c;
-                        } else if (proj.dbt__Project__r.Active__c !== undefined) {
-                            isActive = proj.dbt__Project__r.Active__c;
+                    if (proj.Project__r) {
+                        if (proj.Project__r.dbt__Active__c !== undefined) {
+                            isActive = proj.Project__r.dbt__Active__c;
+                        } else if (proj.Project__r.Active__c !== undefined) {
+                            isActive = proj.Project__r.Active__c;
                         }
                     }
                     return {
-                        label: proj.dbt__Project__r.Name,
-                        value: proj.dbt__Project__c,
-                        billable: proj.dbt__Project__r?.dbt__Billable__c,
-                        hourly_rate: proj.dbt__Hourly_Rate__c || 0,
+                        label: proj.Project__r.Name,
+                        value: proj.Project__c,
+                        billable: proj.Project__r?.Billable__c,
+                        hourly_rate: proj.Hourly_Rate__c || 0,
                         active: isActive
                     };
                 })];
-                this.projectIds = result.map(proj => proj.dbt__Project__c);
+                this.projectIds = result.map(proj => proj.Project__c);
             })
             .then(() => {
                 getProjectActivities({ projectIds: this.projectIds })
@@ -381,7 +381,7 @@ export default class TimesheetLineItemEntry extends LightningElement {
   
         data.forEach(item => {
             // Use localDateFromServer to get a local-midnight Date object (no TZ shift)
-            const date = this.localDateFromServer(item.dbt__Date__c);
+            const date = this.localDateFromServer(item.Date__c);
             const dayIndex = date.getDay() === 0 ? 6 : date.getDay() - 1;
 
             if(includeId){
@@ -389,37 +389,37 @@ export default class TimesheetLineItemEntry extends LightningElement {
             }
 
             const updateDate = record => {
-                let dur = parseFloat(item.dbt__Duration__c) || 0;
+                let dur = parseFloat(item.Duration__c) || 0;
                 record.dates[dayIndex].dur = dur;
-                record.dates[dayIndex].desc = item.dbt__Description__c || '';
+                record.dates[dayIndex].desc = item.Description__c || '';
                 record.dates[dayIndex].id = includeId ? item.Id : null; 
                 record.dates[dayIndex].isdisable = (dur === 0);
-                record.dates[dayIndex].noteLabel = item.dbt__Description__c ? 'Note ✓' : (dur === 0 ? 'Note' : 'Note +');
-                record.dates[dayIndex].noteClass = item.dbt__Description__c ? 'note-button note-has-text' : 'note-button';
+                record.dates[dayIndex].noteLabel = item.Description__c ? 'Note ✓' : (dur === 0 ? 'Note' : 'Note +');
+                record.dates[dayIndex].noteClass = item.Description__c ? 'note-button note-has-text' : 'note-button';
                 record.dates[dayIndex].inputClass = (dur === 0) ? 'duration-empty' : '';
             };
 
-            if (item.dbt__Type__c === "Attendance") {
+            if (item.Type__c === "Attendance") {
 
-                const key = `${item.dbt__Project__c}_${item.dbt__Activity__c}`;
+                const key = `${item.Project__c}_${item.Activity__c}`;
 
                 if (!attendanceData[key]) {
-                    const selectedProject = this.projectOptions.find(option => option.value === item.dbt__Project__c);
+                    const selectedProject = this.projectOptions.find(option => option.value === item.Project__c);
                     attendanceData[key] = {
                         ...this.getBlankData("Attendance"),
-                        projectName: item.dbt__Project__c,
-                        activityName: item.dbt__Activity__c,
-                        billable: item.dbt__Project__r?.dbt__Billable__c,
+                        projectName: item.Project__c,
+                        activityName: item.Activity__c,
+                        billable: item.Project__r?.Billable__c,
                         hourlyRate: (selectedProject && selectedProject.hourly_rate) ? selectedProject.hourly_rate : 0
                     };
                 }
                 updateDate(attendanceData[key]); 
             } else {
-                const key = item.dbt__Absence_Category__c;
+                const key = item.Absence_Category__c;
                 if (!absenceData[key]) {
                     absenceData[key] = {
                         ...this.getBlankData("Absence"),
-                        absenceName: item.dbt__Absence_Category__c
+                        absenceName: item.Absence_Category__c
                     };
                 }
                 updateDate(absenceData[key]);

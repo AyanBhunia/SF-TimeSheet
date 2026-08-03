@@ -75,6 +75,17 @@ global with sharing class DemoDataController {
         requireHrAdminPermission();
         try {
             Id currentUserId = UserInfo.getUserId();
+            // Determine the manager (User.Id) of the current user so the created Employee.Manager__c
+            // references the current user's manager as requested.
+            Id managerUserId = null;
+            User currentUser = [SELECT Id, ManagerId FROM User WHERE Id = :currentUserId WITH SECURITY_ENFORCED LIMIT 1];
+            if (currentUser != null && currentUser.ManagerId != null) {
+                managerUserId = currentUser.ManagerId;
+            }
+
+            if (managerUserId == null) {
+                throw new AuraHandledException('Please assign a manager in your User record before creating demo data.');
+            }
 
             // 1. Employee with current user, accrual start date 1 month ago, divisor 8
             List<Employee__c> existingEmpList = [
@@ -89,6 +100,7 @@ global with sharing class DemoDataController {
                 emp = existingEmpList[0];
                 emp.First_Name__c = 'Test';
                 emp.Last_Name__c = 'T.';
+                emp.Manager__c = managerUserId;
                 emp.Accrual_Start_Date__c = System.today().addMonths(-1);
                 emp.Accrual_Divisor__c = 8;
                 emp.Extra_Accrued_Hours__c = 30;
@@ -100,6 +112,7 @@ global with sharing class DemoDataController {
                     Last_Name__c = 'T.',
                     User__c = currentUserId,
                     Email__c = UserInfo.getUserEmail(),
+                    Manager__c = managerUserId,
                     Employment_Type__c = 'Full Time',
                     Active__c = true,
                     Accrual_Start_Date__c = System.today().addMonths(-1),
@@ -207,24 +220,28 @@ global with sharing class DemoDataController {
             // 4. 4 Timesheets: start date Monday, end date Sunday; 1 last last week, 1 for last week, 1 this week, 1 next week
             Timesheet__c tsLastLastWeek = new Timesheet__c(
                 Employee__c = emp.Id,
+                Manager__c = emp.Manager__c,
                 Start_Date__c = lastLastWeekMonday,
                 End_Date__c = lastLastWeekMonday.addDays(6),
                 Status__c = 'New'
             );
             Timesheet__c tsLastWeek = new Timesheet__c(
                 Employee__c = emp.Id,
+                Manager__c = emp.Manager__c,
                 Start_Date__c = lastWeekMonday,
                 End_Date__c = lastWeekMonday.addDays(6),
                 Status__c = 'New'
             );
             Timesheet__c tsThisWeek = new Timesheet__c(
                 Employee__c = emp.Id,
+                Manager__c = emp.Manager__c,
                 Start_Date__c = thisWeekMonday,
                 End_Date__c = thisWeekMonday.addDays(6),
                 Status__c = 'New'
             );
             Timesheet__c tsNextWeek = new Timesheet__c(
                 Employee__c = emp.Id,
+                Manager__c = emp.Manager__c,
                 Start_Date__c = nextWeekMonday,
                 End_Date__c = nextWeekMonday.addDays(6),
                 Status__c = 'New'
@@ -329,6 +346,21 @@ global with sharing class DemoDataController {
                 insert itemsToInsert;
             }
 
+            // Submit the current-week timesheet for approval so the demo data exercises the approval flow.
+            tsThisWeek.Status__c = 'Submitted';
+            update tsThisWeek;
+
+            try {
+                Approval.ProcessSubmitRequest submitReq = new Approval.ProcessSubmitRequest();
+                submitReq.setObjectId(tsThisWeek.Id);
+                Approval.ProcessResult submitResult = Approval.process(submitReq);
+                if (!submitResult.isSuccess()) {
+                    System.debug('Approval submission failed: ' + submitResult.getErrors());
+                }
+            } catch (Exception approvalException) {
+                System.debug('Approval submission skipped: ' + approvalException.getMessage());
+            }
+
             // Change stage to approved for last 2 timesheets (last last week and last week) - sequentially so available balance calculates
             tsLastLastWeek.Status__c = 'Approved';
             update tsLastLastWeek;
@@ -346,7 +378,20 @@ global with sharing class DemoDataController {
             if (Test.isRunningTest()) {
                 throw e;
             }
-            throw new AuraHandledException(e.getMessage());
+            if (e instanceof AuraHandledException) {
+                throw e;
+            }
+            if (e.getCause() instanceof AuraHandledException) {
+                throw (AuraHandledException)e.getCause();
+            }
+            String errorMessage = e.getMessage();
+            if ('Script-thrown exception'.equals(errorMessage) && e.getCause() != null) {
+                Exception cause = (Exception)e.getCause();
+                if (cause.getMessage() != null && !cause.getMessage().equals('Script-thrown exception')) {
+                    errorMessage = cause.getMessage();
+                }
+            }
+            throw new AuraHandledException(errorMessage);
         }
     }
 

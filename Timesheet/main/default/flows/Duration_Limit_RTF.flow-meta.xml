@@ -47,7 +47,7 @@
         <locationX>0</locationX>
         <locationY>0</locationY>
         <assignmentItems>
-            <assignToReference>$Record.dbt__Hours_Limit_Exceeded__c</assignToReference>
+            <assignToReference>$Record.Hours_Limit_Exceeded__c</assignToReference>
             <operator>Assign</operator>
             <value>
                 <booleanValue>true</booleanValue>
@@ -60,7 +60,7 @@
         <locationX>0</locationX>
         <locationY>0</locationY>
         <assignmentItems>
-            <assignToReference>$Record.dbt__Hours_Limit_Exceeded__c</assignToReference>
+            <assignToReference>$Record.Hours_Limit_Exceeded__c</assignToReference>
             <operator>Assign</operator>
             <value>
                 <booleanValue>true</booleanValue>
@@ -102,7 +102,7 @@
             <name>Triggered_record_has_prior_value</name>
             <conditionLogic>and</conditionLogic>
             <conditions>
-                <leftValueReference>$Record__Prior.dbt__Duration__c</leftValueReference>
+                <leftValueReference>$Record__Prior.Duration__c</leftValueReference>
                 <operator>NotEqualTo</operator>
                 <rightValue>
                     <elementReference>$Record.Duration__c</elementReference>

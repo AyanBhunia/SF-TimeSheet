@@ -21,6 +21,7 @@ export default class DemoDataSetup extends NavigationMixin(LightningElement) {
     @track isDeleting = false;
 
     connectedCallback() {
+        console.log('DemoDataSetup connected');
         this.loadStatus();
     }
 
@@ -39,7 +40,7 @@ export default class DemoDataSetup extends NavigationMixin(LightningElement) {
             })
             .catch((error) => {
                 this.isLoading = false;
-                this.showToast('Error', 'Failed to check demo data status: ' + (error.body ? error.body.message : error.message), 'error');
+                this.showToast('Error', 'Failed to check demo data status: ' + this.getErrorMessage(error), 'error');
             });
     }
 
@@ -51,7 +52,7 @@ export default class DemoDataSetup extends NavigationMixin(LightningElement) {
             })
             .catch((error) => {
                 this.isLoading = false;
-                this.showToast('Error', 'Failed to load created test records: ' + (error.body ? error.body.message : error.message), 'error');
+                this.showToast('Error', 'Failed to load created test records: ' + this.getErrorMessage(error), 'error');
             });
     }
 
@@ -59,6 +60,7 @@ export default class DemoDataSetup extends NavigationMixin(LightningElement) {
         if (this.isCreating) {
             return;
         }
+        console.log('DemoDataSetup handleCreateDemoData');
         this.isCreating = true;
         this.isLoading = true;
         createDemoData()
@@ -71,7 +73,8 @@ export default class DemoDataSetup extends NavigationMixin(LightningElement) {
             .catch((error) => {
                 this.isCreating = false;
                 this.isLoading = false;
-                this.showToast('Error', 'Error creating demo data: ' + (error.body ? error.body.message : error.message), 'error');
+                console.error('DemoDataSetup.createDemoData failed', error);
+                this.showToast('Error', 'Error creating demo data: ' + this.getErrorMessage(error), 'error');
             });
     }
 
@@ -90,7 +93,7 @@ export default class DemoDataSetup extends NavigationMixin(LightningElement) {
             .catch((error) => {
                 this.isDeleting = false;
                 this.isLoading = false;
-                this.showToast('Error', 'Error deleting test records: ' + (error.body ? error.body.message : error.message), 'error');
+                this.showToast('Error', 'Error deleting test records: ' + this.getErrorMessage(error), 'error');
             });
     }
 
@@ -116,6 +119,53 @@ export default class DemoDataSetup extends NavigationMixin(LightningElement) {
             message,
             variant
         }));
+    }
+
+    getErrorMessage(error) {
+        if (!error) {
+            return 'Unknown error';
+        }
+
+        if (typeof error.body === 'string') {
+            return error.body;
+        }
+
+        if (Array.isArray(error.body) && error.body.length > 0) {
+            return error.body.map((item) => item.message || item.detail || JSON.stringify(item)).join(', ');
+        }
+
+        if (error.body) {
+            if (error.body.message) {
+                return error.body.message;
+            }
+            if (Array.isArray(error.body.pageErrors) && error.body.pageErrors.length > 0) {
+                return error.body.pageErrors.map((item) => item.message).join(', ');
+            }
+            if (error.body.output && Array.isArray(error.body.output.errors) && error.body.output.errors.length > 0) {
+                return error.body.output.errors.map((item) => item.message).join(', ');
+            }
+            if (error.body.output && error.body.output.errors) {
+                return String(error.body.output.errors);
+            }
+            if (error.body.fieldErrors) {
+                const fieldMessages = Object.values(error.body.fieldErrors)
+                    .flat()
+                    .map((fieldError) => fieldError.message)
+                    .filter(Boolean);
+                if (fieldMessages.length) {
+                    return fieldMessages.join(', ');
+                }
+            }
+            if (typeof error.body === 'object') {
+                return JSON.stringify(error.body);
+            }
+        }
+
+        if (error.message) {
+            return error.message;
+        }
+
+        return JSON.stringify(error);
     }
 
     // Access control and state getters

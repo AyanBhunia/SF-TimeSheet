@@ -15,7 +15,7 @@
             </value>
         </assignmentItems>
         <assignmentItems>
-            <assignToReference>$Record.dbt__Manager__c</assignToReference>
+            <assignToReference>$Record.Manager__c</assignToReference>
             <operator>Assign</operator>
             <value>
                 <elementReference>$Record.User__r.ManagerId</elementReference>
