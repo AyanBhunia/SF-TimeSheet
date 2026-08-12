@@ -233,8 +233,13 @@ export default class TimesheetLineItemEntry extends LightningElement {
 
     loadTimesheet() {
         return getTimesheet({ timesheetId: this.recordId })
-            .then(result => {
-                // console.log('load timesheet',JSON.stringify(result));
+            .then(rawResult => {
+                const result = {
+                    Employee__c: rawResult.dbt__Employee__c || rawResult.Employee__c,
+                    Start_Date__c: rawResult.dbt__Start_Date__c || rawResult.Start_Date__c,
+                    End_Date__c: rawResult.dbt__End_Date__c || rawResult.End_Date__c,
+                    name: rawResult.Name || rawResult.name
+                };
                 this.EmployeeID = result.Employee__c;
                 this.TimesheetStartDate = result.Start_Date__c;
                 this.TimeSheetEndDate = result.End_Date__c;
@@ -292,41 +297,56 @@ export default class TimesheetLineItemEntry extends LightningElement {
 
     loadProjects() {
         return getProjects({ empId: this.EmployeeID })
-            .then(result => {
+            .then(rawResult => {
                 this.projectOptions = [
                     { label: 'Select a Project', value: '' },
-                    ...result.map(proj => {
-                    let isActive = true;
-                    if (proj.Project__r) {
-                        if (proj.Project__r.dbt__Active__c !== undefined) {
-                            isActive = proj.Project__r.dbt__Active__c;
-                        } else if (proj.Project__r.Active__c !== undefined) {
-                            isActive = proj.Project__r.Active__c;
+                    ...rawResult.map(rawProj => {
+                        const proj = {
+                            Project__c: rawProj.dbt__Project__c || rawProj.Project__c,
+                            Hourly_Rate__c: rawProj.dbt__Hourly_Rate__c || rawProj.Hourly_Rate__c,
+                            Project__r: rawProj.dbt__Project__r || rawProj.Project__r
+                        };
+                        let isActive = true;
+                        let billable = null;
+                        let projectName = 'Unknown Project';
+                        if (proj.Project__r) {
+                            projectName = proj.Project__r.Name || 'Unknown Project';
+                            if (proj.Project__r.dbt__Active__c !== undefined) {
+                                isActive = proj.Project__r.dbt__Active__c;
+                            } else if (proj.Project__r.Active__c !== undefined) {
+                                isActive = proj.Project__r.Active__c;
+                            }
+                            if (proj.Project__r.dbt__Billable__c !== undefined) {
+                                billable = proj.Project__r.dbt__Billable__c;
+                            } else if (proj.Project__r.Billable__c !== undefined) {
+                                billable = proj.Project__r.Billable__c;
+                            }
                         }
-                    }
-                    return {
-                        label: proj.Project__r.Name,
-                        value: proj.Project__c,
-                        billable: proj.Project__r?.Billable__c,
-                        hourly_rate: proj.Hourly_Rate__c || 0,
-                        active: isActive
-                    };
-                })];
-                this.projectIds = result.map(proj => proj.Project__c);
+                        return {
+                            label: projectName,
+                            value: proj.Project__c,
+                            billable: billable,
+                            hourly_rate: proj.Hourly_Rate__c || 0,
+                            active: isActive
+                        };
+                    })
+                ];
+                this.projectIds = rawResult.map(rawProj => rawProj.dbt__Project__c || rawProj.Project__c);
             })
             .then(() => {
                 getProjectActivities({ projectIds: this.projectIds })
-                    .then(result => {
-                        console.log('Project Activities:', JSON.stringify(result));
+                    .then(rawResult => {
+                        // console.log('Project Activities:', JSON.stringify(result));
+                        
                         // Build a map of projectId -> array of option objects
                         this.ProjectActivityMap = new Map();
-                        result.forEach(item => {
-                            const pid = item.dbt__Project__c;
+                        rawResult.forEach(rawItem => {
+                            const pid = rawItem.dbt__Project__c || rawItem.Project__c;
                             const arr = this.ProjectActivityMap.get(pid) || [];
-                            arr.push({ label: item.Name, value: item.Name });
+                            arr.push({ label: rawItem.Name, value: rawItem.Name });
                             this.ProjectActivityMap.set(pid, arr);
                         });
-
+                        
                         // After loading project activities, refresh per-row activity options
                         if (Array.isArray(this.projectsList) && this.projectsList.length) {
                             this.projectsList = this.projectsList.map(row => ({
@@ -379,7 +399,19 @@ export default class TimesheetLineItemEntry extends LightningElement {
 
         // console.log("data",JSON.stringify(data));
   
-        data.forEach(item => {
+        data.forEach(rawItem => {
+            const item = {
+                Id: rawItem.Id,
+                Date__c: rawItem.dbt__Date__c || rawItem.Date__c,
+                Duration__c: rawItem.dbt__Duration__c || rawItem.Duration__c,
+                Description__c: rawItem.dbt__Description__c || rawItem.Description__c,
+                Type__c: rawItem.dbt__Type__c || rawItem.Type__c,
+                Project__c: rawItem.dbt__Project__c || rawItem.Project__c,
+                Activity__c: rawItem.dbt__Activity__c || rawItem.Activity__c,
+                Absence_Category__c: rawItem.dbt__Absence_Category__c || rawItem.Absence_Category__c,
+                Project__r: rawItem.dbt__Project__r || rawItem.Project__r
+            };
+
             // Use localDateFromServer to get a local-midnight Date object (no TZ shift)
             const date = this.localDateFromServer(item.Date__c);
             const dayIndex = date.getDay() === 0 ? 6 : date.getDay() - 1;

@@ -98,8 +98,8 @@ private class DemoDataControllerTest {
         System.assertEquals(false, statusBefore.get('isTestEmployee'));
 
         // Test records when empty
-        List<DemoDataController.DemoRecordDetail> emptyRecords = DemoDataController.getDemoRecords();
-        System.assertEquals(0, emptyRecords.size());
+        DemoDataController.DemoDataWrapper emptyRecords = DemoDataController.getDemoRecords();
+        System.assertEquals(0, emptyRecords.employees.size());
 
         // Create demo data
         DemoDataController.createDemoData();
@@ -111,8 +111,9 @@ private class DemoDataControllerTest {
         System.assertEquals('Test T.', statusAfter.get('employeeName'));
 
         // Check records after creation
-        List<DemoDataController.DemoRecordDetail> createdRecords = DemoDataController.getDemoRecords();
-        System.assert(createdRecords.size() >= 8, 'Should return records for employee, projects, assignments, and timesheets');
+        DemoDataController.DemoDataWrapper createdRecords = DemoDataController.getDemoRecords();
+        Integer totalRecords = createdRecords.employees.size() + createdRecords.projects.size() + createdRecords.projectEmployees.size() + createdRecords.timesheets.size();
+        System.assert(totalRecords >= 8, 'Should return records for employee, projects, assignments, and timesheets');
 
         // Delete test records
         String deleteRes = DemoDataController.deleteTestRecords();

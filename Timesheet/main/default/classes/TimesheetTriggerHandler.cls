@@ -20,10 +20,12 @@ public with sharing class TimesheetTriggerHandler extends TriggerHandler {
     }
 
     public static void beforeInsert(List<Timesheet__c> newTimesheets) {
+        setTimesheetName(newTimesheets);
         calculateAccruedHours(newTimesheets, null);
     }
 
     public static void beforeUpdate(List<Timesheet__c> newTimesheets, Map<Id, Timesheet__c> oldMap) {
+        setTimesheetName(newTimesheets);
         calculateAccruedHours(newTimesheets, oldMap);
     }
 
@@ -45,6 +47,16 @@ public with sharing class TimesheetTriggerHandler extends TriggerHandler {
 
     private static void calculateAccruedHours(List<Timesheet__c> newTimesheets, Map<Id, Timesheet__c> oldMap) {
         AccrualCalculationService.calculateTimesheetAccruals(newTimesheets);
+    }
+
+    private static void setTimesheetName(List<Timesheet__c> timesheets) {
+        for (Timesheet__c ts : timesheets) {
+            if (ts.Start_Date__c != null && ts.End_Date__c != null) {
+                DateTime startDt = DateTime.newInstance(ts.Start_Date__c, Time.newInstance(0, 0, 0, 0));
+                DateTime endDt = DateTime.newInstance(ts.End_Date__c, Time.newInstance(0, 0, 0, 0));
+                ts.Name = startDt.format('yyyy-MM-dd') + ' to ' + endDt.format('yyyy-MM-dd');
+            }
+        }
     }
 
     private static void updateEmployeeTotals(List<Timesheet__c> timesheets, Map<Id, Timesheet__c> oldMap) {

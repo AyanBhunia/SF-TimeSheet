@@ -1,159 +1,389 @@
 <!--
   @file demoDataSetup.html
-  @description Retro Salesforce Classic/Lightning visual structure for Demo Data Setup
+  @description Modern Salesforce Lightning structural setup for Demo Data
 -->
 <template>
-    <div class="demo-setup-container">
-        <!-- Classic Retro Page Header -->
-        <div class="retro-header slds-m-bottom_medium">
-            <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
-                <div class="slds-media slds-media_center">
-                    <div class="slds-media__figure">
-                        <lightning-icon icon-name="custom:custom63" size="small"></lightning-icon>
-                    </div>
-                    <div class="slds-media__body">
-                        <h1 class="header-title" title="Demo Data Setup">
-                            Timesheet Demo Data Setup
-                        </h1>
-                        <p class="header-subtitle">
-                            Create, inspect, and manage sample datasets for evaluation and testing
-                        </p>
+    <div class="slds-p-around_medium" style="max-width: 1200px; margin: 0 auto;">
+        
+        <!-- Standard SLDS Page Header -->
+        <div class="slds-page-header slds-m-bottom_medium slds-box slds-theme_default slds-m-top_small">
+            <div class="slds-page-header__row">
+                <div class="slds-page-header__col-title">
+                    <div class="slds-media slds-media_center">
+                        <div class="slds-media__figure">
+                            <lightning-icon icon-name="custom:custom63" size="medium"></lightning-icon>
+                        </div>
+                        <div class="slds-media__body">
+                            <div class="slds-page-header__name">
+                                <div class="slds-page-header__name-title">
+                                    <h1>
+                                        <span class="slds-page-header__title slds-truncate" title="Demo Data Setup">Timesheet Demo Data Setup</span>
+                                    </h1>
+                                </div>
+                            </div>
+                            <p class="slds-page-header__name-meta">Create, inspect, and manage sample datasets for evaluation and testing</p>
+                        </div>
                     </div>
                 </div>
-                <div>
-                    <!-- Show Delete button if create button was clicked or test records exist -->
-                    <template if:true={showDeleteButton}>
-                        <lightning-button
-                            label="Delete test records"
-                            title="Delete all demo records related to the current user"
-                            icon-name="utility:delete"
-                            variant="destructive"
-                            onclick={handleDeleteTestRecords}
-                            disabled={isDeleting}>
-                        </lightning-button>
-                    </template>
+                <div class="slds-page-header__col-actions">
+                    <div class="slds-page-header__controls">
+                        <div class="slds-page-header__control">
+                            <template if:true={showDeleteButton}>
+                                <lightning-button
+                                    label="Delete test records"
+                                    title="Delete all demo records related to the current user"
+                                    icon-name="utility:delete"
+                                    variant="destructive"
+                                    onclick={handleDeleteTestRecords}
+                                    disabled={isDeleting}>
+                                </lightning-button>
+                            </template>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Spinner while loading -->
         <template if:true={isLoading}>
-            <div class="retro-card slds-is-relative slds-p-around_large loading-card">
+            <div class="slds-is-relative slds-p-around_xx-large">
                 <lightning-spinner alternative-text="Loading Demo Status..." size="medium"></lightning-spinner>
             </div>
         </template>
 
         <!-- STATE 1: Ready to create demo data (No employee record exists) -->
-        <template if:true={showCreateButton}>
-            <div class="retro-card slds-p-around_medium slds-m-bottom_medium">
-                <div class="slds-text-align_center slds-p-around_medium">
-                    <h2 class="section-title slds-m-bottom_small">
-                        No Sample Data Found
-                    </h2>
-                    <p class="slds-m-bottom_medium" style="max-width: 600px; margin-left: auto; margin-right: auto;">
-                        Clicking the button below will create an employee profile named <strong>Test T.</strong>, configure 3 projects (Billable, Non-Billable, and Legacy), assign project memberships, and generate 4 weekly timesheets with sample attendance and sick leave line items.
+        <template if:true={showSetupPrompt}>
+            <lightning-card title="Welcome to Demo Data Setup" icon-name="standard:setup" class="slds-m-bottom_medium">
+                <div class="slds-p-around_medium slds-text-align_center">
+                    <p class="slds-m-bottom_medium slds-text-heading_small" style="max-width: 600px; margin: 0 auto;">
+                        Click the button below to view the setup sections. From there, you can manually create your Employee record and other demo records.
                     </p>
                     <lightning-button
                         label="Create Demo Data"
-                        icon-name="utility:add"
+                        icon-name="utility:setup"
                         variant="brand"
                         onclick={handleCreateDemoData}
                         disabled={isCreating}>
                     </lightning-button>
                 </div>
-            </div>
+            </lightning-card>
         </template>
 
-        <!-- STATE 2: Created Records View (Employee 'Test T.' exists) -->
-        <template if:true={showCreatedRecordsView}>
-            <div class="retro-card slds-m-bottom_medium">
-                <div class="retro-card-header">
-                    <h2 class="section-title">
-                        Created Test Records &amp; Step-by-Step Process (Employee: <strong>{employeeName}</strong>)
-                    </h2>
-                    <p class="section-subtitle">
-                        Every record created during demo setup is listed below with its summary, role in the application, and a direct link to view or modify it in Salesforce.
-                    </p>
-                </div>
-                <div class="slds-p-around_medium">
-                    <div class="slds-grid slds-grid_vertical slds-gutters">
-                        <template for:each={demoRecords} for:item="rec">
-                            <div key={rec.recordId} class="slds-col slds-m-bottom_medium">
-                                <div class="step-box">
-                                    <div class="step-box-header slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
-                                        <div class="slds-grid slds-grid_vertical-align-center">
-                                            <span class="step-badge slds-m-right_small">Step {rec.stepNumber}</span>
-                                            <span class="step-title">{rec.stepTitle}</span>
-                                        </div>
-                                        <div class="slds-grid slds-grid_vertical-align-center">
-                                            <span class="object-badge slds-m-right_small">{rec.objectLabel}</span>
-                                            <lightning-button
-                                                label="View Record"
-                                                icon-name="utility:preview"
-                                                variant="neutral"
-                                                size="small"
-                                                data-url={rec.recordUrl}
-                                                onclick={handleOpenUrl}>
-                                            </lightning-button>
-                                        </div>
-                                    </div>
-                                    <div class="slds-m-top_small">
-                                        <!-- Summary Highlight Box -->
-                                        <div class="summary-box slds-m-bottom_small">
-                                            <strong>Summary:</strong> {rec.summary}
-                                        </div>
-                                        <!-- Details -->
-                                        <div class="details-text slds-m-bottom_small">
-                                            <strong>Details:</strong> {rec.details}
-                                        </div>
-                                        <!-- What it does -->
-                                        <div class="what-it-does-box">
-                                            <div class="what-title slds-m-bottom_xx-small">What it does:</div>
-                                            <p class="what-desc">{rec.whatItDoes}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </template>
+        <!-- STATE 4: No Access (Lacks permission) -->
+        <template if:true={showNoAccessMessage}>
+            <lightning-card class="slds-m-bottom_medium">
+                <div class="slds-illustration slds-illustration_large">
+                    <div class="slds-text-longform slds-text-align_center slds-p-around_medium">
+                        <h3 class="slds-text-heading_medium slds-text-color_error slds-m-bottom_small">Access Denied</h3>
+                        <p>You do not have permission to view the Demo Data Setup tab.</p>
                     </div>
                 </div>
-            </div>
+            </lightning-card>
+        </template>
+
+        <!-- STATE 2: Created Records View -->
+        <template if:true={showCreatedRecordsView}>
+            <lightning-card title="Demo Setup Tasks" icon-name="standard:task" class="slds-m-bottom_medium">
+                <div class="slds-p-around_medium">
+                    <lightning-accordion allow-multiple-sections-open active-section-name={activeSections}>
+                        
+                        <!-- Employees Section -->
+                        <lightning-accordion-section name="employees" label={employeesLabel}>
+                            <div class="slds-m-bottom_small">
+                                <lightning-button label="New Employee" variant="neutral" icon-name="utility:add" onclick={handleCreateCurrentUserEmployee} disabled={hasEmployee}></lightning-button>
+                            </div>
+                            <template for:each={employees} for:item="rec">
+                                <lightning-layout key={rec.recordId} multiple-rows class="slds-box slds-m-bottom_x-small slds-theme_shade slds-grid_vertical-align-center">
+                                    <lightning-layout-item flexibility="auto">
+                                        <p class="slds-text-heading_small slds-m-bottom_xx-small"><strong>{rec.stepTitle}</strong></p>
+                                        <p class="slds-text-color_weak">{rec.summary}</p>
+                                    </lightning-layout-item>
+                                    <lightning-layout-item>
+                                        <lightning-button label="View" icon-name="utility:preview" variant="base" data-url={rec.recordUrl} onclick={handleOpenUrl}></lightning-button>
+                                    </lightning-layout-item>
+                                </lightning-layout>
+                            </template>
+                            <template if:false={employees.length}>
+                                <p class="slds-text-color_weak slds-m-top_small">No employee records found.</p>
+                            </template>
+                        </lightning-accordion-section>
+
+                        <!-- Projects Section -->
+                        <lightning-accordion-section name="projects" label={projectsLabel}>
+                            <div class="slds-m-bottom_small">
+                                <lightning-button label="New Projects" variant="neutral" icon-name="utility:add" onclick={handleCreateProjects} disabled={hasProjects}></lightning-button>
+                            </div>
+                            <template for:each={projects} for:item="rec">
+                                <lightning-layout key={rec.recordId} multiple-rows class="slds-box slds-m-bottom_x-small slds-theme_shade slds-grid_vertical-align-center">
+                                    <lightning-layout-item flexibility="auto">
+                                        <p class="slds-text-heading_small slds-m-bottom_xx-small"><strong>{rec.stepTitle}</strong></p>
+                                        <p class="slds-text-color_weak">{rec.summary}</p>
+                                    </lightning-layout-item>
+                                    <lightning-layout-item>
+                                        <lightning-button label="View" icon-name="utility:preview" variant="base" data-url={rec.recordUrl} onclick={handleOpenUrl}></lightning-button>
+                                    </lightning-layout-item>
+                                </lightning-layout>
+                            </template>
+                            <template if:false={projects.length}>
+                                <p class="slds-text-color_weak slds-m-top_small">No project records found.</p>
+                            </template>
+                        </lightning-accordion-section>
+
+                        <!-- Project Assignments Section -->
+                        <lightning-accordion-section name="projectEmployees" label={projectAssignmentsLabel}>
+                            <div class="slds-m-bottom_small">
+                                <lightning-button label="New Project Assignments" variant="neutral" icon-name="utility:add" onclick={handleCreateProjectAssignments} disabled={hasProjectAssignments}></lightning-button>
+                            </div>
+                            <template for:each={projectEmployees} for:item="rec">
+                                <lightning-layout key={rec.recordId} multiple-rows class="slds-box slds-m-bottom_x-small slds-theme_shade slds-grid_vertical-align-center">
+                                    <lightning-layout-item flexibility="auto">
+                                        <p class="slds-text-heading_small slds-m-bottom_xx-small"><strong>{rec.stepTitle}</strong></p>
+                                        <p class="slds-text-color_weak">{rec.summary}</p>
+                                    </lightning-layout-item>
+                                    <lightning-layout-item>
+                                        <lightning-button label="View" icon-name="utility:preview" variant="base" data-url={rec.recordUrl} onclick={handleOpenUrl}></lightning-button>
+                                    </lightning-layout-item>
+                                </lightning-layout>
+                            </template>
+                            <template if:false={projectEmployees.length}>
+                                <p class="slds-text-color_weak slds-m-top_small">No project assignment records found.</p>
+                            </template>
+                        </lightning-accordion-section>
+
+                        <!-- Timesheets Section -->
+                        <lightning-accordion-section name="timesheets" label={timesheetsLabel}>
+                            <div class="slds-m-bottom_small">
+                                <lightning-button label="New Timesheets" variant="neutral" icon-name="utility:add" onclick={handleCreateTimesheets} disabled={hasTimesheets}></lightning-button>
+                            </div>
+                            <template for:each={timesheets} for:item="ts">
+                                <div key={ts.recordId} class="slds-box slds-m-bottom_small slds-theme_default">
+                                    <lightning-layout vertical-align="center">
+                                        <lightning-layout-item>
+                                            <lightning-button-icon
+                                                icon-name={ts.iconName}
+                                                variant="bare"
+                                                class="slds-m-right_small"
+                                                data-id={ts.recordId}
+                                                onclick={handleToggleTimesheet}>
+                                            </lightning-button-icon>
+                                        </lightning-layout-item>
+                                        <lightning-layout-item flexibility="auto" class="slds-m-left_x-small">
+                                            <a href="javascript:void(0);" data-id={ts.recordId} onclick={handleToggleTimesheet} class="slds-text-link_reset slds-text-heading_small">
+                                                <strong>{ts.employeeName} - {ts.periodName}</strong>
+                                                <lightning-badge label={ts.status} class="slds-m-left_small"></lightning-badge>
+                                            </a>
+                                        </lightning-layout-item>
+                                        <lightning-layout-item>
+                                            <lightning-button label="View Record" icon-name="utility:preview" variant="base" data-url={ts.recordUrl} onclick={handleOpenUrl}></lightning-button>
+                                        </lightning-layout-item>
+                                    </lightning-layout>
+                                    
+                                    <template if:true={ts.isOpen}>
+                                        <div class="slds-m-top_medium slds-p-top_small slds-border_top">
+                                            <lightning-layout multiple-rows vertical-align="center" class="slds-m-bottom_small">
+                                                <lightning-layout-item flexibility="auto">
+                                                    <p class="slds-m-bottom_xxx-small"><strong>Total Hours:</strong> {ts.totalHours}</p>
+                                                    <p><strong>Date Range:</strong> {ts.dateRange}</p>
+                                                </lightning-layout-item>
+                                                <lightning-layout-item>
+                                                    <lightning-button label="Generate Line Items" variant="brand-outline" icon-name="utility:table" data-id={ts.recordId} onclick={handleCreateTimesheetLineItems}></lightning-button>
+                                                </lightning-layout-item>
+                                            </lightning-layout>
+                                            
+                                            <template if:true={ts.mappedLineItems.length}>
+                                                <div class="slds-m-top_small slds-border_left slds-border_right slds-border_bottom slds-border_top">
+                                                    <lightning-datatable
+                                                        key-field="id"
+                                                        data={ts.mappedLineItems}
+                                                        columns={lineItemColumns}
+                                                        hide-checkbox-column>
+                                                    </lightning-datatable>
+                                                </div>
+                                            </template>
+                                            <template if:false={ts.mappedLineItems.length}>
+                                                <p class="slds-text-color_weak slds-m-top_small slds-text-align_center slds-p-around_small slds-theme_shade">No line items for this timesheet.</p>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                            <template if:false={timesheets.length}>
+                                <p class="slds-text-color_weak slds-m-top_small">No timesheet records found.</p>
+                            </template>
+                        </lightning-accordion-section>
+                    </lightning-accordion>
+                </div>
+            </lightning-card>
         </template>
 
         <!-- STATE 3: Access Terminated (User clicked Delete test records) -->
         <template if:true={showAccessTerminated}>
-            <div class="retro-card slds-p-around_medium slds-text-align_center">
-                <h2 class="section-title slds-m-bottom_small">
-                    Test Records Have Been Deleted
-                </h2>
-                <p class="slds-m-bottom_medium">
-                    All demo test records related to your current user have been removed from the application. This demo setup tab is no longer accessible for this session.
-                </p>
-                <lightning-button
-                    label="Return to Overview"
-                    icon-name="utility:back"
-                    variant="brand"
-                    onclick={handleReturnToOverview}>
-                </lightning-button>
-            </div>
+            <lightning-card class="slds-m-bottom_medium">
+                <div class="slds-illustration slds-illustration_large">
+                    <div class="slds-text-longform slds-text-align_center slds-p-around_medium">
+                        <h3 class="slds-text-heading_medium slds-m-bottom_small">Test Records Have Been Deleted</h3>
+                        <p class="slds-m-bottom_medium" style="max-width: 600px; margin: 0 auto;">
+                            All demo test records related to your current user have been removed from the application. This demo setup tab is no longer accessible for this session.
+                        </p>
+                        <lightning-button
+                            class="slds-m-top_medium"
+                            label="Return to Overview"
+                            icon-name="utility:back"
+                            variant="brand"
+                            onclick={handleReturnToOverview}>
+                        </lightning-button>
+                    </div>
+                </div>
+            </lightning-card>
         </template>
 
         <!-- STATE 4: Inaccessible Employee (Employee exists and is not 'Test T.') -->
         <template if:true={showInaccessibleEmployee}>
-            <div class="retro-card slds-p-around_medium slds-text-align_center">
-                <h2 class="section-title slds-m-bottom_small">
-                    Demo Setup Not Accessible
-                </h2>
-                <p class="slds-m-bottom_medium">
-                    An active employee record (<strong>{employeeName}</strong>) already exists for your user account. This setup tab is only accessible when no employee record exists or when the current employee is named <strong>Test T.</strong>.
-                </p>
-                <lightning-button
-                    label="Return to Overview"
-                    icon-name="utility:back"
-                    variant="brand"
-                    onclick={handleReturnToOverview}>
-                </lightning-button>
-            </div>
+            <lightning-card class="slds-m-bottom_medium">
+                <div class="slds-illustration slds-illustration_large">
+                    <div class="slds-text-longform slds-text-align_center slds-p-around_medium">
+                        <h3 class="slds-text-heading_medium slds-m-bottom_small">Demo Setup Not Accessible</h3>
+                        <p class="slds-m-bottom_medium" style="max-width: 600px; margin: 0 auto;">
+                            An active employee record (<strong>{employeeName}</strong>) already exists for your user account. This setup tab is only accessible when no employee record exists or when the current employee is named <strong>Test T.</strong>.
+                        </p>
+                        <lightning-button
+                            class="slds-m-top_medium"
+                            label="Return to Overview"
+                            icon-name="utility:back"
+                            variant="brand"
+                            onclick={handleReturnToOverview}>
+                        </lightning-button>
+                    </div>
+                </div>
+            </lightning-card>
         </template>
+
+        <!-- Manual Approval Process Setup Guide -->
+        <lightning-card title="Manual Setup: Approval Process" icon-name="standard:approval" class="slds-m-bottom_medium slds-m-top_large">
+            <div class="slds-p-horizontal_medium slds-m-bottom_small">
+                <p class="slds-text-color_weak">Follow these steps to manually configure the Timesheet approval process in your org.</p>
+            </div>
+            <div class="slds-p-around_medium">
+                <lightning-accordion allow-multiple-sections-open>
+                    <lightning-accordion-section name="emailTemplates" label="1. Create Email Templates">
+                        <ol class="slds-list_decimal slds-p-left_medium">
+                            <li>In Setup, search for <strong>'Email Templates'</strong> and select <strong>'Classic Email Templates'</strong>.</li>
+                            <li>Click on the <strong>'New Template'</strong> button.</li>
+                            <li>Select the <strong>'Unified Public Classic Email Templates'</strong> folder, and check the <strong>'Available for Use'</strong> checkbox.</li>
+                            <li>Give the approved email an appropriate name. In the email body section, enter the desired content. To insert timesheet-related merge fields, select <strong>'Timesheet Fields'</strong> from the merge field dropdown.
+                                <div class="slds-box slds-m-top_small slds-m-bottom_small slds-theme_shade">
+                                    <p><strong>Email Template Name:</strong> Timesheet Approved Email Templates</p>
+                                    <p><strong>Description:</strong> Timesheet Approved Email Templates</p>
+                                    <p><strong>Subject:</strong> Timesheet is Approved</p>
+                                    <p><strong>Body:</strong></p>
+                                    <pre class="slds-m-top_xx-small">&#123;!dbt__Timesheet__c.dbt__Employee__c&#125;,<br/>Your &#123;!dbt__Timesheet__c.Name&#125; is Approved.<br/>Comments : &#123;!ApprovalRequest.Comments&#125;</pre>
+                                </div>
+                            </li>
+                            <li>Similarly follow the same steps and create another email template for rejected action:
+                                <div class="slds-box slds-m-top_small slds-m-bottom_small slds-theme_shade">
+                                    <p><strong>Email Template Name:</strong> Timesheet Rejected Email Templates</p>
+                                    <p><strong>Description:</strong> Timesheet Rejected Email Templates</p>
+                                    <p><strong>Subject:</strong> Timesheet is Rejected</p>
+                                    <p><strong>Body:</strong></p>
+                                    <pre class="slds-m-top_xx-small">&#123;!dbt__Timesheet__c.dbt__Employee__c&#125;,<br/>Your &#123;!dbt__Timesheet__c.Name&#125; is Rejected.<br/>Comments : &#123;!ApprovalRequest.Comments&#125;</pre>
+                                </div>
+                            </li>
+                        </ol>
+                    </lightning-accordion-section>
+                    
+                    <lightning-accordion-section name="emailAlerts" label="2. Creating Email Alerts">
+                        <ol class="slds-list_decimal slds-p-left_medium">
+                            <li>Go to the <strong>Email Alerts</strong> section from setup and click on the <strong>New Email Alert</strong> button.</li>
+                            <li>Enter <strong>'Timesheet approval email alert'</strong> in the Description field.</li>
+                            <li>Enter <strong>'Timesheet_Approved_Email_Alert'</strong> in the Name field.</li>
+                            <li>In Recipient type, search for owner and add <strong>'Timesheet Owner'</strong> to Selected recipients.</li>
+                            <li>Select <strong>'Current User’s Email Address'</strong> in From Email Address.</li>
+                            <li>Follow the above steps and create another Email alert for rejection action.</li>
+                        </ol>
+                    </lightning-accordion-section>
+                    
+                    <lightning-accordion-section name="approvalProcess" label="3. Approval Process Setup">
+                        <ol class="slds-list_decimal slds-p-left_medium">
+                            <li>Click the Gear Icon, and select <strong>Setup</strong>.</li>
+                            <li>In Quick Find box, search and select <strong>“Approval Processes”</strong>.</li>
+                            <li>Choose <strong>Timesheet</strong> from the “Manage Approval Processes for” dropdown.</li>
+                            <li>Select <strong>“Use Standard Setup Wizard”</strong> from the “Create New Approval Process” dropdown.</li>
+                            <li>Name the Approval Process as <strong>“Timesheet Approval Process”</strong> (API Name will Auto Generate).</li>
+                            <li>Click <strong>Next</strong>.</li>
+                            <li>In Criteria, add Field: <strong>“Timesheet: Met Weekly Hours”</strong>, Operator: <strong>“equals”</strong>, Value: <strong>“True”</strong>.</li>
+                            <li>Click <strong>Next</strong>.</li>
+                            <li>Click <strong>Next</strong> again on step 4.</li>
+                            <li>Click <strong>Next</strong> again on step 5 (add Timesheet fields in order).</li>
+                            <li>Click <strong>Save</strong>.</li>
+                            <li>Select <strong>“I'll do this later. Take me to the approval detail page to review what I've just created.”</strong> and click <strong>Go</strong>.</li>
+                        </ol>
+                    </lightning-accordion-section>
+                    
+                    <lightning-accordion-section name="initialSubmission" label="4. Add Initial Submission Actions">
+                        <ol class="slds-list_decimal slds-p-left_medium">
+                            <li>Scroll down to the <strong>“Initial Submission Actions”</strong> section.</li>
+                            <li>Click <strong>“Add Existing”</strong>.</li>
+                            <li>Select <strong>“Field Update”</strong> from the “Choose Action Type” dropdown.</li>
+                            <li>Choose <strong>“Update Status Field to Submitted”</strong> from the available actions and add to “Selected Actions”.</li>
+                            <li>Click <strong>Save</strong>.</li>
+                        </ol>
+                    </lightning-accordion-section>
+                    
+                    <lightning-accordion-section name="approvalSteps" label="5. Approval Steps">
+                        <ol class="slds-list_decimal slds-p-left_medium">
+                            <li>Select the <strong>“New Approval Step”</strong> button.</li>
+                            <li>Enter Name as <strong>“Manager Approval”</strong> (Unique name will auto-generate).</li>
+                            <li>Click <strong>Next</strong>.</li>
+                            <li>In Step 2, Select <strong>“All records should enter this step”</strong>.</li>
+                            <li>Click <strong>Next</strong>.</li>
+                            <li>Select <strong>“Automatically assign to approver(s).”</strong></li>
+                            <li>Select <strong>“Related User”</strong> and Add <strong>“Manager”</strong>.</li>
+                            <li>Select <strong>“Require UNANIMOUS approval from all selected approvers.”</strong></li>
+                            <li>Click <strong>Save</strong>.</li>
+                            <li>Select <strong>“No, I’ll do this later. Take me to the approval process page to review what I've just created”</strong> and click <strong>Go</strong>.</li>
+                        </ol>
+                    </lightning-accordion-section>
+                    
+                    <lightning-accordion-section name="finalApproval" label="6. Add Final Approval Actions">
+                        <ol class="slds-list_decimal slds-p-left_medium">
+                            <li>Under Final Approval Actions, click <strong>“Add Existing”</strong>.</li>
+                            <li>Select <strong>“Field Update”</strong> from the “Choose Action Type” dropdown.</li>
+                            <li>Choose <strong>“Update Status Field to Approved”</strong> and add to “Selected Actions”.</li>
+                            <li>Click <strong>Save</strong>.</li>
+                            <li>Click <strong>“Add Existing”</strong> again.</li>
+                            <li>Select <strong>“Email Alert”</strong> from the “Choose Action Type” dropdown.</li>
+                            <li>Choose <strong>“Timesheet Approved Email Alert”</strong> and add to “Selected Actions”.</li>
+                            <li>Click <strong>Save</strong>.</li>
+                        </ol>
+                    </lightning-accordion-section>
+                    
+                    <lightning-accordion-section name="finalRejection" label="7. Add Final Rejection Actions">
+                        <ol class="slds-list_decimal slds-p-left_medium">
+                            <li>Under Final Rejection Actions, click <strong>“Add Existing”</strong>.</li>
+                            <li>Select <strong>“Field Update”</strong> from the “Choose Action Type” dropdown.</li>
+                            <li>Choose <strong>“Update Status Field to New”</strong> and add to “Selected Actions”.</li>
+                            <li>Click <strong>Save</strong>.</li>
+                            <li>Click <strong>“Add Existing”</strong> again.</li>
+                            <li>Select <strong>“Email Alert”</strong> from the “Choose Action Type” dropdown.</li>
+                            <li>Choose <strong>“Timesheet Rejected Email Alert”</strong> and add to “Selected Actions”.</li>
+                            <li>Click <strong>Save</strong>.</li>
+                        </ol>
+                    </lightning-accordion-section>
+                    
+                    <lightning-accordion-section name="recallActions" label="8. Add Recall Actions">
+                        <ol class="slds-list_decimal slds-p-left_medium">
+                            <li>Under Recall Actions, click <strong>“Add Existing”</strong>.</li>
+                            <li>Select <strong>“Field Update”</strong> from the “Choose Action Type” dropdown.</li>
+                            <li>Choose <strong>“Update Status Field to New”</strong> and add to “Selected Actions”.</li>
+                            <li>Click <strong>Save</strong>.</li>
+                        </ol>
+                    </lightning-accordion-section>
+                    
+                    <lightning-accordion-section name="activate" label="9. Activate the Approval Process">
+                        <p class="slds-p-left_medium">Finally, click the <strong>Activate</strong> button on the Approval Process detail page to make it active.</p>
+                    </lightning-accordion-section>
+                </lightning-accordion>
+            </div>
+        </lightning-card>
     </div>
 </template>

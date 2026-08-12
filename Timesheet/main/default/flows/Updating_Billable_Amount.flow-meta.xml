@@ -6,8 +6,7 @@
     <formulas>
         <name>BillableAmount</name>
         <dataType>Currency</dataType>
-        <expression>IF(ISPICKVAL({!$Record.Project__r.Billable__c}, &apos;Yes&apos;),
-            {!Project_Employee_Record.Hourly_Rate__c}*{!$Record.Duration__c}, 0)</expression>
+        <expression>{!Project_Employee_Record.Hourly_Rate__c} * {!$Record.Duration__c}</expression>
         <scale>2</scale>
     </formulas>
     <interviewLabel>Updating Billable Amount {!$Flow.CurrentDateTime}</interviewLabel>
@@ -78,9 +77,9 @@
         <connector>
             <targetReference>Project_Employee_Record</targetReference>
         </connector>
-        <filterFormula>OR(ISNEW() ,ISCHANGED({!$Record.Duration__c}) ,
+        <filterFormula>AND(NOT(BEGINS({!$Record.Description__c}, &apos;Demo Data&apos;)), NOT(ISBLANK({!$Record.Project__c})), OR(ISNEW() ,ISCHANGED({!$Record.Duration__c}) ,
             ISCHANGED({!$Record.Project__c}) , ISCHANGED({!$Record.Employee__c}) ,
-            ISCHANGED({!$Record.Type__c}) )</filterFormula>
+            ISCHANGED({!$Record.Type__c}) ))</filterFormula>
         <object>Timesheet_Line_Item__c</object>
         <recordTriggerType>CreateAndUpdate</recordTriggerType>
         <triggerType>RecordAfterSave</triggerType>

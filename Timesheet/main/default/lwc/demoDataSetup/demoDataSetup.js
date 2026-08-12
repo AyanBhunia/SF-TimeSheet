@@ -1,9 +1,10 @@
-/**
- * @file demoDataSetup.js
- * @description LWC controller for creating, inspecting, and deleting demo data for the current user.
- */
 import { LightningElement, track } from 'lwc';
 import createDemoData from '@salesforce/apex/DemoDataController.createDemoData';
+import createCurrentUserEmployee from '@salesforce/apex/DemoDataController.createCurrentUserEmployee';
+import createDemoProjects from '@salesforce/apex/DemoDataController.createDemoProjects';
+import createDemoProjectAssignments from '@salesforce/apex/DemoDataController.createDemoProjectAssignments';
+import createDemoTimesheets from '@salesforce/apex/DemoDataController.createDemoTimesheets';
+import createDemoTimesheetLineItems from '@salesforce/apex/DemoDataController.createDemoTimesheetLineItems';
 import deleteTestRecords from '@salesforce/apex/DemoDataController.deleteTestRecords';
 import getDemoStatus from '@salesforce/apex/DemoDataController.getDemoStatus';
 import getDemoRecords from '@salesforce/apex/DemoDataController.getDemoRecords';
@@ -15,10 +16,27 @@ export default class DemoDataSetup extends NavigationMixin(LightningElement) {
     @track hasEmployee = false;
     @track isTestEmployee = false;
     @track employeeName = '';
-    @track demoRecords = [];
+    @track hasAccess = false;
+    
+    @track employees = [];
+    @track projects = [];
+    @track projectEmployees = [];
+    @track timesheets = [];
+
+    // Default open sections for accordion
+    @track activeSections = ['employees', 'projects', 'projectEmployees', 'timesheets'];
+
     @track accessTerminated = false;
     @track isCreating = false;
     @track isDeleting = false;
+    @track showSectionsOverride = false;
+
+    lineItemColumns = [
+        { label: 'Date', fieldName: 'dateStr', type: 'text', initialWidth: 120 },
+        { label: 'Project / Type', fieldName: 'projectOrType', type: 'text' },
+        { label: 'Hours', fieldName: 'duration', type: 'text', initialWidth: 100 },
+        { label: 'Description', fieldName: 'description', type: 'text' }
+    ];
 
     connectedCallback() {
         console.log('DemoDataSetup connected');
@@ -29,10 +47,11 @@ export default class DemoDataSetup extends NavigationMixin(LightningElement) {
         this.isLoading = true;
         getDemoStatus()
             .then((result) => {
+                this.hasAccess = result.hasAccess;
                 this.hasEmployee = result.hasEmployee;
                 this.isTestEmployee = result.isTestEmployee;
                 this.employeeName = result.employeeName;
-                if (this.hasEmployee && this.isTestEmployee && !this.accessTerminated) {
+                if (this.hasAccess && this.hasEmployee && this.isTestEmployee && !this.accessTerminated) {
                     this.loadDemoRecords();
                 } else {
                     this.isLoading = false;
@@ -40,14 +59,27 @@ export default class DemoDataSetup extends NavigationMixin(LightningElement) {
             })
             .catch((error) => {
                 this.isLoading = false;
-                this.showToast('Error', 'Failed to check demo data status: ' + this.getErrorMessage(error), 'error');
+                this.showToast('Error', 'Error loading demo status: ' + this.getErrorMessage(error), 'error');
             });
     }
 
     loadDemoRecords() {
         getDemoRecords()
-            .then((records) => {
-                this.demoRecords = records || [];
+            .then((wrapper) => {
+                this.employees = wrapper.employees || [];
+                this.projects = wrapper.projects || [];
+                this.projectEmployees = wrapper.projectEmployees || [];
+                this.timesheets = (wrapper.timesheets || []).map(ts => {
+                    return {
+                        ...ts,
+                        isOpen: false,
+                        iconName: 'utility:chevronright',
+                        mappedLineItems: (ts.lineItems || []).map(item => ({
+                            ...item,
+                            projectOrType: item.project ? item.project : item.type
+                        }))
+                    };
+                });
                 this.isLoading = false;
             })
             .catch((error) => {
@@ -57,24 +89,79 @@ export default class DemoDataSetup extends NavigationMixin(LightningElement) {
     }
 
     handleCreateDemoData() {
-        if (this.isCreating) {
-            return;
-        }
-        console.log('DemoDataSetup handleCreateDemoData');
-        this.isCreating = true;
+        this.showSectionsOverride = true;
+    }
+
+    handleCreateCurrentUserEmployee() {
         this.isLoading = true;
-        createDemoData()
+        createCurrentUserEmployee()
             .then(() => {
-                this.showToast('Success', 'Demo dataset created successfully with employee Test T. Refreshing page...', 'success');
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1000);
+                this.showToast('Success', 'Employee created successfully.', 'success');
+                this.loadStatus();
             })
             .catch((error) => {
-                this.isCreating = false;
                 this.isLoading = false;
-                console.error('DemoDataSetup.createDemoData failed', error);
-                this.showToast('Error', 'Error creating demo data: ' + this.getErrorMessage(error), 'error');
+                console.error('createCurrentUserEmployee failed', error);
+                const errorMsg = this.getErrorMessage(error);
+                if (errorMsg.includes('manager in your User record')) {
+                    this.showToast('Warning', "Current user doesn't have manager. First assign manager in user record.", 'warning');
+                } else {
+                    this.showToast('Error', 'Error creating employee: ' + errorMsg, 'error');
+                }
+            });
+    }
+
+    handleCreateProjects() {
+        this.isLoading = true;
+        createDemoProjects()
+            .then(() => {
+                this.showToast('Success', 'Projects created successfully.', 'success');
+                this.loadStatus();
+            })
+            .catch((error) => {
+                this.isLoading = false;
+                this.showToast('Error', 'Error creating projects: ' + this.getErrorMessage(error), 'error');
+            });
+    }
+
+    handleCreateProjectAssignments() {
+        this.isLoading = true;
+        createDemoProjectAssignments()
+            .then(() => {
+                this.showToast('Success', 'Project assignments created successfully.', 'success');
+                this.loadStatus();
+            })
+            .catch((error) => {
+                this.isLoading = false;
+                this.showToast('Error', 'Error creating project assignments: ' + this.getErrorMessage(error), 'error');
+            });
+    }
+
+    handleCreateTimesheets() {
+        this.isLoading = true;
+        createDemoTimesheets()
+            .then(() => {
+                this.showToast('Success', 'Timesheets created successfully.', 'success');
+                this.loadStatus();
+            })
+            .catch((error) => {
+                this.isLoading = false;
+                this.showToast('Error', 'Error creating timesheets: ' + this.getErrorMessage(error), 'error');
+            });
+    }
+
+    handleCreateTimesheetLineItems(event) {
+        const timesheetId = event.target.dataset.id;
+        if (!timesheetId) return;
+        this.isLoading = true;
+        createDemoTimesheetLineItems({ timesheetId: timesheetId })
+            .then(() => {
+                this.showToast('Success', 'Timesheet Line Items created successfully.', 'success');
+                this.loadStatus();
+            })
+            .catch((error) => {
+                this.isLoading = false;
+                this.showToast('Error', 'Error creating timesheet line items: ' + this.getErrorMessage(error), 'error');
             });
     }
 
@@ -86,9 +173,11 @@ export default class DemoDataSetup extends NavigationMixin(LightningElement) {
                 this.showToast('Success', 'All test records have been deleted.', 'success');
                 this.isDeleting = false;
                 this.isLoading = false;
-                // As required: tab only stays visible/accessible until user clicked delete button
                 this.accessTerminated = true;
-                this.demoRecords = [];
+                this.employees = [];
+                this.projects = [];
+                this.projectEmployees = [];
+                this.timesheets = [];
             })
             .catch((error) => {
                 this.isDeleting = false;
@@ -97,8 +186,24 @@ export default class DemoDataSetup extends NavigationMixin(LightningElement) {
             });
     }
 
+    handleToggleTimesheet(event) {
+        const recordId = event.currentTarget.dataset.id;
+        this.timesheets = this.timesheets.map(ts => {
+            if (ts.recordId === recordId) {
+                const nowOpen = !ts.isOpen;
+                return { 
+                    ...ts, 
+                    isOpen: nowOpen,
+                    iconName: nowOpen ? 'utility:chevrondown' : 'utility:chevronright'
+                };
+            }
+            return ts;
+        });
+    }
+
     handleOpenUrl(event) {
-        const url = event.currentTarget.dataset.url;
+        event.stopPropagation();
+        const url = event.target.dataset.url || event.currentTarget.dataset.url;
         if (url) {
             window.open(url, '_blank');
         }
@@ -122,63 +227,50 @@ export default class DemoDataSetup extends NavigationMixin(LightningElement) {
     }
 
     getErrorMessage(error) {
-        if (!error) {
-            return 'Unknown error';
-        }
-
-        if (typeof error.body === 'string') {
-            return error.body;
-        }
-
+        if (!error) return 'Unknown error';
+        if (typeof error.body === 'string') return error.body;
         if (Array.isArray(error.body) && error.body.length > 0) {
             return error.body.map((item) => item.message || item.detail || JSON.stringify(item)).join(', ');
         }
-
         if (error.body) {
-            if (error.body.message) {
-                return error.body.message;
-            }
-            if (Array.isArray(error.body.pageErrors) && error.body.pageErrors.length > 0) {
-                return error.body.pageErrors.map((item) => item.message).join(', ');
-            }
-            if (error.body.output && Array.isArray(error.body.output.errors) && error.body.output.errors.length > 0) {
-                return error.body.output.errors.map((item) => item.message).join(', ');
-            }
-            if (error.body.output && error.body.output.errors) {
-                return String(error.body.output.errors);
-            }
+            if (error.body.message) return error.body.message;
+            if (Array.isArray(error.body.pageErrors) && error.body.pageErrors.length > 0) return error.body.pageErrors.map((item) => item.message).join(', ');
+            if (error.body.output && Array.isArray(error.body.output.errors) && error.body.output.errors.length > 0) return error.body.output.errors.map((item) => item.message).join(', ');
+            if (error.body.output && error.body.output.errors) return String(error.body.output.errors);
             if (error.body.fieldErrors) {
-                const fieldMessages = Object.values(error.body.fieldErrors)
-                    .flat()
-                    .map((fieldError) => fieldError.message)
-                    .filter(Boolean);
-                if (fieldMessages.length) {
-                    return fieldMessages.join(', ');
-                }
+                const fieldMessages = Object.values(error.body.fieldErrors).flat().map((fieldError) => fieldError.message).filter(Boolean);
+                if (fieldMessages.length) return fieldMessages.join(', ');
             }
-            if (typeof error.body === 'object') {
-                return JSON.stringify(error.body);
-            }
+            if (typeof error.body === 'object') return JSON.stringify(error.body);
         }
-
-        if (error.message) {
-            return error.message;
-        }
-
+        if (error.message) return error.message;
         return JSON.stringify(error);
     }
 
-    // Access control and state getters
-    get showCreateButton() {
-        return !this.isLoading && !this.hasEmployee && !this.accessTerminated;
+    // Dynamic labels with counts
+    get employeesLabel() { return `Employees (${this.employees.length})`; }
+    get projectsLabel() { return `Projects (${this.projects.length})`; }
+    get projectAssignmentsLabel() { return `Project Assignments (${this.projectEmployees.length})`; }
+    get timesheetsLabel() { return `Timesheets (${this.timesheets.length})`; }
+
+    get showSetupPrompt() {
+        return !this.isLoading && this.hasAccess && !this.hasEmployee && !this.accessTerminated && !this.showSectionsOverride;
     }
 
     get showCreatedRecordsView() {
-        return !this.isLoading && this.hasEmployee && this.isTestEmployee && !this.accessTerminated;
+        return !this.isLoading && this.hasAccess && (this.hasEmployee || this.showSectionsOverride) && !this.accessTerminated;
     }
 
+    get showNoAccessMessage() {
+        return !this.isLoading && !this.hasAccess;
+    }
+
+    get hasProjects() { return this.projects && this.projects.length > 0; }
+    get hasProjectAssignments() { return this.projectEmployees && this.projectEmployees.length > 0; }
+    get hasTimesheets() { return this.timesheets && this.timesheets.length > 0; }
+
     get showDeleteButton() {
-        return this.showCreatedRecordsView;
+        return this.showCreatedRecordsView && this.hasAccess;
     }
 
     get showAccessTerminated() {
@@ -186,6 +278,6 @@ export default class DemoDataSetup extends NavigationMixin(LightningElement) {
     }
 
     get showInaccessibleEmployee() {
-        return !this.isLoading && this.hasEmployee && !this.isTestEmployee && !this.accessTerminated;
+        return false; // Deprecated: we now allow any employee
     }
 }

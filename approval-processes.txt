@@ -1,0 +1,14 @@
+[
+  {
+    "createdById": "005Ec00000bv4JKIAY",
+    "createdByName": "User User",
+    "createdDate": "2026-08-03T09:40:52.000Z",
+    "fileName": "approvalProcesses/Timesheet__c.Timesheet_Approval_Process.approvalProcess",
+    "fullName": "Timesheet__c.Timesheet_Approval_Process",
+    "id": "04aEc000003ZjerIAC",
+    "lastModifiedById": "005Ec00000bv4JKIAY",
+    "lastModifiedByName": "User User",
+    "lastModifiedDate": "2026-08-03T10:34:47.000Z",
+    "type": "ApprovalProcess"
+  }
+]

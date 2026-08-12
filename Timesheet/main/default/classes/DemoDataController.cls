@@ -4,9 +4,6 @@
  */
 global with sharing class DemoDataController {
 
-    /**
-     * @description Wrapper class for representing created demo data records
-     */
     global class DemoRecordDetail {
         @AuraEnabled global Integer stepNumber { get; set; }
         @AuraEnabled global String stepTitle { get; set; }
@@ -20,33 +17,49 @@ global with sharing class DemoDataController {
         @AuraEnabled global String whatItDoes { get; set; }
     }
 
-    private static void requireHrAdminPermission() {
-        List<PermissionSetAssignment> assignments = [
-            SELECT Id 
-            FROM PermissionSetAssignment 
-            WHERE AssigneeId = :UserInfo.getUserId() 
-            AND PermissionSet.Name = 'Timesheet_HR_Admin'
-            WITH SECURITY_ENFORCED
-        ];
-        if (assignments.isEmpty() && !Test.isRunningTest()) {
-            throw new AuraHandledException('You must have the Timesheet_HR_Admin permission set to access demo data controls.');
-        }
+    global class TimesheetLineItemDetail {
+        @AuraEnabled global String id { get; set; }
+        @AuraEnabled global String dateStr { get; set; }
+        @AuraEnabled global String type { get; set; }
+        @AuraEnabled global String project { get; set; }
+        @AuraEnabled global Decimal duration { get; set; }
+        @AuraEnabled global String description { get; set; }
     }
 
-    /**
-     * @description Checks the current user's employee status for demo data accessibility
-     * @return Map containing hasEmployee, isTestEmployee, and employeeName
-     */
+    global class TimesheetDetail {
+        @AuraEnabled global String recordId { get; set; }
+        @AuraEnabled global String name { get; set; }
+        @AuraEnabled global String periodName { get; set; }
+        @AuraEnabled global String dateRange { get; set; }
+        @AuraEnabled global String status { get; set; }
+        @AuraEnabled global Decimal totalHours { get; set; }
+        @AuraEnabled global String recordUrl { get; set; }
+        @AuraEnabled global String employeeName { get; set; }
+        @AuraEnabled global List<TimesheetLineItemDetail> lineItems { get; set; }
+        @AuraEnabled global Boolean isOpen { get; set; }
+    }
+
+    global class DemoDataWrapper {
+        @AuraEnabled global List<DemoRecordDetail> employees { get; set; }
+        @AuraEnabled global List<DemoRecordDetail> projects { get; set; }
+        @AuraEnabled global List<DemoRecordDetail> projectEmployees { get; set; }
+        @AuraEnabled global List<TimesheetDetail> timesheets { get; set; }
+    }
+
+
+
     @AuraEnabled(cacheable=true)
     global static Map<String, Object> getDemoStatus() {
-        requireHrAdminPermission();
         Map<String, Object> result = new Map<String, Object>();
+        result.put('hasAccess', true);
+        
         Id currentUserId = UserInfo.getUserId();
         List<Employee__c> emps = [
             SELECT Id, First_Name__c, Last_Name__c, Name 
             FROM Employee__c 
-            WHERE User__c = :currentUserId 
+            WHERE User__c = :currentUserId AND Active__c = true
             WITH SECURITY_ENFORCED
+            ORDER BY CreatedDate ASC
             LIMIT 1
         ];
         if (emps.isEmpty()) {
@@ -57,26 +70,18 @@ global with sharing class DemoDataController {
             Employee__c emp = emps[0];
             String fullName = (emp.First_Name__c != null ? emp.First_Name__c + ' ' : '') + (emp.Last_Name__c != null ? emp.Last_Name__c : '');
             fullName = fullName.trim();
-            Boolean isTest = (emp.First_Name__c == 'Test' && emp.Last_Name__c == 'T.') || (emp.Last_Name__c == 'Test T.') || (fullName == 'Test T.') || (emp.Name == 'Test T.');
             result.put('hasEmployee', true);
-            result.put('isTestEmployee', isTest);
+            result.put('isTestEmployee', true); // always treat it as valid for demo setup
             result.put('employeeName', fullName);
             result.put('employeeId', emp.Id);
         }
         return result;
     }
 
-    /**
-     * @description Creates demo data for the current user (1 employee, 3 projects, 3 project employees, 4 timesheets with line items)
-     * @return String Success message
-     */
     @AuraEnabled
     global static String createDemoData() {
-        requireHrAdminPermission();
         try {
             Id currentUserId = UserInfo.getUserId();
-            // Determine the manager (User.Id) of the current user so the created Employee.Manager__c
-            // references the current user's manager as requested.
             Id managerUserId = null;
             User currentUser = [SELECT Id, ManagerId FROM User WHERE Id = :currentUserId WITH SECURITY_ENFORCED LIMIT 1];
             if (currentUser != null && currentUser.ManagerId != null) {
@@ -84,45 +89,34 @@ global with sharing class DemoDataController {
             }
 
             if (managerUserId == null) {
-                throw new AuraHandledException('Please assign a manager in your User record before creating demo data.');
+                AuraHandledException e = new AuraHandledException('Please assign a manager in your User record before creating demo data.');
+                e.setMessage('Please assign a manager in your User record before creating demo data.');
+                throw e;
             }
 
-            // 1. Employee with current user, accrual start date 1 month ago, divisor 8
             List<Employee__c> existingEmpList = [
-                SELECT Id, Accrual_Start_Date__c, Accrual_Divisor__c, Active__c 
+                SELECT Id, First_Name__c, Last_Name__c, User__c 
                 FROM Employee__c 
-                WHERE User__c = :currentUserId
+                WHERE User__c = :currentUserId OR Last_Name__c IN ('T.', 'E1', 'E2')
                 WITH SECURITY_ENFORCED
-                LIMIT 1
             ];
-            Employee__c emp;
             if (!existingEmpList.isEmpty()) {
-                emp = existingEmpList[0];
-                emp.First_Name__c = 'Test';
-                emp.Last_Name__c = 'T.';
-                emp.Manager__c = managerUserId;
-                emp.Accrual_Start_Date__c = System.today().addMonths(-1);
-                emp.Accrual_Divisor__c = 8;
-                emp.Extra_Accrued_Hours__c = 30;
-                emp.Active__c = true;
-                update emp;
-            } else {
-                emp = new Employee__c(
-                    First_Name__c = 'Test',
-                    Last_Name__c = 'T.',
-                    User__c = currentUserId,
-                    Email__c = UserInfo.getUserEmail(),
-                    Manager__c = managerUserId,
-                    Employment_Type__c = 'Full Time',
-                    Active__c = true,
-                    Accrual_Start_Date__c = System.today().addMonths(-1),
-                    Accrual_Divisor__c = 8,
-                    Extra_Accrued_Hours__c = 30
-                );
-                insert emp;
+                delete existingEmpList;
             }
+            
+            Employee__c empManager = new Employee__c(
+                First_Name__c = 'Test', Last_Name__c = 'T.', User__c = currentUserId, Email__c = UserInfo.getUserEmail(), Manager__c = managerUserId, Employment_Type__c = 'Full Time', Active__c = true, Accrual_Start_Date__c = System.today().addMonths(-1), Accrual_Divisor__c = 8, Extra_Accrued_Hours__c = 30
+            );
+            insert empManager;
 
-            // Calculate Monday start dates for 4 timesheets
+            Employee__c empE1 = new Employee__c(
+                First_Name__c = 'Test', Last_Name__c = 'E1', Manager__c = currentUserId, Employment_Type__c = 'Full Time', Active__c = true, Accrual_Start_Date__c = System.today().addMonths(-1), Accrual_Divisor__c = 8, Extra_Accrued_Hours__c = 30
+            );
+            Employee__c empE2 = new Employee__c(
+                First_Name__c = 'Test', Last_Name__c = 'E2', Manager__c = currentUserId, Employment_Type__c = 'Full Time', Active__c = true, Accrual_Start_Date__c = System.today().addMonths(-1), Accrual_Divisor__c = 8, Extra_Accrued_Hours__c = 30
+            );
+            insert new List<Employee__c>{empE1, empE2};
+
             Date today = Date.today();
             Integer modDays = Math.mod(Date.newInstance(1900, 1, 1).daysBetween(today), 7);
             if (modDays < 0) {
@@ -133,19 +127,16 @@ global with sharing class DemoDataController {
             Date lastLastWeekMonday = thisWeekMonday.addDays(-14);
             Date nextWeekMonday = thisWeekMonday.addDays(7);
 
-            // Clean up existing demo timesheets for these weeks for clean state
             List<Timesheet__c> existingTs = [
                 SELECT Id 
                 FROM Timesheet__c 
-                WHERE Employee__c = :emp.Id 
-                AND Start_Date__c IN :new Set<Date>{lastLastWeekMonday, lastWeekMonday, thisWeekMonday, nextWeekMonday}
+                WHERE Employee__c IN :new List<Id>{empManager.Id, empE1.Id, empE2.Id} 
                 WITH SECURITY_ENFORCED
             ];
             if (!existingTs.isEmpty()) {
                 delete existingTs;
             }
 
-            // 2. 3 Projects: 2 active (1 billable, 1 non-billable), 1 non-billable (make inactive after line items)
             List<String> projNames = new List<String>{
                 'Demo Project - Billable',
                 'Demo Project - Non-Billable',
@@ -191,25 +182,16 @@ global with sharing class DemoDataController {
                 update projToInactive;
             }
 
-            // 3. Project Employees: assign above 3 projects with employee
             Set<Id> projIds = new Set<Id>{ projBillable.Id, projNonBillable.Id, projToInactive.Id };
-            Set<Id> existingPeProjIds = new Set<Id>();
-            for (Project_Employee__c pe : [
-                SELECT Project__c 
-                FROM Project_Employee__c 
-                WHERE Employee__c = :emp.Id 
-                AND Project__c IN :projIds
-                WITH SECURITY_ENFORCED
-            ]) {
-                existingPeProjIds.add(pe.Project__c);
-            }
-
+            Set<Id> targetEmpIds = new Set<Id>{ empE1.Id, empE2.Id };
             List<Project_Employee__c> peListToInsert = new List<Project_Employee__c>();
-            for (Id pId : projIds) {
-                if (!existingPeProjIds.contains(pId)) {
+            
+            for (Id eId : targetEmpIds) {
+                for (Id pId : projIds) {
                     peListToInsert.add(new Project_Employee__c(
-                        Employee__c = emp.Id,
-                        Project__c = pId
+                        Employee__c = eId,
+                        Project__c = pId,
+                        Hourly_Rate__c = 150
                     ));
                 }
             }
@@ -217,128 +199,43 @@ global with sharing class DemoDataController {
                 insert peListToInsert;
             }
 
-            // 4. 4 Timesheets: start date Monday, end date Sunday; 1 last last week, 1 for last week, 1 this week, 1 next week
-            Timesheet__c tsLastLastWeek = new Timesheet__c(
-                Employee__c = emp.Id,
-                Manager__c = emp.Manager__c,
-                Start_Date__c = lastLastWeekMonday,
-                End_Date__c = lastLastWeekMonday.addDays(6),
-                Status__c = 'New'
-            );
-            Timesheet__c tsLastWeek = new Timesheet__c(
-                Employee__c = emp.Id,
-                Manager__c = emp.Manager__c,
-                Start_Date__c = lastWeekMonday,
-                End_Date__c = lastWeekMonday.addDays(6),
-                Status__c = 'New'
-            );
-            Timesheet__c tsThisWeek = new Timesheet__c(
-                Employee__c = emp.Id,
-                Manager__c = emp.Manager__c,
-                Start_Date__c = thisWeekMonday,
-                End_Date__c = thisWeekMonday.addDays(6),
-                Status__c = 'New'
-            );
-            Timesheet__c tsNextWeek = new Timesheet__c(
-                Employee__c = emp.Id,
-                Manager__c = emp.Manager__c,
-                Start_Date__c = nextWeekMonday,
-                End_Date__c = nextWeekMonday.addDays(6),
-                Status__c = 'New'
-            );
-
-            List<Timesheet__c> allTs = new List<Timesheet__c>{
-                tsLastLastWeek, tsLastWeek, tsThisWeek, tsNextWeek
-            };
+            List<Timesheet__c> allTs = new List<Timesheet__c>();
+            for (Employee__c emp : new List<Employee__c>{empE1, empE2}) {
+                allTs.add(new Timesheet__c(Employee__c = emp.Id, Manager__c = emp.Manager__c, Start_Date__c = lastLastWeekMonday, End_Date__c = lastLastWeekMonday.addDays(6), Status__c = 'New'));
+                allTs.add(new Timesheet__c(Employee__c = emp.Id, Manager__c = emp.Manager__c, Start_Date__c = lastWeekMonday, End_Date__c = lastWeekMonday.addDays(6), Status__c = 'New'));
+                allTs.add(new Timesheet__c(Employee__c = emp.Id, Manager__c = emp.Manager__c, Start_Date__c = thisWeekMonday, End_Date__c = thisWeekMonday.addDays(6), Status__c = 'New'));
+                allTs.add(new Timesheet__c(Employee__c = emp.Id, Manager__c = emp.Manager__c, Start_Date__c = nextWeekMonday, End_Date__c = nextWeekMonday.addDays(6), Status__c = 'New'));
+            }
             insert allTs;
 
-            // 5. Timesheet Line Items
             List<Timesheet_Line_Item__c> itemsToInsert = new List<Timesheet_Line_Item__c>();
+            List<Timesheet__c> tsThisWeekList = new List<Timesheet__c>();
+            List<Timesheet__c> tsToApprove = new List<Timesheet__c>();
 
-            // For last last week: each day 1 line item select the would to be inactive project and duration as 8
-            for (Integer day = 0; day < 7; day++) {
-                Date dt = tsLastLastWeek.Start_Date__c.addDays(day);
-                itemsToInsert.add(new Timesheet_Line_Item__c(
-                    Timesheet__c = tsLastLastWeek.Id,
-                    Employee__c = emp.Id,
-                    Date__c = dt,
-                    Type__c = 'Attendance',
-                    Project__c = projToInactive.Id,
-                    Activity__c = 'Development-Coding',
-                    Duration__c = 8,
-                    Description__c = 'Demo Data - Project work'
-                ));
-            }
-
-            // For last week: each day 2 projects with duration as 4 and 4. and tuesday sickleave as 8
-            for (Integer day = 0; day < 7; day++) {
-                Date dt = tsLastWeek.Start_Date__c.addDays(day);
-                itemsToInsert.add(new Timesheet_Line_Item__c(
-                    Timesheet__c = tsLastWeek.Id,
-                    Employee__c = emp.Id,
-                    Date__c = dt,
-                    Type__c = 'Attendance',
-                    Project__c = projBillable.Id,
-                    Activity__c = 'Development-Coding',
-                    Duration__c = 4,
-                    Description__c = 'Demo Data - Billable work'
-                ));
-                itemsToInsert.add(new Timesheet_Line_Item__c(
-                    Timesheet__c = tsLastWeek.Id,
-                    Employee__c = emp.Id,
-                    Date__c = dt,
-                    Type__c = 'Attendance',
-                    Project__c = projNonBillable.Id,
-                    Activity__c = 'Meeting',
-                    Duration__c = 4,
-                    Description__c = 'Demo Data - Non-billable work'
-                ));
-                if (day == 1) { // Tuesday
-                    itemsToInsert.add(new Timesheet_Line_Item__c(
-                        Timesheet__c = tsLastWeek.Id,
-                        Employee__c = emp.Id,
-                        Date__c = dt,
-                        Type__c = 'Absence',
-                        Absence_Category__c = 'Sick Leave',
-                        Duration__c = 8,
-                        Description__c = 'Demo Data - Sick Leave'
-                    ));
-                }
-            }
-
-            // For current week: each day 2 projects with duration as 2 and 2. and tuesday ,wednesday sickleave as 8
-            for (Integer day = 0; day < 7; day++) {
-                Date dt = tsThisWeek.Start_Date__c.addDays(day);
-                itemsToInsert.add(new Timesheet_Line_Item__c(
-                    Timesheet__c = tsThisWeek.Id,
-                    Employee__c = emp.Id,
-                    Date__c = dt,
-                    Type__c = 'Attendance',
-                    Project__c = projBillable.Id,
-                    Activity__c = 'Development-Coding',
-                    Duration__c = 2,
-                    Description__c = 'Demo Data - Billable work'
-                ));
-                itemsToInsert.add(new Timesheet_Line_Item__c(
-                    Timesheet__c = tsThisWeek.Id,
-                    Employee__c = emp.Id,
-                    Date__c = dt,
-                    Type__c = 'Attendance',
-                    Project__c = projNonBillable.Id,
-                    Activity__c = 'Meeting',
-                    Duration__c = 2,
-                    Description__c = 'Demo Data - Non-billable work'
-                ));
-                if (day == 1 || day == 2) { // Tuesday, Wednesday
-                    itemsToInsert.add(new Timesheet_Line_Item__c(
-                        Timesheet__c = tsThisWeek.Id,
-                        Employee__c = emp.Id,
-                        Date__c = dt,
-                        Type__c = 'Absence',
-                        Absence_Category__c = 'Sick Leave',
-                        Duration__c = 8,
-                        Description__c = 'Demo Data - Sick Leave'
-                    ));
+            for (Timesheet__c ts : allTs) {
+                if (ts.Start_Date__c == lastLastWeekMonday) {
+                    for (Integer day = 0; day < 7; day++) {
+                        itemsToInsert.add(new Timesheet_Line_Item__c(Timesheet__c = ts.Id, Employee__c = ts.Employee__c, Date__c = ts.Start_Date__c.addDays(day), Type__c = 'Attendance', Project__c = projToInactive.Id, Activity__c = 'Development-Coding', Duration__c = 8, Description__c = 'Demo Data - Project work'));
+                    }
+                    tsToApprove.add(ts);
+                } else if (ts.Start_Date__c == lastWeekMonday) {
+                    for (Integer day = 0; day < 7; day++) {
+                        itemsToInsert.add(new Timesheet_Line_Item__c(Timesheet__c = ts.Id, Employee__c = ts.Employee__c, Date__c = ts.Start_Date__c.addDays(day), Type__c = 'Attendance', Project__c = projBillable.Id, Activity__c = 'Development-Coding', Duration__c = 4, Description__c = 'Demo Data - Billable work'));
+                        itemsToInsert.add(new Timesheet_Line_Item__c(Timesheet__c = ts.Id, Employee__c = ts.Employee__c, Date__c = ts.Start_Date__c.addDays(day), Type__c = 'Attendance', Project__c = projNonBillable.Id, Activity__c = 'Meeting', Duration__c = 4, Description__c = 'Demo Data - Non-billable work'));
+                        if (day == 1) { // Tuesday
+                            itemsToInsert.add(new Timesheet_Line_Item__c(Timesheet__c = ts.Id, Employee__c = ts.Employee__c, Date__c = ts.Start_Date__c.addDays(day), Type__c = 'Absence', Absence_Category__c = 'Sick Leave', Duration__c = 8, Description__c = 'Demo Data - Sick Leave'));
+                        }
+                    }
+                    tsToApprove.add(ts);
+                } else if (ts.Start_Date__c == thisWeekMonday) {
+                    for (Integer day = 0; day < 7; day++) {
+                        itemsToInsert.add(new Timesheet_Line_Item__c(Timesheet__c = ts.Id, Employee__c = ts.Employee__c, Date__c = ts.Start_Date__c.addDays(day), Type__c = 'Attendance', Project__c = projBillable.Id, Activity__c = 'Development-Coding', Duration__c = 2, Description__c = 'Demo Data - Billable work'));
+                        itemsToInsert.add(new Timesheet_Line_Item__c(Timesheet__c = ts.Id, Employee__c = ts.Employee__c, Date__c = ts.Start_Date__c.addDays(day), Type__c = 'Attendance', Project__c = projNonBillable.Id, Activity__c = 'Meeting', Duration__c = 2, Description__c = 'Demo Data - Non-billable work'));
+                        if (day == 1 || day == 2) { // Tuesday, Wednesday
+                            itemsToInsert.add(new Timesheet_Line_Item__c(Timesheet__c = ts.Id, Employee__c = ts.Employee__c, Date__c = ts.Start_Date__c.addDays(day), Type__c = 'Absence', Absence_Category__c = 'Sick Leave', Duration__c = 8, Description__c = 'Demo Data - Sick Leave'));
+                        }
+                    }
+                    tsThisWeekList.add(ts);
                 }
             }
 
@@ -346,29 +243,8 @@ global with sharing class DemoDataController {
                 insert itemsToInsert;
             }
 
-            // Submit the current-week timesheet for approval so the demo data exercises the approval flow.
-            tsThisWeek.Status__c = 'Submitted';
-            update tsThisWeek;
+            // Removed status updates so timesheets remain 'New'
 
-            try {
-                Approval.ProcessSubmitRequest submitReq = new Approval.ProcessSubmitRequest();
-                submitReq.setObjectId(tsThisWeek.Id);
-                Approval.ProcessResult submitResult = Approval.process(submitReq);
-                if (!submitResult.isSuccess()) {
-                    System.debug('Approval submission failed: ' + submitResult.getErrors());
-                }
-            } catch (Exception approvalException) {
-                System.debug('Approval submission skipped: ' + approvalException.getMessage());
-            }
-
-            // Change stage to approved for last 2 timesheets (last last week and last week) - sequentially so available balance calculates
-            tsLastLastWeek.Status__c = 'Approved';
-            update tsLastLastWeek;
-
-            tsLastWeek.Status__c = 'Approved';
-            update tsLastWeek;
-
-            // Inactive the single project
             projToInactive.Active__c = false;
             update projToInactive;
 
@@ -378,170 +254,321 @@ global with sharing class DemoDataController {
             if (Test.isRunningTest()) {
                 throw e;
             }
-            if (e instanceof AuraHandledException) {
-                throw e;
-            }
-            if (e.getCause() instanceof AuraHandledException) {
-                throw (AuraHandledException)e.getCause();
-            }
-            String errorMessage = e.getMessage();
-            if ('Script-thrown exception'.equals(errorMessage) && e.getCause() != null) {
-                Exception cause = (Exception)e.getCause();
-                if (cause.getMessage() != null && !cause.getMessage().equals('Script-thrown exception')) {
-                    errorMessage = cause.getMessage();
-                }
-            }
-            throw new AuraHandledException(errorMessage);
+            throw new AuraHandledException(e.getMessage());
         }
     }
 
-    /**
-     * @description Retrieves step-by-step details of all demo records created for the current user
-     * @return List of DemoRecordDetail
-     */
     @AuraEnabled
-    global static List<DemoRecordDetail> getDemoRecords() {
-        requireHrAdminPermission();
-        List<DemoRecordDetail> records = new List<DemoRecordDetail>();
+    global static String createDemoProjects() {
+        try {
+            List<String> projNames = new List<String>{'Demo Project - Billable', 'Demo Project - Non-Billable', 'Demo Project - Legacy'};
+            Map<String, Project__c> projMap = new Map<String, Project__c>();
+            for (Project__c p : [SELECT Id, Name, Active__c, Billable__c FROM Project__c WHERE Name IN :projNames WITH SECURITY_ENFORCED]) {
+                projMap.put(p.Name, p);
+            }
+            List<Project__c> toUpsert = new List<Project__c>();
+            
+            Project__c p1 = projMap.get('Demo Project - Billable');
+            if (p1 == null) p1 = new Project__c(Name = 'Demo Project - Billable');
+            p1.Active__c = true; p1.Billable__c = 'Yes';
+            toUpsert.add(p1);
+
+            Project__c p2 = projMap.get('Demo Project - Non-Billable');
+            if (p2 == null) p2 = new Project__c(Name = 'Demo Project - Non-Billable');
+            p2.Active__c = true; p2.Billable__c = 'No';
+            toUpsert.add(p2);
+
+            Project__c p3 = projMap.get('Demo Project - Legacy');
+            if (p3 == null) p3 = new Project__c(Name = 'Demo Project - Legacy');
+            p3.Active__c = true; p3.Billable__c = 'No';
+            toUpsert.add(p3);
+
+            upsert toUpsert;
+            return 'Success';
+        } catch (Exception e) {
+            throw new AuraHandledException(e.getMessage());
+        }
+    }
+
+    @AuraEnabled
+    global static String createDemoProjectAssignments() {
+        try {
+            List<Project__c> projs = [SELECT Id FROM Project__c WHERE Name LIKE 'Demo Project%' WITH SECURITY_ENFORCED];
+            Id currentUserId = UserInfo.getUserId();
+            List<Employee__c> emps = [SELECT Id FROM Employee__c WHERE User__c = :currentUserId OR Last_Name__c IN ('T.', 'E1', 'E2') WITH SECURITY_ENFORCED];
+            List<Project_Employee__c> toInsert = new List<Project_Employee__c>();
+            
+            Set<String> existingKeys = new Set<String>();
+            for (Project_Employee__c pe : [SELECT Employee__c, Project__c FROM Project_Employee__c WHERE Employee__c IN :emps WITH SECURITY_ENFORCED]) {
+                existingKeys.add((String)pe.Employee__c + (String)pe.Project__c);
+            }
+            
+            for (Employee__c emp : emps) {
+                for (Project__c p : projs) {
+                    if (!existingKeys.contains((String)emp.Id + (String)p.Id)) {
+                        toInsert.add(new Project_Employee__c(Employee__c = emp.Id, Project__c = p.Id, Hourly_Rate__c = 150));
+                    }
+                }
+            }
+            if (!toInsert.isEmpty()) insert toInsert;
+            return 'Success';
+        } catch (Exception e) {
+            throw new AuraHandledException(e.getMessage());
+        }
+    }
+
+    @AuraEnabled
+    global static String createDemoTimesheets() {
+        try {
+            Id currentUserId = UserInfo.getUserId();
+            List<Employee__c> emps = [SELECT Id, Manager__c FROM Employee__c WHERE User__c = :currentUserId OR Last_Name__c IN ('T.', 'E1', 'E2') WITH SECURITY_ENFORCED];
+            Date today = Date.today();
+            Integer modDays = Math.mod(Date.newInstance(1900, 1, 1).daysBetween(today), 7);
+            if (modDays < 0) modDays += 7;
+            Date thisWeekMonday = today.addDays(-modDays);
+            Date lastWeekMonday = thisWeekMonday.addDays(-7);
+            Date lastLastWeekMonday = thisWeekMonday.addDays(-14);
+            Date nextWeekMonday = thisWeekMonday.addDays(7);
+            
+            Set<String> existingKeys = new Set<String>();
+            for (Timesheet__c ts : [SELECT Employee__c, Start_Date__c FROM Timesheet__c WHERE Employee__c IN :emps WITH SECURITY_ENFORCED]) {
+                existingKeys.add((String)ts.Employee__c + ts.Start_Date__c);
+            }
+
+            List<Timesheet__c> toInsert = new List<Timesheet__c>();
+            for (Employee__c emp : emps) {
+                List<Date> dts = new List<Date>{lastLastWeekMonday, lastWeekMonday, thisWeekMonday, nextWeekMonday};
+                for (Date dt : dts) {
+                    if (!existingKeys.contains((String)emp.Id + dt)) {
+                        toInsert.add(new Timesheet__c(Employee__c = emp.Id, Manager__c = emp.Manager__c, Start_Date__c = dt, End_Date__c = dt.addDays(6), Status__c = 'New'));
+                    }
+                }
+            }
+            if (!toInsert.isEmpty()) insert toInsert;
+            return 'Success';
+        } catch (Exception e) {
+            throw new AuraHandledException(e.getMessage());
+        }
+    }
+
+    @AuraEnabled
+    global static String createDemoTimesheetLineItems(String timesheetId) {
+        try {
+            List<Project__c> projs = [SELECT Id, Name FROM Project__c WHERE Name LIKE 'Demo Project%' WITH SECURITY_ENFORCED];
+            Id projBillable, projNonBillable, projLegacy;
+            for (Project__c p : projs) {
+                if (p.Name.contains('Billable') && !p.Name.contains('Non')) projBillable = p.Id;
+                if (p.Name.contains('Non-Billable')) projNonBillable = p.Id;
+                if (p.Name.contains('Legacy')) projLegacy = p.Id;
+            }
+            if (projBillable == null || projNonBillable == null || projLegacy == null) {
+                throw new AuraHandledException('Please create projects first before adding line items.');
+            }
+
+            Date today = Date.today();
+            Integer modDays = Math.mod(Date.newInstance(1900, 1, 1).daysBetween(today), 7);
+            if (modDays < 0) modDays += 7;
+            Date thisWeekMonday = today.addDays(-modDays);
+            Date lastWeekMonday = thisWeekMonday.addDays(-7);
+            Date lastLastWeekMonday = thisWeekMonday.addDays(-14);
+
+            List<Timesheet__c> existingTs = [SELECT Id, Start_Date__c, Employee__c, (SELECT Id FROM Timesheets__r) FROM Timesheet__c WHERE Id = :timesheetId WITH SECURITY_ENFORCED];
+            List<Timesheet_Line_Item__c> itemsToInsert = new List<Timesheet_Line_Item__c>();
+
+            for (Timesheet__c ts : existingTs) {
+                if (ts.Timesheets__r != null && ts.Timesheets__r.size() > 0) continue; // skip if already has items
+                
+                if (ts.Start_Date__c == lastLastWeekMonday) {
+                    for (Integer day = 0; day < 7; day++) {
+                        itemsToInsert.add(new Timesheet_Line_Item__c(Timesheet__c = ts.Id, Employee__c = ts.Employee__c, Date__c = ts.Start_Date__c.addDays(day), Type__c = 'Attendance', Project__c = projLegacy, Activity__c = 'Development-Coding', Duration__c = 8, Description__c = 'Demo Data - Project work'));
+                    }
+                } else if (ts.Start_Date__c == lastWeekMonday) {
+                    for (Integer day = 0; day < 7; day++) {
+                        itemsToInsert.add(new Timesheet_Line_Item__c(Timesheet__c = ts.Id, Employee__c = ts.Employee__c, Date__c = ts.Start_Date__c.addDays(day), Type__c = 'Attendance', Project__c = projBillable, Activity__c = 'Development-Coding', Duration__c = 4, Description__c = 'Demo Data - Billable work'));
+                        itemsToInsert.add(new Timesheet_Line_Item__c(Timesheet__c = ts.Id, Employee__c = ts.Employee__c, Date__c = ts.Start_Date__c.addDays(day), Type__c = 'Attendance', Project__c = projNonBillable, Activity__c = 'Meeting', Duration__c = 4, Description__c = 'Demo Data - Non-billable work'));
+                        if (day == 1) itemsToInsert.add(new Timesheet_Line_Item__c(Timesheet__c = ts.Id, Employee__c = ts.Employee__c, Date__c = ts.Start_Date__c.addDays(day), Type__c = 'Absence', Absence_Category__c = 'Sick Leave', Duration__c = 8, Description__c = 'Demo Data - Sick Leave'));
+                    }
+                } else if (ts.Start_Date__c == thisWeekMonday) {
+                    for (Integer day = 0; day < 7; day++) {
+                        itemsToInsert.add(new Timesheet_Line_Item__c(Timesheet__c = ts.Id, Employee__c = ts.Employee__c, Date__c = ts.Start_Date__c.addDays(day), Type__c = 'Attendance', Project__c = projBillable, Activity__c = 'Development-Coding', Duration__c = 2, Description__c = 'Demo Data - Billable work'));
+                        itemsToInsert.add(new Timesheet_Line_Item__c(Timesheet__c = ts.Id, Employee__c = ts.Employee__c, Date__c = ts.Start_Date__c.addDays(day), Type__c = 'Attendance', Project__c = projNonBillable, Activity__c = 'Meeting', Duration__c = 2, Description__c = 'Demo Data - Non-billable work'));
+                        if (day == 1 || day == 2) itemsToInsert.add(new Timesheet_Line_Item__c(Timesheet__c = ts.Id, Employee__c = ts.Employee__c, Date__c = ts.Start_Date__c.addDays(day), Type__c = 'Absence', Absence_Category__c = 'Sick Leave', Duration__c = 8, Description__c = 'Demo Data - Sick Leave'));
+                    }
+                } else {
+                    for (Integer day = 0; day < 5; day++) {
+                        itemsToInsert.add(new Timesheet_Line_Item__c(Timesheet__c = ts.Id, Employee__c = ts.Employee__c, Date__c = ts.Start_Date__c.addDays(day), Type__c = 'Attendance', Project__c = projBillable, Activity__c = 'Development-Coding', Duration__c = 8, Description__c = 'Demo Data - Standard Billable work'));
+                    }
+                }
+            }
+            if (!itemsToInsert.isEmpty()) insert itemsToInsert;
+            return 'Success';
+        } catch (Exception e) {
+            System.debug('CRITICAL_DEMO_DATA_ERROR: ' + e.getMessage());
+            throw new AuraHandledException(e.getMessage());
+        }
+    }
+
+    @AuraEnabled
+    global static String createCurrentUserEmployee() {
+        try {
+            Id currentUserId = UserInfo.getUserId();
+            User currentUser = [SELECT Id, FirstName, LastName, Email, ManagerId FROM User WHERE Id = :currentUserId WITH SECURITY_ENFORCED LIMIT 1];
+            Id managerUserId = currentUser.ManagerId;
+            if (managerUserId == null) {
+                AuraHandledException e = new AuraHandledException('Please assign a manager in your User record before creating an employee.');
+                e.setMessage('Please assign a manager in your User record before creating an employee.');
+                throw e;
+            }
+            Employee__c emp = new Employee__c(
+                First_Name__c = 'test', 
+                Last_Name__c = 'employee 1', 
+                User__c = currentUserId, 
+                Email__c = currentUser.Email, 
+                Manager__c = managerUserId, 
+                Employment_Type__c = 'Full Time', 
+                Active__c = true, 
+                Accrual_Start_Date__c = System.today().addMonths(-1), 
+                Accrual_Divisor__c = 8, 
+                Extra_Accrued_Hours__c = 30
+            );
+            insert emp;
+            return 'Success';
+        } catch (Exception e) {
+            System.debug('CRITICAL_DEMO_DATA_ERROR: ' + e.getMessage());
+            throw new AuraHandledException(e.getMessage());
+        }
+    }
+
+    @AuraEnabled
+    global static DemoDataWrapper getDemoRecords() {
+        DemoDataWrapper wrapper = new DemoDataWrapper();
+        wrapper.employees = new List<DemoRecordDetail>();
+        wrapper.projects = new List<DemoRecordDetail>();
+        wrapper.projectEmployees = new List<DemoRecordDetail>();
+        wrapper.timesheets = new List<TimesheetDetail>();
+
         Id currentUserId = UserInfo.getUserId();
+        
         List<Employee__c> emps = [
             SELECT Id, Name, First_Name__c, Last_Name__c, Accrual_Start_Date__c, Accrual_Divisor__c 
             FROM Employee__c 
-            WHERE User__c = :currentUserId 
+            WHERE User__c = :currentUserId OR Last_Name__c IN ('T.', 'E1', 'E2')
             WITH SECURITY_ENFORCED 
-            LIMIT 1
         ];
-        if (emps.isEmpty()) {
-            return records;
+        
+        if (emps.isEmpty()) return wrapper;
+
+        Map<Id, String> empNameMap = new Map<Id, String>();
+        Integer empStep = 1;
+        for(Employee__c emp : emps) {
+            String fName = emp.First_Name__c != null ? emp.First_Name__c + ' ' : '';
+            String lName = emp.Last_Name__c != null ? emp.Last_Name__c : '';
+            empNameMap.put(emp.Id, fName + lName);
+            DemoRecordDetail empDetail = new DemoRecordDetail();
+            empDetail.stepNumber = empStep++;
+            empDetail.stepTitle = fName + lName;
+            empDetail.recordId = emp.Id;
+            empDetail.recordName = emp.Name;
+            empDetail.objectType = 'Employee__c';
+            empDetail.objectLabel = 'Employee';
+            empDetail.recordUrl = '/lightning/r/Employee__c/' + emp.Id + '/view';
+            empDetail.summary = 'Accrual Start Date: 1 Month Ago | Accrual Divisor: ' + emp.Accrual_Divisor__c;
+            empDetail.details = 'Configures the employee profile.';
+            empDetail.whatItDoes = 'Tracks timesheet absence accruals and links memberships.';
+            wrapper.employees.add(empDetail);
         }
-        Employee__c emp = emps[0];
-        Integer step = 1;
 
-        // Step 1: Employee Record
-        DemoRecordDetail empDetail = new DemoRecordDetail();
-        empDetail.stepNumber = step++;
-        empDetail.stepTitle = 'Step 1: Employee Profile (' + (emp.First_Name__c != null ? emp.First_Name__c + ' ' : '') + emp.Last_Name__c + ')';
-        empDetail.recordId = emp.Id;
-        empDetail.recordName = emp.Name;
-        empDetail.objectType = 'Employee__c';
-        empDetail.objectLabel = 'Employee Profile';
-        empDetail.recordUrl = '/lightning/r/Employee__c/' + emp.Id + '/view';
-        empDetail.summary = 'Accrual Start Date: 1 Month Ago | Accrual Divisor: ' + emp.Accrual_Divisor__c;
-        empDetail.details = 'Employee profile configured for current user (' + UserInfo.getUserEmail() + ') with Full Time employment status.';
-        empDetail.whatItDoes = 'Serves as the primary employee profile linking user identity, permissions, project memberships, and timesheet absence accrual tracking.';
-        records.add(empDetail);
-
-        // Projects
-        for (Project__c proj : [
-            SELECT Id, Name, Active__c, Billable__c 
-            FROM Project__c 
-            WHERE Name IN ('Demo Project - Billable', 'Demo Project - Non-Billable', 'Demo Project - Legacy')
-            WITH SECURITY_ENFORCED
-            ORDER BY Name
-        ]) {
+        Integer projStep = 1;
+        for (Project__c proj : [SELECT Id, Name, Active__c, Billable__c FROM Project__c WHERE Name IN ('Demo Project - Billable', 'Demo Project - Non-Billable', 'Demo Project - Legacy') WITH SECURITY_ENFORCED ORDER BY Name]) {
             DemoRecordDetail projDetail = new DemoRecordDetail();
-            projDetail.stepNumber = step++;
-            projDetail.stepTitle = 'Step ' + (step - 1) + ': ' + proj.Name;
+            projDetail.stepNumber = projStep++;
+            projDetail.stepTitle = proj.Name;
             projDetail.recordId = proj.Id;
             projDetail.recordName = proj.Name;
             projDetail.objectType = 'Project__c';
             projDetail.objectLabel = 'Project';
             projDetail.recordUrl = '/lightning/r/Project__c/' + proj.Id + '/view';
             projDetail.summary = 'Status: ' + (proj.Active__c ? 'Active' : 'Inactive') + ' | Billable: ' + proj.Billable__c;
-            if (proj.Name.contains('Billable') && proj.Billable__c == 'Yes') {
-                projDetail.details = 'Active billable customer project for logging regular working hours.';
-                projDetail.whatItDoes = 'Allows logging billable hours on timesheets, which accrue absence/vacation hours at a rate of 1 accrued hour per 8 billable hours.';
-            } else if (proj.Name.contains('Non-Billable')) {
-                projDetail.details = 'Active non-billable internal project.';
-                projDetail.whatItDoes = 'Allows logging non-billable hours on timesheets without accruing additional absence hours.';
-            } else {
-                projDetail.details = 'Legacy project used for historical timesheets and deactivated after line item creation.';
-                projDetail.whatItDoes = 'Demonstrates handling of legacy projects that were active during past timesheet periods but are now closed for new entries.';
-            }
-            records.add(projDetail);
+            projDetail.details = 'Sample project record.';
+            projDetail.whatItDoes = 'Enables logging hours against this project.';
+            wrapper.projects.add(projDetail);
         }
 
-        // Project Employee Assignments
-        List<Project_Employee__c> pes = [
-            SELECT Id, Name, Project__r.Name 
-            FROM Project_Employee__c 
-            WHERE Employee__c = :emp.Id 
-            WITH SECURITY_ENFORCED
-        ];
-        if (!pes.isEmpty()) {
+        Integer peStep = 1;
+        List<Project_Employee__c> pes = [SELECT Id, Name, Project__r.Name, Employee__c FROM Project_Employee__c WHERE Employee__c IN :emps AND Project__r.Name LIKE 'Demo Project%' WITH SECURITY_ENFORCED];
+        for(Project_Employee__c pe : pes) {
             DemoRecordDetail peDetail = new DemoRecordDetail();
-            peDetail.stepNumber = step++;
-            peDetail.stepTitle = 'Step ' + (step - 1) + ': Project Assignments (' + pes.size() + ' Projects)';
-            peDetail.recordId = pes[0].Id;
-            peDetail.recordName = pes[0].Name;
+            peDetail.stepNumber = peStep++;
+            peDetail.stepTitle = pe.Project__r.Name + ' for ' + empNameMap.get(pe.Employee__c);
+            peDetail.recordId = pe.Id;
+            peDetail.recordName = pe.Name;
             peDetail.objectType = 'Project_Employee__c';
             peDetail.objectLabel = 'Project Membership';
-            peDetail.recordUrl = '/lightning/r/Project_Employee__c/' + pes[0].Id + '/view';
-            peDetail.summary = 'Assigned ' + pes.size() + ' projects to employee.';
-            peDetail.details = 'Created junction records linking employee to Demo Project - Billable, Non-Billable, and Legacy.';
-            peDetail.whatItDoes = 'Grants the employee access to select these specific projects when entering daily timesheet line items.';
-            records.add(peDetail);
+            peDetail.recordUrl = '/lightning/r/Project_Employee__c/' + pe.Id + '/view';
+            peDetail.summary = 'Assigned project to employee.';
+            peDetail.details = 'Junction record linking employee to project.';
+            peDetail.whatItDoes = 'Grants the employee access to select this project.';
+            wrapper.projectEmployees.add(peDetail);
         }
 
-        // Timesheets
-        for (Timesheet__c ts : [
-            SELECT Id, Name, Start_Date__c, End_Date__c, Status__c, Total_Hours__c, Accrued_Hours__c, Absence_Hours__c 
-            FROM Timesheet__c 
-            WHERE Employee__c = :emp.Id 
-            WITH SECURITY_ENFORCED
-            ORDER BY Start_Date__c ASC
-        ]) {
-            DemoRecordDetail tsDetail = new DemoRecordDetail();
-            tsDetail.stepNumber = step++;
-            String periodName = 'Weekly Timesheet';
-            Date today = Date.today();
-            Integer modDays = Math.mod(Date.newInstance(1900, 1, 1).daysBetween(today), 7);
-            if (modDays < 0) modDays += 7;
-            Date thisWeekMonday = today.addDays(-modDays);
-            if (ts.Start_Date__c == thisWeekMonday.addDays(-14)) periodName = 'Last Last Week Timesheet';
-            else if (ts.Start_Date__c == thisWeekMonday.addDays(-7)) periodName = 'Last Week Timesheet';
-            else if (ts.Start_Date__c == thisWeekMonday) periodName = 'Current Week Timesheet';
-            else if (ts.Start_Date__c == thisWeekMonday.addDays(7)) periodName = 'Next Week Timesheet';
+        Date today = Date.today();
+        Integer modDays = Math.mod(Date.newInstance(1900, 1, 1).daysBetween(today), 7);
+        if (modDays < 0) modDays += 7;
+        Date thisWeekMonday = today.addDays(-modDays);
+        Date lastWeekMonday = thisWeekMonday.addDays(-7);
+        Date lastLastWeekMonday = thisWeekMonday.addDays(-14);
+        Date nextWeekMonday = thisWeekMonday.addDays(7);
+        List<Date> demoDates = new List<Date>{lastLastWeekMonday, lastWeekMonday, thisWeekMonday, nextWeekMonday};
 
-            tsDetail.stepTitle = 'Step ' + (step - 1) + ': ' + periodName + ' (' + String.valueOf(ts.Start_Date__c) + ' to ' + String.valueOf(ts.End_Date__c) + ')';
-            tsDetail.recordId = ts.Id;
-            tsDetail.recordName = ts.Name;
-            tsDetail.objectType = 'Timesheet__c';
-            tsDetail.objectLabel = 'Timesheet';
-            tsDetail.recordUrl = '/lightning/r/Timesheet__c/' + ts.Id + '/view';
-            tsDetail.summary = 'Status: ' + ts.Status__c + ' | Total Hours: ' + (ts.Total_Hours__c != null ? ts.Total_Hours__c : 0);
-            if (periodName.contains('Last Last Week')) {
-                tsDetail.details = 'Historical timesheet (2 weeks ago) with 8 hours/day logged against Legacy project.';
-                tsDetail.whatItDoes = 'Provides approved historical timesheet data and generates accrued absence hours.';
-            } else if (periodName.contains('Last Week')) {
-                tsDetail.details = 'Historical timesheet (last week) with 4 hrs Billable + 4 hrs Non-Billable daily, plus 8 hrs Sick Leave on Tuesday.';
-                tsDetail.whatItDoes = 'Demonstrates multi-project time logging, absence usage (Sick Leave), and automated balance recalculation upon approval.';
-            } else if (periodName.contains('Current Week')) {
-                tsDetail.details = 'Current week timesheet with 2 hrs Billable + 2 hrs Non-Billable daily, and 8 hrs Sick Leave on Tue/Wed.';
-                tsDetail.whatItDoes = 'Provides an active current-week timesheet ready for the employee to review, edit, or submit.';
-            } else {
-                tsDetail.details = 'Future period timesheet for next week.';
-                tsDetail.whatItDoes = 'Demonstrates advance timesheet creation and scheduling availability.';
+        Map<Id, List<TimesheetLineItemDetail>> tliMap = new Map<Id, List<TimesheetLineItemDetail>>();
+        for(Timesheet_Line_Item__c tli : [SELECT Id, Date__c, Type__c, Project__r.Name, Duration__c, Description__c, Timesheet__c FROM Timesheet_Line_Item__c WHERE Employee__c IN :emps AND Timesheet__r.Start_Date__c IN :demoDates WITH SECURITY_ENFORCED]) {
+            if(!tliMap.containsKey(tli.Timesheet__c)) {
+                tliMap.put(tli.Timesheet__c, new List<TimesheetLineItemDetail>());
             }
-            records.add(tsDetail);
+            TimesheetLineItemDetail d = new TimesheetLineItemDetail();
+            d.id = tli.Id;
+            d.dateStr = String.valueOf(tli.Date__c);
+            d.type = tli.Type__c;
+            d.project = tli.Project__r != null ? tli.Project__r.Name : '';
+            d.duration = tli.Duration__c;
+            d.description = tli.Description__c;
+            tliMap.get(tli.Timesheet__c).add(d);
         }
 
-        return records;
+        for (Timesheet__c ts : [SELECT Id, Name, Start_Date__c, End_Date__c, Status__c, Total_Hours__c, Employee__c FROM Timesheet__c WHERE Employee__c IN :emps AND Start_Date__c IN :demoDates WITH SECURITY_ENFORCED ORDER BY Employee__c, Start_Date__c ASC]) {
+            TimesheetDetail tsDetail = new TimesheetDetail();
+            
+            String periodName = 'Weekly Timesheet';
+            if (ts.Start_Date__c == lastLastWeekMonday) periodName = 'Last Last Week Timesheet';
+            else if (ts.Start_Date__c == lastWeekMonday) periodName = 'Last Week Timesheet';
+            else if (ts.Start_Date__c == thisWeekMonday) periodName = 'Current Week Timesheet';
+            else if (ts.Start_Date__c == nextWeekMonday) periodName = 'Next Week Timesheet';
+
+            tsDetail.recordId = ts.Id;
+            tsDetail.name = ts.Name;
+            tsDetail.employeeName = empNameMap.get(ts.Employee__c);
+            tsDetail.periodName = periodName;
+            tsDetail.dateRange = String.valueOf(ts.Start_Date__c) + ' to ' + String.valueOf(ts.End_Date__c);
+            tsDetail.status = ts.Status__c;
+            tsDetail.totalHours = ts.Total_Hours__c != null ? ts.Total_Hours__c : 0;
+            tsDetail.recordUrl = '/lightning/r/Timesheet__c/' + ts.Id + '/view';
+            tsDetail.isOpen = false;
+            tsDetail.lineItems = tliMap.containsKey(ts.Id) ? tliMap.get(ts.Id) : new List<TimesheetLineItemDetail>();
+            
+            wrapper.timesheets.add(tsDetail);
+        }
+
+        return wrapper;
     }
 
-    /**
-     * @description Deletes all test records related to the current user
-     * @return String Success message
-     */
     @AuraEnabled
     global static String deleteTestRecords() {
-        requireHrAdminPermission();
         Id currentUserId = UserInfo.getUserId();
         try {
             List<Employee__c> emps = [
                 SELECT Id 
                 FROM Employee__c 
-                WHERE User__c = :currentUserId 
+                WHERE User__c = :currentUserId OR Last_Name__c IN ('T.', 'E1', 'E2')
                 WITH SECURITY_ENFORCED
             ];
             List<Timesheet__c> tsList = [
