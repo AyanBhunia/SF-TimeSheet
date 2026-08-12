@@ -89,9 +89,11 @@
                         
                         <!-- Employees Section -->
                         <lightning-accordion-section name="employees" label={employeesLabel}>
-                            <div class="slds-m-bottom_small">
-                                <lightning-button label="New Employee" variant="neutral" icon-name="utility:add" onclick={handleCreateCurrentUserEmployee} disabled={hasEmployee}></lightning-button>
-                            </div>
+                            <template if:false={hasEmployee}>
+                                <div class="slds-m-bottom_small">
+                                    <lightning-button label="New Employee" variant="neutral" icon-name="utility:add" onclick={handleCreateCurrentUserEmployee}></lightning-button>
+                                </div>
+                            </template>
                             <template for:each={employees} for:item="rec">
                                 <lightning-layout key={rec.recordId} multiple-rows class="slds-box slds-m-bottom_x-small slds-theme_shade slds-grid_vertical-align-center">
                                     <lightning-layout-item flexibility="auto">
@@ -101,6 +103,13 @@
                                     <lightning-layout-item>
                                         <lightning-button label="View" icon-name="utility:preview" variant="base" data-url={rec.recordUrl} onclick={handleOpenUrl}></lightning-button>
                                     </lightning-layout-item>
+                                    <template if:true={rec.isTestEmployee1}>
+                                        <template if:false={rec.hasChildEmployees}>
+                                            <lightning-layout-item size="12" class="slds-m-top_small slds-border_top slds-p-top_small">
+                                                <lightning-button label="Create child employees" variant="brand-outline" data-id={rec.recordId} onclick={handleCreateSubEmployees}></lightning-button>
+                                            </lightning-layout-item>
+                                        </template>
+                                    </template>
                                 </lightning-layout>
                             </template>
                             <template if:false={employees.length}>
@@ -184,9 +193,6 @@
                                                 <lightning-layout-item flexibility="auto">
                                                     <p class="slds-m-bottom_xxx-small"><strong>Total Hours:</strong> {ts.totalHours}</p>
                                                     <p><strong>Date Range:</strong> {ts.dateRange}</p>
-                                                </lightning-layout-item>
-                                                <lightning-layout-item>
-                                                    <lightning-button label="Generate Line Items" variant="brand-outline" icon-name="utility:table" data-id={ts.recordId} onclick={handleCreateTimesheetLineItems}></lightning-button>
                                                 </lightning-layout-item>
                                             </lightning-layout>
                                             

@@ -15,6 +15,8 @@ global with sharing class DemoDataController {
         @AuraEnabled global String details { get; set; }
         @AuraEnabled global String summary { get; set; }
         @AuraEnabled global String whatItDoes { get; set; }
+        @AuraEnabled global Boolean isTestEmployee1 { get; set; }
+        @AuraEnabled global Boolean hasChildEmployees { get; set; }
     }
 
     global class TimesheetLineItemDetail {
@@ -97,7 +99,7 @@ global with sharing class DemoDataController {
             List<Employee__c> existingEmpList = [
                 SELECT Id, First_Name__c, Last_Name__c, User__c 
                 FROM Employee__c 
-                WHERE User__c = :currentUserId OR Last_Name__c IN ('T.', 'E1', 'E2')
+                WHERE User__c = :currentUserId OR Last_Name__c IN ('T.', 'E1', 'E2') OR Last_Name__c LIKE 'Child Employee%'
                 WITH SECURITY_ENFORCED
             ];
             if (!existingEmpList.isEmpty()) {
@@ -261,25 +263,45 @@ global with sharing class DemoDataController {
     @AuraEnabled
     global static String createDemoProjects() {
         try {
-            List<String> projNames = new List<String>{'Demo Project - Billable', 'Demo Project - Non-Billable', 'Demo Project - Legacy'};
+            Integer empNumber = 1;
+            List<Employee__c> currentEmps = [
+                SELECT Last_Name__c 
+                FROM Employee__c 
+                WHERE User__c = :UserInfo.getUserId() 
+                AND First_Name__c = 'test' 
+                AND Last_Name__c LIKE 'employee %' 
+                WITH SECURITY_ENFORCED 
+                ORDER BY CreatedDate DESC 
+                LIMIT 1
+            ];
+            if (!currentEmps.isEmpty()) {
+                String numStr = currentEmps[0].Last_Name__c.replace('employee ', '').trim();
+                if (numStr.isNumeric()) {
+                    empNumber = Integer.valueOf(numStr);
+                }
+            }
+            
+            String prefix = 'Test Project ' + empNumber + ' - ';
+            List<String> projNames = new List<String>{prefix + 'Billable', prefix + 'Non Billable', prefix + 'Legacy'};
             Map<String, Project__c> projMap = new Map<String, Project__c>();
-            for (Project__c p : [SELECT Id, Name, Active__c, Billable__c FROM Project__c WHERE Name IN :projNames WITH SECURITY_ENFORCED]) {
+            for (Project__c p : [SELECT Id, Name, Active__c, Billable__c FROM Project__c WHERE Name LIKE 'Test Project%' WITH SECURITY_ENFORCED]) {
                 projMap.put(p.Name, p);
             }
+            
             List<Project__c> toUpsert = new List<Project__c>();
             
-            Project__c p1 = projMap.get('Demo Project - Billable');
-            if (p1 == null) p1 = new Project__c(Name = 'Demo Project - Billable');
+            Project__c p1 = projMap.get(projNames[0]);
+            if (p1 == null) p1 = new Project__c(Name = projNames[0]);
             p1.Active__c = true; p1.Billable__c = 'Yes';
             toUpsert.add(p1);
 
-            Project__c p2 = projMap.get('Demo Project - Non-Billable');
-            if (p2 == null) p2 = new Project__c(Name = 'Demo Project - Non-Billable');
+            Project__c p2 = projMap.get(projNames[1]);
+            if (p2 == null) p2 = new Project__c(Name = projNames[1]);
             p2.Active__c = true; p2.Billable__c = 'No';
             toUpsert.add(p2);
 
-            Project__c p3 = projMap.get('Demo Project - Legacy');
-            if (p3 == null) p3 = new Project__c(Name = 'Demo Project - Legacy');
+            Project__c p3 = projMap.get(projNames[2]);
+            if (p3 == null) p3 = new Project__c(Name = projNames[2]);
             p3.Active__c = true; p3.Billable__c = 'No';
             toUpsert.add(p3);
 
@@ -293,9 +315,9 @@ global with sharing class DemoDataController {
     @AuraEnabled
     global static String createDemoProjectAssignments() {
         try {
-            List<Project__c> projs = [SELECT Id FROM Project__c WHERE Name LIKE 'Demo Project%' WITH SECURITY_ENFORCED];
+            List<Project__c> projs = [SELECT Id FROM Project__c WHERE Name LIKE 'Test Project%' WITH SECURITY_ENFORCED];
             Id currentUserId = UserInfo.getUserId();
-            List<Employee__c> emps = [SELECT Id FROM Employee__c WHERE User__c = :currentUserId OR Last_Name__c IN ('T.', 'E1', 'E2') WITH SECURITY_ENFORCED];
+            List<Employee__c> emps = [SELECT Id FROM Employee__c WHERE User__c = :currentUserId OR Last_Name__c IN ('T.', 'E1', 'E2') OR Last_Name__c LIKE 'Child Employee%' WITH SECURITY_ENFORCED];
             List<Project_Employee__c> toInsert = new List<Project_Employee__c>();
             
             Set<String> existingKeys = new Set<String>();
@@ -321,7 +343,7 @@ global with sharing class DemoDataController {
     global static String createDemoTimesheets() {
         try {
             Id currentUserId = UserInfo.getUserId();
-            List<Employee__c> emps = [SELECT Id, Manager__c FROM Employee__c WHERE User__c = :currentUserId OR Last_Name__c IN ('T.', 'E1', 'E2') WITH SECURITY_ENFORCED];
+            List<Employee__c> emps = [SELECT Id, Manager__c FROM Employee__c WHERE User__c = :currentUserId OR Last_Name__c IN ('T.', 'E1', 'E2') OR Last_Name__c LIKE 'Child Employee%' WITH SECURITY_ENFORCED];
             Date today = Date.today();
             Integer modDays = Math.mod(Date.newInstance(1900, 1, 1).daysBetween(today), 7);
             if (modDays < 0) modDays += 7;
@@ -344,7 +366,46 @@ global with sharing class DemoDataController {
                     }
                 }
             }
-            if (!toInsert.isEmpty()) insert toInsert;
+            if (!toInsert.isEmpty()) {
+                insert toInsert;
+                
+                List<Project__c> projs = [SELECT Id, Name FROM Project__c WHERE Name LIKE 'Test Project%' WITH SECURITY_ENFORCED];
+                Id projBillable, projNonBillable, projLegacy;
+                for (Project__c p : projs) {
+                    if (p.Name.contains('Billable') && !p.Name.contains('Non')) projBillable = p.Id;
+                    if (p.Name.contains('Non Billable')) projNonBillable = p.Id;
+                    if (p.Name.contains('Legacy')) projLegacy = p.Id;
+                }
+                
+                List<Timesheet_Line_Item__c> itemsToInsert = new List<Timesheet_Line_Item__c>();
+                for (Timesheet__c ts : toInsert) {
+                    if (ts.Start_Date__c == lastLastWeekMonday) {
+                        for (Integer day = 0; day < 7; day++) {
+                            itemsToInsert.add(new Timesheet_Line_Item__c(Timesheet__c = ts.Id, Employee__c = ts.Employee__c, Date__c = ts.Start_Date__c.addDays(day), Type__c = 'Attendance', Project__c = projLegacy, Activity__c = 'Development-Coding', Duration__c = 8, Description__c = 'Demo Data - Project work'));
+                        }
+                    } else if (ts.Start_Date__c == lastWeekMonday) {
+                        for (Integer day = 0; day < 7; day++) {
+                            itemsToInsert.add(new Timesheet_Line_Item__c(Timesheet__c = ts.Id, Employee__c = ts.Employee__c, Date__c = ts.Start_Date__c.addDays(day), Type__c = 'Attendance', Project__c = projBillable, Activity__c = 'Development-Coding', Duration__c = 4, Description__c = 'Demo Data - Billable work'));
+                            itemsToInsert.add(new Timesheet_Line_Item__c(Timesheet__c = ts.Id, Employee__c = ts.Employee__c, Date__c = ts.Start_Date__c.addDays(day), Type__c = 'Attendance', Project__c = projNonBillable, Activity__c = 'Meeting', Duration__c = 4, Description__c = 'Demo Data - Non-billable work'));
+                            if (day == 1) itemsToInsert.add(new Timesheet_Line_Item__c(Timesheet__c = ts.Id, Employee__c = ts.Employee__c, Date__c = ts.Start_Date__c.addDays(day), Type__c = 'Absence', Absence_Category__c = 'Sick Leave', Duration__c = 8, Description__c = 'Demo Data - Sick Leave'));
+                        }
+                    } else if (ts.Start_Date__c == thisWeekMonday) {
+                        for (Integer day = 0; day < 7; day++) {
+                            itemsToInsert.add(new Timesheet_Line_Item__c(Timesheet__c = ts.Id, Employee__c = ts.Employee__c, Date__c = ts.Start_Date__c.addDays(day), Type__c = 'Attendance', Project__c = projBillable, Activity__c = 'Development-Coding', Duration__c = 2, Description__c = 'Demo Data - Billable work'));
+                            itemsToInsert.add(new Timesheet_Line_Item__c(Timesheet__c = ts.Id, Employee__c = ts.Employee__c, Date__c = ts.Start_Date__c.addDays(day), Type__c = 'Attendance', Project__c = projNonBillable, Activity__c = 'Meeting', Duration__c = 2, Description__c = 'Demo Data - Non-billable work'));
+                            if (day == 1 || day == 2) itemsToInsert.add(new Timesheet_Line_Item__c(Timesheet__c = ts.Id, Employee__c = ts.Employee__c, Date__c = ts.Start_Date__c.addDays(day), Type__c = 'Absence', Absence_Category__c = 'Sick Leave', Duration__c = 8, Description__c = 'Demo Data - Sick Leave'));
+                        }
+                    } else {
+                        for (Integer day = 0; day < 5; day++) {
+                            itemsToInsert.add(new Timesheet_Line_Item__c(Timesheet__c = ts.Id, Employee__c = ts.Employee__c, Date__c = ts.Start_Date__c.addDays(day), Type__c = 'Attendance', Project__c = projBillable, Activity__c = 'Development-Coding', Duration__c = 8, Description__c = 'Demo Data - Standard Billable work'));
+                        }
+                    }
+                }
+                
+                if(!itemsToInsert.isEmpty()) {
+                    insert itemsToInsert;
+                }
+            }
             return 'Success';
         } catch (Exception e) {
             throw new AuraHandledException(e.getMessage());
@@ -354,7 +415,7 @@ global with sharing class DemoDataController {
     @AuraEnabled
     global static String createDemoTimesheetLineItems(String timesheetId) {
         try {
-            List<Project__c> projs = [SELECT Id, Name FROM Project__c WHERE Name LIKE 'Demo Project%' WITH SECURITY_ENFORCED];
+            List<Project__c> projs = [SELECT Id, Name FROM Project__c WHERE Name LIKE 'Test Project%' WITH SECURITY_ENFORCED];
             Id projBillable, projNonBillable, projLegacy;
             for (Project__c p : projs) {
                 if (p.Name.contains('Billable') && !p.Name.contains('Non')) projBillable = p.Id;
@@ -409,6 +470,48 @@ global with sharing class DemoDataController {
     }
 
     @AuraEnabled
+    global static String createSubEmployees(String parentEmployeeId) {
+        try {
+            Employee__c parentEmp = [SELECT Id, Manager__c, User__c, Last_Name__c FROM Employee__c WHERE Id = :parentEmployeeId WITH SECURITY_ENFORCED LIMIT 1];
+            
+            String numStr = '';
+            if (parentEmp.Last_Name__c != null && parentEmp.Last_Name__c.toLowerCase().startsWith('employee ')) {
+                numStr = parentEmp.Last_Name__c.toLowerCase().replace('employee ', '').trim();
+            } else {
+                numStr = '1';
+            }
+            
+            Employee__c child1 = new Employee__c(
+                First_Name__c = 'Test', 
+                Last_Name__c = 'Child Employee ' + numStr + 'A', 
+                Email__c = UserInfo.getUserEmail(), 
+                Manager__c = parentEmp.User__c, 
+                Employment_Type__c = 'Full Time', 
+                Active__c = true, 
+                Accrual_Start_Date__c = System.today().addMonths(-1), 
+                Accrual_Divisor__c = 8, 
+                Extra_Accrued_Hours__c = 30
+            );
+            Employee__c child2 = new Employee__c(
+                First_Name__c = 'Test', 
+                Last_Name__c = 'Child Employee ' + numStr + 'B', 
+                Email__c = UserInfo.getUserEmail(), 
+                Manager__c = parentEmp.User__c, 
+                Employment_Type__c = 'Full Time', 
+                Active__c = true, 
+                Accrual_Start_Date__c = System.today().addMonths(-1), 
+                Accrual_Divisor__c = 8, 
+                Extra_Accrued_Hours__c = 30
+            );
+            
+            insert new List<Employee__c>{child1, child2};
+            return 'Success';
+        } catch (Exception e) {
+            throw new AuraHandledException(e.getMessage());
+        }
+    }
+
+    @AuraEnabled
     global static String createCurrentUserEmployee() {
         try {
             Id currentUserId = UserInfo.getUserId();
@@ -419,9 +522,20 @@ global with sharing class DemoDataController {
                 e.setMessage('Please assign a manager in your User record before creating an employee.');
                 throw e;
             }
+            Integer nextNumber = 1;
+            for (Employee__c e : [SELECT Last_Name__c FROM Employee__c WHERE First_Name__c = 'test' AND Last_Name__c LIKE 'employee %' WITH SECURITY_ENFORCED]) {
+                String lName = e.Last_Name__c;
+                String numStr = lName.replace('employee ', '').trim();
+                if (numStr.isNumeric()) {
+                    Integer num = Integer.valueOf(numStr);
+                    if (num >= nextNumber) {
+                        nextNumber = num + 1;
+                    }
+                }
+            }
             Employee__c emp = new Employee__c(
                 First_Name__c = 'test', 
-                Last_Name__c = 'employee 1', 
+                Last_Name__c = 'employee ' + nextNumber, 
                 User__c = currentUserId, 
                 Email__c = currentUser.Email, 
                 Manager__c = managerUserId, 
@@ -452,11 +566,20 @@ global with sharing class DemoDataController {
         List<Employee__c> emps = [
             SELECT Id, Name, First_Name__c, Last_Name__c, Accrual_Start_Date__c, Accrual_Divisor__c 
             FROM Employee__c 
-            WHERE User__c = :currentUserId OR Last_Name__c IN ('T.', 'E1', 'E2')
+            WHERE User__c = :currentUserId OR Last_Name__c IN ('T.', 'E1', 'E2') OR Last_Name__c LIKE 'Child Employee%'
             WITH SECURITY_ENFORCED 
+            ORDER BY CreatedDate ASC
         ];
         
         if (emps.isEmpty()) return wrapper;
+
+        Boolean childExists = false;
+        for (Employee__c e : emps) {
+            if (e.Last_Name__c != null && e.Last_Name__c.contains('Child Employee')) {
+                childExists = true;
+                break;
+            }
+        }
 
         Map<Id, String> empNameMap = new Map<Id, String>();
         Integer empStep = 1;
@@ -475,11 +598,13 @@ global with sharing class DemoDataController {
             empDetail.summary = 'Accrual Start Date: 1 Month Ago | Accrual Divisor: ' + emp.Accrual_Divisor__c;
             empDetail.details = 'Configures the employee profile.';
             empDetail.whatItDoes = 'Tracks timesheet absence accruals and links memberships.';
+            empDetail.isTestEmployee1 = (fName + lName).toLowerCase().contains('test employee');
+            empDetail.hasChildEmployees = childExists;
             wrapper.employees.add(empDetail);
         }
 
         Integer projStep = 1;
-        for (Project__c proj : [SELECT Id, Name, Active__c, Billable__c FROM Project__c WHERE Name IN ('Demo Project - Billable', 'Demo Project - Non-Billable', 'Demo Project - Legacy') WITH SECURITY_ENFORCED ORDER BY Name]) {
+        for (Project__c proj : [SELECT Id, Name, Active__c, Billable__c FROM Project__c WHERE Name LIKE 'Test Project%' WITH SECURITY_ENFORCED ORDER BY Name]) {
             DemoRecordDetail projDetail = new DemoRecordDetail();
             projDetail.stepNumber = projStep++;
             projDetail.stepTitle = proj.Name;
@@ -495,7 +620,7 @@ global with sharing class DemoDataController {
         }
 
         Integer peStep = 1;
-        List<Project_Employee__c> pes = [SELECT Id, Name, Project__r.Name, Employee__c FROM Project_Employee__c WHERE Employee__c IN :emps AND Project__r.Name LIKE 'Demo Project%' WITH SECURITY_ENFORCED];
+        List<Project_Employee__c> pes = [SELECT Id, Name, Project__r.Name, Employee__c FROM Project_Employee__c WHERE Employee__c IN :emps AND Project__r.Name LIKE 'Test Project%' WITH SECURITY_ENFORCED];
         for(Project_Employee__c pe : pes) {
             DemoRecordDetail peDetail = new DemoRecordDetail();
             peDetail.stepNumber = peStep++;
@@ -568,7 +693,7 @@ global with sharing class DemoDataController {
             List<Employee__c> emps = [
                 SELECT Id 
                 FROM Employee__c 
-                WHERE User__c = :currentUserId OR Last_Name__c IN ('T.', 'E1', 'E2')
+                WHERE User__c = :currentUserId OR Last_Name__c IN ('T.', 'E1', 'E2') OR Last_Name__c LIKE 'Child Employee%'
                 WITH SECURITY_ENFORCED
             ];
             List<Timesheet__c> tsList = [

@@ -1,10 +1,11 @@
 import { LightningElement, track } from 'lwc';
 import createDemoData from '@salesforce/apex/DemoDataController.createDemoData';
 import createCurrentUserEmployee from '@salesforce/apex/DemoDataController.createCurrentUserEmployee';
+import createSubEmployees from '@salesforce/apex/DemoDataController.createSubEmployees';
 import createDemoProjects from '@salesforce/apex/DemoDataController.createDemoProjects';
 import createDemoProjectAssignments from '@salesforce/apex/DemoDataController.createDemoProjectAssignments';
 import createDemoTimesheets from '@salesforce/apex/DemoDataController.createDemoTimesheets';
-import createDemoTimesheetLineItems from '@salesforce/apex/DemoDataController.createDemoTimesheetLineItems';
+
 import deleteTestRecords from '@salesforce/apex/DemoDataController.deleteTestRecords';
 import getDemoStatus from '@salesforce/apex/DemoDataController.getDemoStatus';
 import getDemoRecords from '@salesforce/apex/DemoDataController.getDemoRecords';
@@ -111,6 +112,20 @@ export default class DemoDataSetup extends NavigationMixin(LightningElement) {
             });
     }
 
+    handleCreateSubEmployees(event) {
+        const parentId = event.target.dataset.id;
+        this.isLoading = true;
+        createSubEmployees({ parentEmployeeId: parentId })
+            .then(() => {
+                this.showToast('Success', 'Sub Employees created successfully.', 'success');
+                this.loadStatus();
+            })
+            .catch((error) => {
+                this.isLoading = false;
+                this.showToast('Error', 'Error creating sub employees: ' + this.getErrorMessage(error), 'error');
+            });
+    }
+
     handleCreateProjects() {
         this.isLoading = true;
         createDemoProjects()
@@ -147,21 +162,6 @@ export default class DemoDataSetup extends NavigationMixin(LightningElement) {
             .catch((error) => {
                 this.isLoading = false;
                 this.showToast('Error', 'Error creating timesheets: ' + this.getErrorMessage(error), 'error');
-            });
-    }
-
-    handleCreateTimesheetLineItems(event) {
-        const timesheetId = event.target.dataset.id;
-        if (!timesheetId) return;
-        this.isLoading = true;
-        createDemoTimesheetLineItems({ timesheetId: timesheetId })
-            .then(() => {
-                this.showToast('Success', 'Timesheet Line Items created successfully.', 'success');
-                this.loadStatus();
-            })
-            .catch((error) => {
-                this.isLoading = false;
-                this.showToast('Error', 'Error creating timesheet line items: ' + this.getErrorMessage(error), 'error');
             });
     }
 
