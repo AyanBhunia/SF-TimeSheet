@@ -50,7 +50,7 @@ global with sharing class DemoDataController {
 
 
 
-    @AuraEnabled(cacheable=true)
+    @AuraEnabled
     global static Map<String, Object> getDemoStatus() {
         Map<String, Object> result = new Map<String, Object>();
         result.put('hasAccess', true);
@@ -263,6 +263,7 @@ global with sharing class DemoDataController {
     @AuraEnabled
     global static String createDemoProjects() {
         try {
+            Id currentUserId = UserInfo.getUserId();
             Integer empNumber = 1;
             List<Employee__c> currentEmps = [
                 SELECT Last_Name__c 
@@ -284,7 +285,7 @@ global with sharing class DemoDataController {
             String prefix = 'Test Project ' + empNumber + ' - ';
             List<String> projNames = new List<String>{prefix + 'Billable', prefix + 'Non Billable', prefix + 'Legacy'};
             Map<String, Project__c> projMap = new Map<String, Project__c>();
-            for (Project__c p : [SELECT Id, Name, Active__c, Billable__c FROM Project__c WHERE Name LIKE 'Test Project%' WITH SECURITY_ENFORCED]) {
+            for (Project__c p : [SELECT Id, Name, Active__c, Billable__c FROM Project__c WHERE Name LIKE 'Test Project%' AND CreatedById = :currentUserId WITH SECURITY_ENFORCED]) {
                 projMap.put(p.Name, p);
             }
             
@@ -315,9 +316,9 @@ global with sharing class DemoDataController {
     @AuraEnabled
     global static String createDemoProjectAssignments() {
         try {
-            List<Project__c> projs = [SELECT Id FROM Project__c WHERE Name LIKE 'Test Project%' WITH SECURITY_ENFORCED];
             Id currentUserId = UserInfo.getUserId();
-            List<Employee__c> emps = [SELECT Id FROM Employee__c WHERE User__c = :currentUserId OR Last_Name__c IN ('T.', 'E1', 'E2') OR Last_Name__c LIKE 'Child Employee%' WITH SECURITY_ENFORCED];
+            List<Project__c> projs = [SELECT Id FROM Project__c WHERE Name LIKE 'Test Project%' AND CreatedById = :currentUserId WITH SECURITY_ENFORCED];
+            List<Employee__c> emps = [SELECT Id FROM Employee__c WHERE User__c = :currentUserId OR ((Last_Name__c IN ('T.', 'E1', 'E2') OR Last_Name__c LIKE 'Child Employee%') AND CreatedById = :currentUserId) WITH SECURITY_ENFORCED];
             List<Project_Employee__c> toInsert = new List<Project_Employee__c>();
             
             Set<String> existingKeys = new Set<String>();
@@ -343,7 +344,7 @@ global with sharing class DemoDataController {
     global static String createDemoTimesheets() {
         try {
             Id currentUserId = UserInfo.getUserId();
-            List<Employee__c> emps = [SELECT Id, Manager__c FROM Employee__c WHERE User__c = :currentUserId OR Last_Name__c IN ('T.', 'E1', 'E2') OR Last_Name__c LIKE 'Child Employee%' WITH SECURITY_ENFORCED];
+            List<Employee__c> emps = [SELECT Id, Manager__c FROM Employee__c WHERE User__c = :currentUserId OR ((Last_Name__c IN ('T.', 'E1', 'E2') OR Last_Name__c LIKE 'Child Employee%') AND CreatedById = :currentUserId) WITH SECURITY_ENFORCED];
             Date today = Date.today();
             Integer modDays = Math.mod(Date.newInstance(1900, 1, 1).daysBetween(today), 7);
             if (modDays < 0) modDays += 7;
@@ -369,7 +370,7 @@ global with sharing class DemoDataController {
             if (!toInsert.isEmpty()) {
                 insert toInsert;
                 
-                List<Project__c> projs = [SELECT Id, Name FROM Project__c WHERE Name LIKE 'Test Project%' WITH SECURITY_ENFORCED];
+                List<Project__c> projs = [SELECT Id, Name FROM Project__c WHERE Name LIKE 'Test Project%' AND CreatedById = :currentUserId WITH SECURITY_ENFORCED];
                 Id projBillable, projNonBillable, projLegacy;
                 for (Project__c p : projs) {
                     if (p.Name.contains('Billable') && !p.Name.contains('Non')) projBillable = p.Id;
@@ -415,7 +416,8 @@ global with sharing class DemoDataController {
     @AuraEnabled
     global static String createDemoTimesheetLineItems(String timesheetId) {
         try {
-            List<Project__c> projs = [SELECT Id, Name FROM Project__c WHERE Name LIKE 'Test Project%' WITH SECURITY_ENFORCED];
+            Id currentUserId = UserInfo.getUserId();
+            List<Project__c> projs = [SELECT Id, Name FROM Project__c WHERE Name LIKE 'Test Project%' AND CreatedById = :currentUserId WITH SECURITY_ENFORCED];
             Id projBillable, projNonBillable, projLegacy;
             for (Project__c p : projs) {
                 if (p.Name.contains('Billable') && !p.Name.contains('Non')) projBillable = p.Id;
@@ -566,7 +568,7 @@ global with sharing class DemoDataController {
         List<Employee__c> emps = [
             SELECT Id, Name, First_Name__c, Last_Name__c, Accrual_Start_Date__c, Accrual_Divisor__c 
             FROM Employee__c 
-            WHERE User__c = :currentUserId OR Last_Name__c IN ('T.', 'E1', 'E2') OR Last_Name__c LIKE 'Child Employee%'
+            WHERE User__c = :currentUserId OR ((Last_Name__c IN ('T.', 'E1', 'E2') OR Last_Name__c LIKE 'Child Employee%') AND CreatedById = :currentUserId)
             WITH SECURITY_ENFORCED 
             ORDER BY CreatedDate ASC
         ];
@@ -604,7 +606,7 @@ global with sharing class DemoDataController {
         }
 
         Integer projStep = 1;
-        for (Project__c proj : [SELECT Id, Name, Active__c, Billable__c FROM Project__c WHERE Name LIKE 'Test Project%' WITH SECURITY_ENFORCED ORDER BY Name]) {
+        for (Project__c proj : [SELECT Id, Name, Active__c, Billable__c FROM Project__c WHERE Name LIKE 'Test Project%' AND CreatedById = :currentUserId WITH SECURITY_ENFORCED ORDER BY Name]) {
             DemoRecordDetail projDetail = new DemoRecordDetail();
             projDetail.stepNumber = projStep++;
             projDetail.stepTitle = proj.Name;
@@ -693,7 +695,7 @@ global with sharing class DemoDataController {
             List<Employee__c> emps = [
                 SELECT Id 
                 FROM Employee__c 
-                WHERE User__c = :currentUserId OR Last_Name__c IN ('T.', 'E1', 'E2') OR Last_Name__c LIKE 'Child Employee%'
+                WHERE User__c = :currentUserId OR ((Last_Name__c IN ('T.', 'E1', 'E2') OR Last_Name__c LIKE 'Child Employee%') AND CreatedById = :currentUserId)
                 WITH SECURITY_ENFORCED
             ];
             List<Timesheet__c> tsList = [
@@ -727,7 +729,7 @@ global with sharing class DemoDataController {
                 List<Project__c> demoProjects = [
                     SELECT Id 
                     FROM Project__c 
-                    WHERE Name IN ('Demo Project - Billable', 'Demo Project - Non-Billable', 'Demo Project - Legacy')
+                    WHERE Name IN ('Demo Project - Billable', 'Demo Project - Non-Billable', 'Demo Project - Legacy') OR (Name LIKE 'Test Project%' AND CreatedById = :currentUserId)
                 ];
                 if (!demoProjects.isEmpty()) {
                     delete demoProjects;
@@ -738,7 +740,7 @@ global with sharing class DemoDataController {
                 List<Project__c> demoProjects = [
                     SELECT Id 
                     FROM Project__c 
-                    WHERE Name IN ('Demo Project - Billable', 'Demo Project - Non-Billable', 'Demo Project - Legacy')
+                    WHERE Name IN ('Demo Project - Billable', 'Demo Project - Non-Billable', 'Demo Project - Legacy') OR (Name LIKE 'Test Project%' AND CreatedById = :currentUserId)
                 ];
                 if (!demoProjects.isEmpty()) {
                     delete demoProjects;

@@ -119,9 +119,13 @@
 
                         <!-- Projects Section -->
                         <lightning-accordion-section name="projects" label={projectsLabel}>
-                            <div class="slds-m-bottom_small">
-                                <lightning-button label="New Projects" variant="neutral" icon-name="utility:add" onclick={handleCreateProjects} disabled={hasProjects}></lightning-button>
-                            </div>
+                            <template if:true={hasChildEmployees}>
+                                <template if:false={hasProjects}>
+                                    <div class="slds-m-bottom_small">
+                                        <lightning-button label="New Projects" variant="neutral" icon-name="utility:add" onclick={handleCreateProjects}></lightning-button>
+                                    </div>
+                                </template>
+                            </template>
                             <template for:each={projects} for:item="rec">
                                 <lightning-layout key={rec.recordId} multiple-rows class="slds-box slds-m-bottom_x-small slds-theme_shade slds-grid_vertical-align-center">
                                     <lightning-layout-item flexibility="auto">
@@ -140,9 +144,13 @@
 
                         <!-- Project Assignments Section -->
                         <lightning-accordion-section name="projectEmployees" label={projectAssignmentsLabel}>
-                            <div class="slds-m-bottom_small">
-                                <lightning-button label="New Project Assignments" variant="neutral" icon-name="utility:add" onclick={handleCreateProjectAssignments} disabled={hasProjectAssignments}></lightning-button>
-                            </div>
+                            <template if:true={hasProjects}>
+                                <template if:false={hasProjectAssignments}>
+                                    <div class="slds-m-bottom_small">
+                                        <lightning-button label="New Project Assignments" variant="neutral" icon-name="utility:add" onclick={handleCreateProjectAssignments}></lightning-button>
+                                    </div>
+                                </template>
+                            </template>
                             <template for:each={projectEmployees} for:item="rec">
                                 <lightning-layout key={rec.recordId} multiple-rows class="slds-box slds-m-bottom_x-small slds-theme_shade slds-grid_vertical-align-center">
                                     <lightning-layout-item flexibility="auto">
@@ -161,9 +169,13 @@
 
                         <!-- Timesheets Section -->
                         <lightning-accordion-section name="timesheets" label={timesheetsLabel}>
-                            <div class="slds-m-bottom_small">
-                                <lightning-button label="New Timesheets" variant="neutral" icon-name="utility:add" onclick={handleCreateTimesheets} disabled={hasTimesheets}></lightning-button>
-                            </div>
+                            <template if:true={hasProjectAssignments}>
+                                <template if:false={hasTimesheets}>
+                                    <div class="slds-m-bottom_small">
+                                        <lightning-button label="New Timesheets" variant="neutral" icon-name="utility:add" onclick={handleCreateTimesheets}></lightning-button>
+                                    </div>
+                                </template>
+                            </template>
                             <template for:each={timesheets} for:item="ts">
                                 <div key={ts.recordId} class="slds-box slds-m-bottom_small slds-theme_default">
                                     <lightning-layout vertical-align="center">
@@ -273,24 +285,24 @@
                 <lightning-accordion allow-multiple-sections-open>
                     <lightning-accordion-section name="emailTemplates" label="1. Create Email Templates">
                         <ol class="slds-list_decimal slds-p-left_medium">
-                            <li>In Setup, search for <strong>'Email Templates'</strong> and select <strong>'Classic Email Templates'</strong>.</li>
-                            <li>Click on the <strong>'New Template'</strong> button.</li>
-                            <li>Select the <strong>'Unified Public Classic Email Templates'</strong> folder, and check the <strong>'Available for Use'</strong> checkbox.</li>
-                            <li>Give the approved email an appropriate name. In the email body section, enter the desired content. To insert timesheet-related merge fields, select <strong>'Timesheet Fields'</strong> from the merge field dropdown.
+                            <li>In Setup, search for <strong>'Email Templates'</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Email Templates" title="Copy to Clipboard"></lightning-button-icon> and select <strong>'Classic Email Templates'</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Classic Email Templates" title="Copy to Clipboard"></lightning-button-icon>.</li>
+                            <li>Click on the <strong>'New Template'</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="New Template" title="Copy to Clipboard"></lightning-button-icon> button.</li>
+                            <li>Select the <strong>'Unified Public Classic Email Templates'</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Unified Public Classic Email Templates" title="Copy to Clipboard"></lightning-button-icon> folder, and check the <strong>'Available for Use'</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Available for Use" title="Copy to Clipboard"></lightning-button-icon> checkbox.</li>
+                            <li>Give the approved email an appropriate name. In the email body section, enter the desired content. To insert timesheet-related merge fields, select <strong>'Timesheet Fields'</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Timesheet Fields" title="Copy to Clipboard"></lightning-button-icon> from the merge field dropdown.
                                 <div class="slds-box slds-m-top_small slds-m-bottom_small slds-theme_shade">
-                                    <p><strong>Email Template Name:</strong> Timesheet Approved Email Templates</p>
-                                    <p><strong>Description:</strong> Timesheet Approved Email Templates</p>
-                                    <p><strong>Subject:</strong> Timesheet is Approved</p>
-                                    <p><strong>Body:</strong></p>
+                                    <p><strong>Email Template Name:</strong> Timesheet Approved Email Templates <lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small" onclick={handleCopy} data-text="Timesheet Approved Email Templates" title="Copy to Clipboard"></lightning-button-icon></p>
+                                    <p><strong>Description:</strong> Timesheet Approved Email Templates <lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small" onclick={handleCopy} data-text="Timesheet Approved Email Templates" title="Copy to Clipboard"></lightning-button-icon></p>
+                                    <p><strong>Subject:</strong> Timesheet is Approved <lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small" onclick={handleCopy} data-text="Timesheet is Approved" title="Copy to Clipboard"></lightning-button-icon></p>
+                                    <p><strong>Body:</strong> <lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small" onclick={handleCopy} data-text={approvedEmailBody} title="Copy to Clipboard"></lightning-button-icon></p>
                                     <pre class="slds-m-top_xx-small">&#123;!dbt__Timesheet__c.dbt__Employee__c&#125;,<br/>Your &#123;!dbt__Timesheet__c.Name&#125; is Approved.<br/>Comments : &#123;!ApprovalRequest.Comments&#125;</pre>
                                 </div>
                             </li>
                             <li>Similarly follow the same steps and create another email template for rejected action:
                                 <div class="slds-box slds-m-top_small slds-m-bottom_small slds-theme_shade">
-                                    <p><strong>Email Template Name:</strong> Timesheet Rejected Email Templates</p>
-                                    <p><strong>Description:</strong> Timesheet Rejected Email Templates</p>
-                                    <p><strong>Subject:</strong> Timesheet is Rejected</p>
-                                    <p><strong>Body:</strong></p>
+                                    <p><strong>Email Template Name:</strong> Timesheet Rejected Email Templates <lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small" onclick={handleCopy} data-text="Timesheet Rejected Email Templates" title="Copy to Clipboard"></lightning-button-icon></p>
+                                    <p><strong>Description:</strong> Timesheet Rejected Email Templates <lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small" onclick={handleCopy} data-text="Timesheet Rejected Email Templates" title="Copy to Clipboard"></lightning-button-icon></p>
+                                    <p><strong>Subject:</strong> Timesheet is Rejected <lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small" onclick={handleCopy} data-text="Timesheet is Rejected" title="Copy to Clipboard"></lightning-button-icon></p>
+                                    <p><strong>Body:</strong> <lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small" onclick={handleCopy} data-text={rejectedEmailBody} title="Copy to Clipboard"></lightning-button-icon></p>
                                     <pre class="slds-m-top_xx-small">&#123;!dbt__Timesheet__c.dbt__Employee__c&#125;,<br/>Your &#123;!dbt__Timesheet__c.Name&#125; is Rejected.<br/>Comments : &#123;!ApprovalRequest.Comments&#125;</pre>
                                 </div>
                             </li>
@@ -299,11 +311,11 @@
                     
                     <lightning-accordion-section name="emailAlerts" label="2. Creating Email Alerts">
                         <ol class="slds-list_decimal slds-p-left_medium">
-                            <li>Go to the <strong>Email Alerts</strong> section from setup and click on the <strong>New Email Alert</strong> button.</li>
-                            <li>Enter <strong>'Timesheet approval email alert'</strong> in the Description field.</li>
-                            <li>Enter <strong>'Timesheet_Approved_Email_Alert'</strong> in the Name field.</li>
-                            <li>In Recipient type, search for owner and add <strong>'Timesheet Owner'</strong> to Selected recipients.</li>
-                            <li>Select <strong>'Current User’s Email Address'</strong> in From Email Address.</li>
+                            <li>Go to the <strong>Email Alerts</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Email Alerts" title="Copy to Clipboard"></lightning-button-icon> section from setup and click on the <strong>New Email Alert</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="New Email Alert" title="Copy to Clipboard"></lightning-button-icon> button.</li>
+                            <li>Enter <strong>'Timesheet approval email alert'</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Timesheet approval email alert" title="Copy to Clipboard"></lightning-button-icon> in the Description field.</li>
+                            <li>Enter <strong>'Timesheet_Approved_Email_Alert'</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Timesheet_Approved_Email_Alert" title="Copy to Clipboard"></lightning-button-icon> in the Name field.</li>
+                            <li>In Recipient type, search for owner and add <strong>'Timesheet Owner'</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Timesheet Owner" title="Copy to Clipboard"></lightning-button-icon> to Selected recipients.</li>
+                            <li>Select <strong>'Current User’s Email Address'</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Current Users Email Address" title="Copy to Clipboard"></lightning-button-icon> in From Email Address.</li>
                             <li>Follow the above steps and create another Email alert for rejection action.</li>
                         </ol>
                     </lightning-accordion-section>
@@ -311,82 +323,82 @@
                     <lightning-accordion-section name="approvalProcess" label="3. Approval Process Setup">
                         <ol class="slds-list_decimal slds-p-left_medium">
                             <li>Click the Gear Icon, and select <strong>Setup</strong>.</li>
-                            <li>In Quick Find box, search and select <strong>“Approval Processes”</strong>.</li>
-                            <li>Choose <strong>Timesheet</strong> from the “Manage Approval Processes for” dropdown.</li>
-                            <li>Select <strong>“Use Standard Setup Wizard”</strong> from the “Create New Approval Process” dropdown.</li>
-                            <li>Name the Approval Process as <strong>“Timesheet Approval Process”</strong> (API Name will Auto Generate).</li>
+                            <li>In Quick Find box, search and select <strong>“Approval Processes”</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Approval Processes" title="Copy to Clipboard"></lightning-button-icon>.</li>
+                            <li>Choose <strong>Timesheet</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Timesheet" title="Copy to Clipboard"></lightning-button-icon> from the “Manage Approval Processes for” dropdown.</li>
+                            <li>Select <strong>“Use Standard Setup Wizard”</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Use Standard Setup Wizard" title="Copy to Clipboard"></lightning-button-icon> from the “Create New Approval Process” dropdown.</li>
+                            <li>Name the Approval Process as <strong>“Timesheet Approval Process”</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Timesheet Approval Process" title="Copy to Clipboard"></lightning-button-icon> (API Name will Auto Generate).</li>
                             <li>Click <strong>Next</strong>.</li>
-                            <li>In Criteria, add Field: <strong>“Timesheet: Met Weekly Hours”</strong>, Operator: <strong>“equals”</strong>, Value: <strong>“True”</strong>.</li>
+                            <li>In Criteria, add Field: <strong>“Timesheet: Met Weekly Hours”</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Timesheet: Met Weekly Hours" title="Copy to Clipboard"></lightning-button-icon>, Operator: <strong>“equals”</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="equals" title="Copy to Clipboard"></lightning-button-icon>, Value: <strong>“True”</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="True" title="Copy to Clipboard"></lightning-button-icon>.</li>
                             <li>Click <strong>Next</strong>.</li>
                             <li>Click <strong>Next</strong> again on step 4.</li>
                             <li>Click <strong>Next</strong> again on step 5 (add Timesheet fields in order).</li>
                             <li>Click <strong>Save</strong>.</li>
-                            <li>Select <strong>“I'll do this later. Take me to the approval detail page to review what I've just created.”</strong> and click <strong>Go</strong>.</li>
+                            <li>Select <strong>“I'll do this later. Take me to the approval detail page to review what I've just created.”</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Ill do this later. Take me to the approval detail page to review what Ive just created." title="Copy to Clipboard"></lightning-button-icon> and click <strong>Go</strong>.</li>
                         </ol>
                     </lightning-accordion-section>
                     
                     <lightning-accordion-section name="initialSubmission" label="4. Add Initial Submission Actions">
                         <ol class="slds-list_decimal slds-p-left_medium">
-                            <li>Scroll down to the <strong>“Initial Submission Actions”</strong> section.</li>
-                            <li>Click <strong>“Add Existing”</strong>.</li>
-                            <li>Select <strong>“Field Update”</strong> from the “Choose Action Type” dropdown.</li>
-                            <li>Choose <strong>“Update Status Field to Submitted”</strong> from the available actions and add to “Selected Actions”.</li>
+                            <li>Scroll down to the <strong>“Initial Submission Actions”</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Initial Submission Actions" title="Copy to Clipboard"></lightning-button-icon> section.</li>
+                            <li>Click <strong>“Add Existing”</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Add Existing" title="Copy to Clipboard"></lightning-button-icon>.</li>
+                            <li>Select <strong>“Field Update”</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Field Update" title="Copy to Clipboard"></lightning-button-icon> from the “Choose Action Type” dropdown.</li>
+                            <li>Choose <strong>“Update Status Field to Submitted”</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Update Status Field to Submitted" title="Copy to Clipboard"></lightning-button-icon> from the available actions and add to “Selected Actions”.</li>
                             <li>Click <strong>Save</strong>.</li>
                         </ol>
                     </lightning-accordion-section>
                     
                     <lightning-accordion-section name="approvalSteps" label="5. Approval Steps">
                         <ol class="slds-list_decimal slds-p-left_medium">
-                            <li>Select the <strong>“New Approval Step”</strong> button.</li>
-                            <li>Enter Name as <strong>“Manager Approval”</strong> (Unique name will auto-generate).</li>
+                            <li>Select the <strong>“New Approval Step”</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="New Approval Step" title="Copy to Clipboard"></lightning-button-icon> button.</li>
+                            <li>Enter Name as <strong>“Manager Approval”</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Manager Approval" title="Copy to Clipboard"></lightning-button-icon> (Unique name will auto-generate).</li>
                             <li>Click <strong>Next</strong>.</li>
-                            <li>In Step 2, Select <strong>“All records should enter this step”</strong>.</li>
+                            <li>In Step 2, Select <strong>“All records should enter this step”</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="All records should enter this step" title="Copy to Clipboard"></lightning-button-icon>.</li>
                             <li>Click <strong>Next</strong>.</li>
-                            <li>Select <strong>“Automatically assign to approver(s).”</strong></li>
-                            <li>Select <strong>“Related User”</strong> and Add <strong>“Manager”</strong>.</li>
-                            <li>Select <strong>“Require UNANIMOUS approval from all selected approvers.”</strong></li>
+                            <li>Select <strong>“Automatically assign to approver(s).”</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Automatically assign to approver(s)." title="Copy to Clipboard"></lightning-button-icon></li>
+                            <li>Select <strong>“Related User”</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Related User" title="Copy to Clipboard"></lightning-button-icon> and Add <strong>“Manager”</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Manager" title="Copy to Clipboard"></lightning-button-icon>.</li>
+                            <li>Select <strong>“Require UNANIMOUS approval from all selected approvers.”</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Require UNANIMOUS approval from all selected approvers." title="Copy to Clipboard"></lightning-button-icon></li>
                             <li>Click <strong>Save</strong>.</li>
-                            <li>Select <strong>“No, I’ll do this later. Take me to the approval process page to review what I've just created”</strong> and click <strong>Go</strong>.</li>
+                            <li>Select <strong>“No, I’ll do this later. Take me to the approval process page to review what I've just created”</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="No, Ill do this later. Take me to the approval process page to review what Ive just created" title="Copy to Clipboard"></lightning-button-icon> and click <strong>Go</strong>.</li>
                         </ol>
                     </lightning-accordion-section>
                     
                     <lightning-accordion-section name="finalApproval" label="6. Add Final Approval Actions">
                         <ol class="slds-list_decimal slds-p-left_medium">
-                            <li>Under Final Approval Actions, click <strong>“Add Existing”</strong>.</li>
-                            <li>Select <strong>“Field Update”</strong> from the “Choose Action Type” dropdown.</li>
-                            <li>Choose <strong>“Update Status Field to Approved”</strong> and add to “Selected Actions”.</li>
+                            <li>Under Final Approval Actions, click <strong>“Add Existing”</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Add Existing" title="Copy to Clipboard"></lightning-button-icon>.</li>
+                            <li>Select <strong>“Field Update”</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Field Update" title="Copy to Clipboard"></lightning-button-icon> from the “Choose Action Type” dropdown.</li>
+                            <li>Choose <strong>“Update Status Field to Approved”</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Update Status Field to Approved" title="Copy to Clipboard"></lightning-button-icon> and add to “Selected Actions”.</li>
                             <li>Click <strong>Save</strong>.</li>
-                            <li>Click <strong>“Add Existing”</strong> again.</li>
-                            <li>Select <strong>“Email Alert”</strong> from the “Choose Action Type” dropdown.</li>
-                            <li>Choose <strong>“Timesheet Approved Email Alert”</strong> and add to “Selected Actions”.</li>
+                            <li>Click <strong>“Add Existing”</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Add Existing" title="Copy to Clipboard"></lightning-button-icon> again.</li>
+                            <li>Select <strong>“Email Alert”</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Email Alert" title="Copy to Clipboard"></lightning-button-icon> from the “Choose Action Type” dropdown.</li>
+                            <li>Choose <strong>“Timesheet Approved Email Alert”</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Timesheet Approved Email Alert" title="Copy to Clipboard"></lightning-button-icon> and add to “Selected Actions”.</li>
                             <li>Click <strong>Save</strong>.</li>
                         </ol>
                     </lightning-accordion-section>
                     
                     <lightning-accordion-section name="finalRejection" label="7. Add Final Rejection Actions">
                         <ol class="slds-list_decimal slds-p-left_medium">
-                            <li>Under Final Rejection Actions, click <strong>“Add Existing”</strong>.</li>
-                            <li>Select <strong>“Field Update”</strong> from the “Choose Action Type” dropdown.</li>
-                            <li>Choose <strong>“Update Status Field to New”</strong> and add to “Selected Actions”.</li>
+                            <li>Under Final Rejection Actions, click <strong>“Add Existing”</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Add Existing" title="Copy to Clipboard"></lightning-button-icon>.</li>
+                            <li>Select <strong>“Field Update”</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Field Update" title="Copy to Clipboard"></lightning-button-icon> from the “Choose Action Type” dropdown.</li>
+                            <li>Choose <strong>“Update Status Field to New”</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Update Status Field to New" title="Copy to Clipboard"></lightning-button-icon> and add to “Selected Actions”.</li>
                             <li>Click <strong>Save</strong>.</li>
-                            <li>Click <strong>“Add Existing”</strong> again.</li>
-                            <li>Select <strong>“Email Alert”</strong> from the “Choose Action Type” dropdown.</li>
-                            <li>Choose <strong>“Timesheet Rejected Email Alert”</strong> and add to “Selected Actions”.</li>
+                            <li>Click <strong>“Add Existing”</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Add Existing" title="Copy to Clipboard"></lightning-button-icon> again.</li>
+                            <li>Select <strong>“Email Alert”</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Email Alert" title="Copy to Clipboard"></lightning-button-icon> from the “Choose Action Type” dropdown.</li>
+                            <li>Choose <strong>“Timesheet Rejected Email Alert”</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Timesheet Rejected Email Alert" title="Copy to Clipboard"></lightning-button-icon> and add to “Selected Actions”.</li>
                             <li>Click <strong>Save</strong>.</li>
                         </ol>
                     </lightning-accordion-section>
                     
                     <lightning-accordion-section name="recallActions" label="8. Add Recall Actions">
                         <ol class="slds-list_decimal slds-p-left_medium">
-                            <li>Under Recall Actions, click <strong>“Add Existing”</strong>.</li>
-                            <li>Select <strong>“Field Update”</strong> from the “Choose Action Type” dropdown.</li>
-                            <li>Choose <strong>“Update Status Field to New”</strong> and add to “Selected Actions”.</li>
+                            <li>Under Recall Actions, click <strong>“Add Existing”</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Add Existing" title="Copy to Clipboard"></lightning-button-icon>.</li>
+                            <li>Select <strong>“Field Update”</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Field Update" title="Copy to Clipboard"></lightning-button-icon> from the “Choose Action Type” dropdown.</li>
+                            <li>Choose <strong>“Update Status Field to New”</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Update Status Field to New" title="Copy to Clipboard"></lightning-button-icon> and add to “Selected Actions”.</li>
                             <li>Click <strong>Save</strong>.</li>
                         </ol>
                     </lightning-accordion-section>
                     
                     <lightning-accordion-section name="activate" label="9. Activate the Approval Process">
-                        <p class="slds-p-left_medium">Finally, click the <strong>Activate</strong> button on the Approval Process detail page to make it active.</p>
+                        <p class="slds-p-left_medium">Finally, click the <strong>Activate</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Activate" title="Copy to Clipboard"></lightning-button-icon> button on the Approval Process detail page to make it active.</p>
                     </lightning-accordion-section>
                 </lightning-accordion>
             </div>

@@ -186,6 +186,50 @@ export default class DemoDataSetup extends NavigationMixin(LightningElement) {
             });
     }
 
+    get approvedEmailBody() {
+        return "{!dbt__Timesheet__c.dbt__Employee__c},\nYour {!dbt__Timesheet__c.Name} is Approved.\nComments : {!ApprovalRequest.Comments}";
+    }
+
+    get rejectedEmailBody() {
+        return "{!dbt__Timesheet__c.dbt__Employee__c},\nYour {!dbt__Timesheet__c.Name} is Rejected.\nComments : {!ApprovalRequest.Comments}";
+    }
+
+    handleCopy(event) {
+        const text = event.target.dataset.text;
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(() => {
+                this.showToast('Success', 'Copied to clipboard', 'success');
+            }).catch(() => {
+                this.fallbackCopyTextToClipboard(text);
+            });
+        } else {
+            this.fallbackCopyTextToClipboard(text);
+        }
+    }
+
+    fallbackCopyTextToClipboard(text) {
+        let textArea = document.createElement("textarea");
+        textArea.value = text;
+        
+        // Avoid scrolling to bottom
+        textArea.style.top = "0";
+        textArea.style.left = "0";
+        textArea.style.position = "fixed";
+
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+
+        try {
+            document.execCommand('copy');
+            this.showToast('Success', 'Copied to clipboard', 'success');
+        } catch (err) {
+            this.showToast('Error', 'Failed to copy text', 'error');
+        }
+
+        document.body.removeChild(textArea);
+    }
+
     handleToggleTimesheet(event) {
         const recordId = event.currentTarget.dataset.id;
         this.timesheets = this.timesheets.map(ts => {
@@ -268,6 +312,7 @@ export default class DemoDataSetup extends NavigationMixin(LightningElement) {
     get hasProjects() { return this.projects && this.projects.length > 0; }
     get hasProjectAssignments() { return this.projectEmployees && this.projectEmployees.length > 0; }
     get hasTimesheets() { return this.timesheets && this.timesheets.length > 0; }
+    get hasChildEmployees() { return this.employees && this.employees.some(emp => emp.hasChildEmployees); }
 
     get showDeleteButton() {
         return this.showCreatedRecordsView && this.hasAccess;
