@@ -9,12 +9,12 @@ const MAIN_MAX = 200;
 // isExpanded=true  → Expanded (group-by): each distinct value gets its own row, with merged cells (rowspan)
 // isExpanded=false → Collapsed: values within the left-context are summarised as "Distinct: N" or "N hrs" for duration
 const MAIN_COLUMN_DEFS = [
-    { id: 'employeeName', label: 'Employee', fieldName: 'employeeName', order: 1, isExpanded: true,  isDuration: false },
-    { id: 'date',         label: 'Date',     fieldName: 'date',         order: 2, isExpanded: false, isDuration: false },
-    { id: 'projectName',  label: 'Project',  fieldName: 'projectName',  order: 3, isExpanded: false, isDuration: false },
-    { id: 'activityName', label: 'Activity', fieldName: 'activityName', order: 4, isExpanded: false, isDuration: false },
-    { id: 'duration',     label: 'Duration', fieldName: 'duration',     order: 5, isExpanded: false, isDuration: true  },
-    { id: 'status',       label: 'Status',   fieldName: 'status',       order: 6, isExpanded: false, isDuration: false }
+    { id: 'employeeName', label: 'Employee', fieldName: 'employeeName', order: 1, isExpanded: true,  isDuration: false, sortDirection: 'asc', isFilterOpen: false },
+    { id: 'date',         label: 'Date',     fieldName: 'date',         order: 2, isExpanded: false, isDuration: false, sortDirection: 'asc', isFilterOpen: false },
+    { id: 'projectName',  label: 'Project',  fieldName: 'projectName',  order: 3, isExpanded: false, isDuration: false, sortDirection: 'asc', isFilterOpen: false },
+    { id: 'activityName', label: 'Activity', fieldName: 'activityName', order: 4, isExpanded: false, isDuration: false, sortDirection: 'asc', isFilterOpen: false },
+    { id: 'duration',     label: 'Duration', fieldName: 'duration',     order: 5, isExpanded: false, isDuration: true,  sortDirection: 'asc', isFilterOpen: false },
+    { id: 'status',       label: 'Status',   fieldName: 'status',       order: 6, isExpanded: false, isDuration: false, sortDirection: 'asc', isFilterOpen: false }
 ];
 
 export default class TimesheetApprovalScreen extends LightningElement {
@@ -41,6 +41,12 @@ export default class TimesheetApprovalScreen extends LightningElement {
     // Row selection
     @track _selectedRowMap = {};
     selectedTimesheetIds   = [];
+
+    // Per-column multi-checkbox filter selections
+    @track _columnFilterSelections = {};
+
+    // Active column being sorted
+    @track _activeSortColId = 'employeeName';
 
     // Drag state
     _dragColId   = null;
@@ -85,11 +91,38 @@ export default class TimesheetApprovalScreen extends LightningElement {
 
     // ─── Computed column list (ordered) ─────────────────────────────────────────
     get orderedColumns() {
-        return [...this.columns].sort((a, b) => a.order - b.order).map(col => Object.assign({}, col, {
-            typeTitle: col.isExpanded ? 'Expanded — click to collapse' : 'Collapsed — click to expand',
-            expandedIcon: 'utility:chevrondown',
-            collapsedIcon: 'utility:chevronright'
-        }));
+        return [...this.columns].sort((a, b) => a.order - b.order).map(col => {
+            const isAsc = col.sortDirection !== 'desc';
+            const isSortActive = this._activeSortColId === col.id;
+            const selectedSet = this._columnFilterSelections[col.id];
+            const isFiltered = selectedSet != null;
+
+            const distinctValues = new Set();
+            this._rawRows.forEach(r => {
+                const val = r[col.fieldName] != null && String(r[col.fieldName]).trim() !== ''
+                    ? String(r[col.fieldName])
+                    : '(Blank)';
+                distinctValues.add(val);
+            });
+
+            const filterOptions = Array.from(distinctValues).sort().map(val => {
+                const isChecked = selectedSet == null ? true : selectedSet.has(val);
+                return {
+                    label: val,
+                    value: val,
+                    checked: isChecked
+                };
+            });
+
+            return Object.assign({}, col, {
+                typeTitle: col.isExpanded ? 'Expanded — click to collapse' : 'Collapsed — click to expand',
+                sortIcon: isAsc ? '↑' : '↓',
+                sortTitle: isAsc ? 'Sort Ascending — click for Descending' : 'Sort Descending — click for Ascending',
+                sortBtnClass: 'tli-col-action-btn' + (isSortActive ? ' tli-sort-active' : ''),
+                filterBtnClass: 'tli-col-filter-btn' + (isFiltered ? ' tli-filter-active' : ''),
+                filterOptions: filterOptions
+            });
+        });
     }
 
     // Number of <td> cols = data columns + 2 (checkbox + row#)
@@ -184,18 +217,100 @@ export default class TimesheetApprovalScreen extends LightningElement {
         if (this.projectFilter && this.projectFilter !== 'All') {
             filtered = filtered.filter(r => r.projectName === this.projectFilter);
         }
+        // Apply column multi-checkbox filters
+        for (const col of this.columns) {
+            const selectedSet = this._columnFilterSelections[col.id];
+            if (selectedSet != null) {
+                filtered = filtered.filter(r => {
+                    const val = r[col.fieldName] != null && String(r[col.fieldName]).trim() !== ''
+                        ? String(r[col.fieldName])
+                        : '(Blank)';
+                    return selectedSet.has(val);
+                });
+            }
+        }
 
         this.totalCount = filtered.length;
         const capped = filtered.slice(0, MAIN_MAX);
 
-        // 2. Sort by expanded columns left-to-right so grouping works correctly
+        // 2. Sort by all ordered columns left-to-right respecting column status (Expanded vs Collapsed)
         const cols = this.orderedColumns;
+
+        // Build lookup cache for collapsed columns so sort comparisons compare calculated Distinct Values / Duration Sums
+        const colCache = new Array(cols.length);
+        for (let ci = 0; ci < cols.length; ci++) {
+            const col = cols[ci];
+            if (col.isExpanded) {
+                colCache[ci] = null;
+            } else {
+                const contextColIds = [];
+                for (let j = 0; j < ci; j++) {
+                    if (cols[j] && cols[j].isExpanded) {
+                        contextColIds.push(cols[j].id);
+                    }
+                }
+
+                const contextMap = new Map();
+                for (const r of capped) {
+                    const ctxKey = this._getRowContextKey(r, contextColIds, cols);
+                    if (!contextMap.has(ctxKey)) {
+                        contextMap.set(ctxKey, []);
+                    }
+                    contextMap.get(ctxKey).push(r);
+                }
+
+                const valueMap = new Map();
+                for (const [ctxKey, groupRecs] of contextMap.entries()) {
+                    if (col.isDuration) {
+                        const totalDur = groupRecs.reduce((s, rec) => s + (parseFloat(rec[col.fieldName]) || 0), 0);
+                        valueMap.set(ctxKey, totalDur);
+                    } else {
+                        const distinctSet = new Set(
+                            groupRecs
+                                .map(rec => rec[col.fieldName])
+                                .filter(v => v != null && String(v).trim() !== '')
+                                .map(String)
+                        );
+                        valueMap.set(ctxKey, distinctSet.size);
+                    }
+                }
+                colCache[ci] = { contextColIds, valueMap };
+            }
+        }
+
+        const getSortVal = (r, ci) => {
+            const col = cols[ci];
+            const cache = colCache[ci];
+            if (!cache) {
+                const rawVal = r[col.fieldName];
+                if (col.isDuration) return parseFloat(rawVal) || 0;
+                return rawVal != null ? String(rawVal).toLowerCase() : '';
+            } else {
+                const ctxKey = this._getRowContextKey(r, cache.contextColIds, cols);
+                return cache.valueMap.get(ctxKey) || 0;
+            }
+        };
+
+        const activeCol = cols.find(c => c.id === this._activeSortColId) || cols[0];
+        const activeIdx = cols.indexOf(activeCol);
+
         capped.sort((a, b) => {
-            for (const col of cols) {
-                const va = a[col.fieldName] != null ? String(a[col.fieldName]) : '';
-                const vb = b[col.fieldName] != null ? String(b[col.fieldName]) : '';
-                if (va < vb) return -1;
-                if (va > vb) return 1;
+            // 1. Primary sort: active column that user clicked
+            if (activeIdx >= 0) {
+                const va = getSortVal(a, activeIdx);
+                const vb = getSortVal(b, activeIdx);
+                if (va < vb) return activeCol.sortDirection === 'desc' ? 1 : -1;
+                if (va > vb) return activeCol.sortDirection === 'desc' ? -1 : 1;
+            }
+
+            // 2. Secondary sort (tie-breaker): all ordered columns left-to-right
+            for (let ci = 0; ci < cols.length; ci++) {
+                if (ci === activeIdx) continue;
+                const col = cols[ci];
+                const va = getSortVal(a, ci);
+                const vb = getSortVal(b, ci);
+                if (va < vb) return col.sortDirection === 'desc' ? 1 : -1;
+                if (va > vb) return col.sortDirection === 'desc' ? -1 : 1;
             }
             return 0;
         });
@@ -341,6 +456,106 @@ export default class TimesheetApprovalScreen extends LightningElement {
         this.columns = this.columns.map(col =>
             col.id === colId ? Object.assign({}, col, { isExpanded: !col.isExpanded }) : col
         );
+        this._recompute();
+    }
+
+    // ─── Column Sort Toggle (ASC ↔ DESC) ─────────────────────────────────────────
+    handleColSortToggle(event) {
+        event.stopPropagation();
+        const colId = event.currentTarget.dataset.colId;
+        this._activeSortColId = colId;
+        this.columns = this.columns.map(col =>
+            col.id === colId
+                ? Object.assign({}, col, { sortDirection: col.sortDirection === 'desc' ? 'asc' : 'desc' })
+                : col
+        );
+        this._recompute();
+    }
+
+    // ─── Column Filter Dropdown Handlers ─────────────────────────────────────────
+    handleColFilterToggle(event) {
+        event.stopPropagation();
+        const colId = event.currentTarget.dataset.colId;
+        this.columns = this.columns.map(col =>
+            col.id === colId
+                ? Object.assign({}, col, { isFilterOpen: !col.isFilterOpen })
+                : Object.assign({}, col, { isFilterOpen: false }) // close others
+        );
+    }
+
+    handleColFilterClose(event) {
+        event.stopPropagation();
+        const colId = event.currentTarget.dataset.colId;
+        this.columns = this.columns.map(col =>
+            col.id === colId ? Object.assign({}, col, { isFilterOpen: false }) : col
+        );
+    }
+
+    handleDropdownClick(event) {
+        event.stopPropagation(); // prevent drag or outside click handlers
+    }
+
+    handleFilterSelectAll(event) {
+        event.stopPropagation();
+        const colId = event.currentTarget.dataset.colId;
+        const nextMap = Object.assign({}, this._columnFilterSelections);
+        nextMap[colId] = null; // null = all checked / no filter
+        this._columnFilterSelections = nextMap;
+        this._recompute();
+    }
+
+    handleFilterClearAll(event) {
+        event.stopPropagation();
+        const colId = event.currentTarget.dataset.colId;
+        const nextMap = Object.assign({}, this._columnFilterSelections);
+        nextMap[colId] = new Set(); // empty Set = 0 items match
+        this._columnFilterSelections = nextMap;
+        this._recompute();
+    }
+
+    handleFilterOptionChange(event) {
+        event.stopPropagation();
+        const colId   = event.currentTarget.dataset.colId;
+        const val     = event.target.value;
+        const checked = event.target.checked;
+
+        const targetCol = this.columns.find(c => c.id === colId);
+        if (!targetCol) return;
+
+        let currentSet = this._columnFilterSelections[colId];
+        if (currentSet == null) {
+            currentSet = new Set();
+            this._rawRows.forEach(r => {
+                const v = r[targetCol.fieldName] != null && String(r[targetCol.fieldName]).trim() !== ''
+                    ? String(r[targetCol.fieldName])
+                    : '(Blank)';
+                currentSet.add(v);
+            });
+        } else {
+            currentSet = new Set(currentSet);
+        }
+
+        if (checked) {
+            currentSet.add(val);
+        } else {
+            currentSet.delete(val);
+        }
+
+        const allDistinct = new Set();
+        this._rawRows.forEach(r => {
+            const v = r[targetCol.fieldName] != null && String(r[targetCol.fieldName]).trim() !== ''
+                ? String(r[targetCol.fieldName])
+                : '(Blank)';
+            allDistinct.add(v);
+        });
+
+        const nextMap = Object.assign({}, this._columnFilterSelections);
+        if (currentSet.size === allDistinct.size) {
+            nextMap[colId] = null; // all selected -> clear filter
+        } else {
+            nextMap[colId] = currentSet;
+        }
+        this._columnFilterSelections = nextMap;
         this._recompute();
     }
 

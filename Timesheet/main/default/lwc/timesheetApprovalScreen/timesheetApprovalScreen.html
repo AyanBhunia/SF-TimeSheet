@@ -128,7 +128,61 @@
                                             <span class="tli-icon-collapsed">&#x2261;</span>
                                         </template>
                                     </button>
+
+                                    <!-- Column Label -->
                                     <span class="tli-th-label">{col.label}</span>
+
+                                    <!-- Sort Button (ASC ↔ DESC) -->
+                                    <button
+                                        class="tli-col-action-btn"
+                                        data-col-id={col.id}
+                                        onclick={handleColSortToggle}
+                                        title={col.sortTitle}
+                                    >
+                                        {col.sortIcon}
+                                    </button>
+
+                                    <!-- Filter Button (Dropdown) -->
+                                    <div class="tli-col-filter-wrap">
+                                        <button
+                                            class={col.filterBtnClass}
+                                            data-col-id={col.id}
+                                            onclick={handleColFilterToggle}
+                                            title="Filter Column"
+                                        >
+                                            &#x25BC;
+                                        </button>
+                                        <!-- Filter Dropdown Menu -->
+                                        <template if:true={col.isFilterOpen}>
+                                            <div class="tli-filter-dropdown" onclick={handleDropdownClick}>
+                                                <div class="tli-filter-header">
+                                                    <span>Filter {col.label}</span>
+                                                    <button class="tli-filter-close" data-col-id={col.id} onclick={handleColFilterClose}>✕</button>
+                                                </div>
+                                                <div class="tli-filter-actions">
+                                                    <button class="tli-filter-link" data-col-id={col.id} onclick={handleFilterSelectAll}>Select All</button>
+                                                    <span class="tli-filter-sep">|</span>
+                                                    <button class="tli-filter-link" data-col-id={col.id} onclick={handleFilterClearAll}>Clear All</button>
+                                                </div>
+                                                <div class="tli-filter-list">
+                                                    <template for:each={col.filterOptions} for:item="opt">
+                                                        <label key={opt.value} class="tli-filter-item">
+                                                            <input
+                                                                type="checkbox"
+                                                                data-col-id={col.id}
+                                                                value={opt.value}
+                                                                checked={opt.checked}
+                                                                onchange={handleFilterOptionChange}
+                                                            />
+                                                            <span class="tli-filter-opt-label">{opt.label}</span>
+                                                        </label>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+
+                                    <!-- Drag Handle -->
                                     <span class="tli-drag-handle" title="Drag to reorder">&#8942;&#8942;</span>
                                 </div>
                             </th>
