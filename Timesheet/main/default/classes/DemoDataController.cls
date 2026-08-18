@@ -59,7 +59,7 @@ global with sharing class DemoDataController {
         List<Employee__c> emps = [
             SELECT Id, First_Name__c, Last_Name__c, Name 
             FROM Employee__c 
-            WHERE User__c = :currentUserId AND Active__c = true
+            WHERE ((Last_Name__c = 'T.' OR Last_Name__c LIKE 'employee %') AND CreatedById = :currentUserId) AND Active__c = true
             WITH SECURITY_ENFORCED
             ORDER BY CreatedDate ASC
             LIMIT 1
@@ -318,7 +318,7 @@ global with sharing class DemoDataController {
         try {
             Id currentUserId = UserInfo.getUserId();
             List<Project__c> projs = [SELECT Id FROM Project__c WHERE Name LIKE 'Test Project%' AND CreatedById = :currentUserId WITH SECURITY_ENFORCED];
-            List<Employee__c> emps = [SELECT Id FROM Employee__c WHERE User__c = :currentUserId OR ((Last_Name__c IN ('T.', 'E1', 'E2') OR Last_Name__c LIKE 'Child Employee%') AND CreatedById = :currentUserId) WITH SECURITY_ENFORCED];
+            List<Employee__c> emps = [SELECT Id FROM Employee__c WHERE ((Last_Name__c IN ('T.', 'E1', 'E2') OR Last_Name__c LIKE 'Child Employee%' OR Last_Name__c LIKE 'employee %') AND CreatedById = :currentUserId) WITH SECURITY_ENFORCED];
             List<Project_Employee__c> toInsert = new List<Project_Employee__c>();
             
             Set<String> existingKeys = new Set<String>();
@@ -344,7 +344,7 @@ global with sharing class DemoDataController {
     global static String createDemoTimesheets() {
         try {
             Id currentUserId = UserInfo.getUserId();
-            List<Employee__c> emps = [SELECT Id, Manager__c FROM Employee__c WHERE User__c = :currentUserId OR ((Last_Name__c IN ('T.', 'E1', 'E2') OR Last_Name__c LIKE 'Child Employee%') AND CreatedById = :currentUserId) WITH SECURITY_ENFORCED];
+            List<Employee__c> emps = [SELECT Id, Manager__c FROM Employee__c WHERE ((Last_Name__c IN ('T.', 'E1', 'E2') OR Last_Name__c LIKE 'Child Employee%' OR Last_Name__c LIKE 'employee %') AND CreatedById = :currentUserId) WITH SECURITY_ENFORCED];
             Date today = Date.today();
             Integer modDays = Math.mod(Date.newInstance(1900, 1, 1).daysBetween(today), 7);
             if (modDays < 0) modDays += 7;
@@ -538,7 +538,6 @@ global with sharing class DemoDataController {
             Employee__c emp = new Employee__c(
                 First_Name__c = 'test', 
                 Last_Name__c = 'employee ' + nextNumber, 
-                User__c = currentUserId, 
                 Email__c = currentUser.Email, 
                 Manager__c = managerUserId, 
                 Employment_Type__c = 'Full Time', 
@@ -568,7 +567,7 @@ global with sharing class DemoDataController {
         List<Employee__c> emps = [
             SELECT Id, Name, First_Name__c, Last_Name__c, Accrual_Start_Date__c, Accrual_Divisor__c 
             FROM Employee__c 
-            WHERE User__c = :currentUserId OR ((Last_Name__c IN ('T.', 'E1', 'E2') OR Last_Name__c LIKE 'Child Employee%') AND CreatedById = :currentUserId)
+            WHERE ((Last_Name__c IN ('T.', 'E1', 'E2') OR Last_Name__c LIKE 'Child Employee%' OR Last_Name__c LIKE 'employee %') AND CreatedById = :currentUserId)
             WITH SECURITY_ENFORCED 
             ORDER BY CreatedDate ASC
         ];
@@ -695,7 +694,7 @@ global with sharing class DemoDataController {
             List<Employee__c> emps = [
                 SELECT Id 
                 FROM Employee__c 
-                WHERE User__c = :currentUserId OR ((Last_Name__c IN ('T.', 'E1', 'E2') OR Last_Name__c LIKE 'Child Employee%') AND CreatedById = :currentUserId)
+                WHERE ((Last_Name__c IN ('T.', 'E1', 'E2') OR Last_Name__c LIKE 'Child Employee%' OR Last_Name__c LIKE 'employee %') AND CreatedById = :currentUserId)
                 WITH SECURITY_ENFORCED
             ];
             List<Timesheet__c> tsList = [

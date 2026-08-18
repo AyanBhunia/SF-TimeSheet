@@ -51,10 +51,12 @@ public with sharing class TimesheetTriggerHandler extends TriggerHandler {
 
     private static void setTimesheetName(List<Timesheet__c> timesheets) {
         for (Timesheet__c ts : timesheets) {
-            if (ts.Start_Date__c != null && ts.End_Date__c != null) {
-                DateTime startDt = DateTime.newInstance(ts.Start_Date__c, Time.newInstance(0, 0, 0, 0));
-                DateTime endDt = DateTime.newInstance(ts.End_Date__c, Time.newInstance(0, 0, 0, 0));
-                ts.Name = startDt.format('yyyy-MM-dd') + ' to ' + endDt.format('yyyy-MM-dd');
+            if (String.isBlank(ts.Name)) {
+                if (ts.Start_Date__c != null && ts.End_Date__c != null) {
+                    DateTime startDt = DateTime.newInstance(ts.Start_Date__c, Time.newInstance(0, 0, 0, 0));
+                    DateTime endDt = DateTime.newInstance(ts.End_Date__c, Time.newInstance(0, 0, 0, 0));
+                    ts.Name = startDt.format('yyyy-MM-dd') + ' to ' + endDt.format('yyyy-MM-dd');
+                }
             }
         }
     }
