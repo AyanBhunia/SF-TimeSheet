@@ -1,48 +1,23 @@
 <!--
   @file demoDataSetup.html
-  @description Demo Data Setup tab: step-by-step creation, review and deletion of demo records
+  @description Demo data setup (shown in demoDataSetupModal): step-by-step creation, review and deletion of demo records
 -->
 <template>
-    <div class="slds-p-around_medium slds-container_x-large slds-container_center">
+    <div class="slds-p-around_small">
 
-        <!-- Page Header -->
-        <div class="slds-page-header slds-m-bottom_medium slds-box slds-theme_default slds-m-top_small">
-            <div class="slds-page-header__row">
-                <div class="slds-page-header__col-title">
-                    <div class="slds-media slds-media_center">
-                        <div class="slds-media__figure">
-                            <lightning-icon icon-name="custom:custom63" size="medium"></lightning-icon>
-                        </div>
-                        <div class="slds-media__body">
-                            <div class="slds-page-header__name">
-                                <div class="slds-page-header__name-title">
-                                    <h1>
-                                        <span class="slds-page-header__title slds-truncate" title="Demo Data Setup">Timesheet Demo Data Setup</span>
-                                    </h1>
-                                </div>
-                            </div>
-                            <p class="slds-page-header__name-meta">Create, inspect, and manage sample datasets for evaluation and testing</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="slds-page-header__col-actions">
-                    <div class="slds-page-header__controls">
-                        <div class="slds-page-header__control">
-                            <template lwc:if={showDeleteButton}>
-                                <lightning-button
-                                    label="Delete demo records"
-                                    title="Delete all demo records you created"
-                                    icon-name="utility:delete"
-                                    variant="destructive"
-                                    onclick={handleOpenDeleteModal}
-                                    disabled={isDeleting}>
-                                </lightning-button>
-                            </template>
-                        </div>
-                    </div>
-                </div>
+        <!-- Toolbar -->
+        <template lwc:if={showDeleteButton}>
+            <div class="slds-grid slds-grid_align-end slds-m-bottom_medium">
+                <lightning-button
+                    label="Delete demo records"
+                    title="Delete all demo records you created"
+                    icon-name="utility:delete"
+                    variant="destructive"
+                    onclick={handleOpenDeleteModal}
+                    disabled={isDeleting}>
+                </lightning-button>
             </div>
-        </div>
+        </template>
 
         <!-- Spinner while loading -->
         <template lwc:if={isLoading}>
@@ -85,9 +60,21 @@
             <lightning-card class="slds-m-bottom_medium">
                 <div class="slds-text-longform slds-text-align_center slds-p-around_medium">
                     <h3 class="slds-text-heading_medium slds-text-color_error slds-m-bottom_small">Access Denied</h3>
-                    <p>You need the Timesheet Demo Data Access permission to use this tab. Ask your administrator to assign the Timesheet HR Admin permission set.</p>
+                    <p>Demo data setup is available to HR admins without an active employee record.</p>
                 </div>
             </lightning-card>
+        </template>
+
+        <!-- Cleanup only: user now has an active employee record -->
+        <template lwc:if={showCleanupOnlyNote}>
+            <div class="slds-scoped-notification slds-media slds-media_center slds-theme_info slds-m-bottom_medium" role="status">
+                <div class="slds-media__figure">
+                    <lightning-icon icon-name="utility:info" alternative-text="Info" size="small"></lightning-icon>
+                </div>
+                <div class="slds-media__body">
+                    <p>You now have an active employee record, so new demo data can't be created. You can still review and delete your demo data.</p>
+                </div>
+            </div>
         </template>
 
         <!-- Demo Records -->
@@ -112,7 +99,7 @@
                                     <lightning-layout-item>
                                         <lightning-button label="View" icon-name="utility:preview" variant="base" data-id={rec.recordId} onclick={handleViewRecord}></lightning-button>
                                     </lightning-layout-item>
-                                    <template lwc:if={rec.canCreateChildren}>
+                                    <template lwc:if={rec.showCreateChildren}>
                                         <lightning-layout-item size="12" class="slds-m-top_small slds-border_top slds-p-top_small">
                                             <lightning-button label="Create child employees" variant="brand-outline" onclick={handleCreateChildEmployees}></lightning-button>
                                         </lightning-layout-item>
@@ -238,14 +225,13 @@
                 <div class="slds-text-longform slds-text-align_center slds-p-around_medium">
                     <h3 class="slds-text-heading_medium slds-m-bottom_small">Demo Records Have Been Deleted</h3>
                     <p class="slds-m-bottom_medium slds-container_medium slds-container_center">
-                        All demo records you created have been removed. Reload this tab to create new demo data.
+                        All demo records you created have been removed.
                     </p>
                     <lightning-button
                         class="slds-m-top_medium"
-                        label="Return to Overview"
-                        icon-name="utility:back"
+                        label="Close"
                         variant="brand"
-                        onclick={handleReturnToOverview}>
+                        onclick={handleClose}>
                     </lightning-button>
                 </div>
             </lightning-card>

@@ -8,6 +8,8 @@ import getEmployeeDetails from '@salesforce/apex/GetDashboardProfileDetails.getE
 import getProfileConfig from '@salesforce/apex/GetDashboardProfileDetails.getProfileConfig';
 import updateDashboardProfileConfigAsync from '@salesforce/apex/GetDashboardProfileDetails.updateDashboardProfileConfigAsync';
 import hasHrAdminPermission from '@salesforce/apex/GetDashboardProfileDetails.hasHrAdminPermission';
+import getDemoStatus from '@salesforce/apex/DemoDataController.getDemoStatus';
+import DemoDataSetupModal from 'c/demoDataSetupModal';
 import USER_ID from '@salesforce/user/Id';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 
@@ -45,6 +47,7 @@ export default class dashboardProfile extends LightningElement {
     subscription = null;
     selectedUserId = USER_ID; // Initialize with current user's ID
     hasAdminPermission = false;
+    demoStatus;              // Demo data access for the current user (see DemoDataController.getDemoStatus)
 
     @wire(hasHrAdminPermission)
     wiredAdminPermission({ error, data }) {
@@ -57,6 +60,20 @@ export default class dashboardProfile extends LightningElement {
 
     get showResetButton() {
         return this.isMismatch && this.hasAdminPermission;
+    }
+
+    get showDemoBanner() {
+        return this.demoStatus && this.demoStatus.hasAccess && this.selectedUserId === USER_ID;
+    }
+
+    get demoBannerMessage() {
+        return this.demoStatus && this.demoStatus.canCreate
+            ? 'No active employee record exists for your user. Create sample data to explore the app.'
+            : 'You still have demo records.';
+    }
+
+    get demoBannerLabel() {
+        return this.demoStatus && this.demoStatus.canCreate ? 'Open Demo Data Setup' : 'Manage Demo Data';
     }
 
     // Map for field help texts
@@ -114,6 +131,33 @@ export default class dashboardProfile extends LightningElement {
     connectedCallback() {
         this.subscribeToMessageChannel();
         this.fetchEmployeeDetails();
+        this.loadDemoStatus();
+    }
+
+    /**
+     * @description Checks whether the current user can open the demo data setup popup
+     */
+    loadDemoStatus() {
+        getDemoStatus()
+            .then((status) => {
+                this.demoStatus = status;
+            })
+            .catch((error) => {
+                this.demoStatus = undefined;
+                console.error('Error loading demo data status', error);
+            });
+    }
+
+    /**
+     * @description Opens the demo data setup popup and refreshes the profile when it closes
+     */
+    async handleOpenDemoDataSetup() {
+        await DemoDataSetupModal.open({
+            size: 'full',
+            description: 'Timesheet demo data setup'
+        });
+        this.loadDemoStatus();
+        this.fetchEmployeeDetails();
     }
 
     showToast(title, message, variant) {
@@ -158,7 +202,7 @@ export default class dashboardProfile extends LightningElement {
                 this.processFieldOrder();
             })
             .catch((error) => {
-                this.showToast('Error', "Error fetching employee details", 'error');
+                this.showToast('Info', 'No employee record exists for the current user.', 'info');
                 console.log('Error fetching employee details',error);
             });
     }

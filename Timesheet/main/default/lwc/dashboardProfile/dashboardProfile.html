@@ -1,5 +1,19 @@
 <template>
     <div class="slds-m-around_x-small">
+        <!-- Demo data prompt for HR admins without an active employee record -->
+        <template if:true={showDemoBanner}>
+            <div class="slds-scoped-notification slds-media slds-media_center slds-theme_info slds-m-bottom_small" role="status">
+                <div class="slds-media__figure">
+                    <lightning-icon icon-name="utility:info" alternative-text="Info" size="small"></lightning-icon>
+                </div>
+                <div class="slds-media__body">
+                    <p>{demoBannerMessage}</p>
+                </div>
+                <div class="slds-media__figure slds-media__figure_reverse">
+                    <lightning-button label={demoBannerLabel} variant="brand" onclick={handleOpenDemoDataSetup}></lightning-button>
+                </div>
+            </div>
+        </template>
         <div class="slds-grid slds-gutters">
             <template if:true={column1Data}>
                 <div class="slds-col">

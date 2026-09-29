@@ -65,23 +65,32 @@ public with sharing class DemoDataController {
         public List<Employee__c> employees;
     }
 
+    /** Who may use demo data setup; see getAccessState(). */
+    private class AccessState {
+        public Boolean canCreate = false;
+        public Boolean hasAccess = false;
+        public Boolean hasDemoEmployees = false;
+    }
+
     @AuraEnabled
     public static Map<String, Object> getDemoStatus() {
-        Map<String, Object> result = new Map<String, Object>();
-        Boolean hasAccess = FeatureManagement.checkPermission(DEMO_PERMISSION);
-        result.put('hasAccess', hasAccess);
-        if (!hasAccess) {
+        AccessState state = getAccessState();
+        Map<String, Object> result = new Map<String, Object>{
+            'hasAccess' => state.hasAccess,
+            'canCreate' => state.canCreate
+        };
+        if (!state.hasAccess) {
             return result;
         }
         Organization org = [SELECT IsSandbox, TrialExpirationDate FROM Organization LIMIT 1];
         result.put('isProductionOrg', !org.IsSandbox && org.TrialExpirationDate == null);
-        result.put('hasEmployee', !getDemoEmployees().isEmpty());
+        result.put('hasEmployee', state.hasDemoEmployees);
         return result;
     }
 
     @AuraEnabled
     public static void createDemoEmployee() {
-        assertAccess();
+        assertCanCreate();
         try {
             if (!getDemoEmployees().isEmpty()) {
                 throw newAuraException('A demo employee already exists.');
@@ -96,7 +105,7 @@ public with sharing class DemoDataController {
 
     @AuraEnabled
     public static void createChildEmployees() {
-        assertAccess();
+        assertCanCreate();
         try {
             Boolean hasParent = false;
             for (Employee__c emp : getDemoEmployees()) {
@@ -121,7 +130,7 @@ public with sharing class DemoDataController {
 
     @AuraEnabled
     public static void createDemoProjects() {
-        assertAccess();
+        assertCanCreate();
         try {
             Map<String, Project__c> existing = getDemoProjectsByName();
             Map<String, String> billableByName = new Map<String, String>{
@@ -145,7 +154,7 @@ public with sharing class DemoDataController {
 
     @AuraEnabled
     public static void createDemoProjectAssignments() {
-        assertAccess();
+        assertCanCreate();
         try {
             List<Employee__c> emps = getDemoEmployees();
             List<Project__c> projs = getDemoProjectsByName().values();
@@ -185,7 +194,7 @@ public with sharing class DemoDataController {
      */
     @AuraEnabled
     public static void createDemoTimesheets() {
-        assertAccess();
+        assertCanCreate();
         try {
             Map<String, Project__c> projects = getDemoProjectsByName();
             if (projects.size() < PROJECT_NAMES.size()) {
@@ -496,9 +505,43 @@ public with sharing class DemoDataController {
         return value.addDays(-Math.mod(Date.newInstance(1900, 1, 1).daysBetween(value), 7));
     }
 
-    private static void assertAccess() {
+    /**
+     * HR admins (Timesheet_Demo_Data_Access) without an active employee record can create demo data.
+     * HR admins who still own demo records can always review and delete them.
+     */
+    private static AccessState getAccessState() {
+        AccessState state = new AccessState();
         if (!FeatureManagement.checkPermission(DEMO_PERMISSION)) {
-            throw newAuraException('You do not have access to Demo Data Setup.');
+            return state;
+        }
+        Id currentUserId = UserInfo.getUserId();
+        Boolean hasActiveEmployee = ![
+            SELECT Id FROM Employee__c
+            WHERE User__c = :currentUserId AND Active__c = true
+            WITH USER_MODE
+            LIMIT 1
+        ].isEmpty();
+        state.hasDemoEmployees = !getDemoEmployees().isEmpty();
+        Boolean hasDemoRecords = state.hasDemoEmployees || ![
+            SELECT Id FROM Project__c
+            WHERE Is_Demo__c = true AND CreatedById = :currentUserId
+            WITH USER_MODE
+            LIMIT 1
+        ].isEmpty();
+        state.canCreate = !hasActiveEmployee;
+        state.hasAccess = state.canCreate || hasDemoRecords;
+        return state;
+    }
+
+    private static void assertAccess() {
+        if (!getAccessState().hasAccess) {
+            throw newAuraException('Demo data setup is available to HR admins without an active employee record.');
+        }
+    }
+
+    private static void assertCanCreate() {
+        if (!getAccessState().canCreate) {
+            throw newAuraException('Demo data can only be created by HR admins without an active employee record.');
         }
     }
 

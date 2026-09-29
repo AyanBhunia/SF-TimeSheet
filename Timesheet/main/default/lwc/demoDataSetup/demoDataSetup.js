@@ -14,6 +14,7 @@ import deleteDemoRecords from '@salesforce/apex/DemoDataController.deleteDemoRec
 export default class DemoDataSetup extends NavigationMixin(LightningElement) {
     isLoading = true;
     hasAccess = false;
+    canCreate = false;
     hasEmployee = false;
     isProductionOrg = false;
     showSections = false;
@@ -45,6 +46,7 @@ export default class DemoDataSetup extends NavigationMixin(LightningElement) {
         try {
             const status = await getDemoStatus();
             this.hasAccess = status.hasAccess;
+            this.canCreate = status.canCreate === true;
             this.hasEmployee = status.hasEmployee === true;
             this.isProductionOrg = status.isProductionOrg === true;
             if (this.hasAccess && !this.recordsDeleted) {
@@ -59,7 +61,10 @@ export default class DemoDataSetup extends NavigationMixin(LightningElement) {
 
     async loadDemoRecords() {
         const wrapper = await getDemoRecords();
-        this.employees = wrapper.employees || [];
+        this.employees = (wrapper.employees || []).map((emp) => ({
+            ...emp,
+            showCreateChildren: this.canCreate && emp.canCreateChildren
+        }));
         this.projects = wrapper.projects || [];
         this.projectEmployees = wrapper.projectEmployees || [];
         this.timesheets = (wrapper.timesheets || []).map((ts) => ({
@@ -174,13 +179,8 @@ export default class DemoDataSetup extends NavigationMixin(LightningElement) {
         window.open(url, '_blank');
     }
 
-    handleReturnToOverview() {
-        this[NavigationMixin.Navigate]({
-            type: 'standard__navItemPage',
-            attributes: {
-                apiName: 'Overview'
-            }
-        });
+    handleClose() {
+        this.dispatchEvent(new CustomEvent('close'));
     }
 
     get approvedEmailBody() {
@@ -254,11 +254,11 @@ export default class DemoDataSetup extends NavigationMixin(LightningElement) {
     get timesheetsLabel() { return `Timesheets (${this.timesheets.length})`; }
 
     get showSetupPrompt() {
-        return !this.isLoading && this.hasAccess && !this.hasEmployee && !this.showSections && !this.recordsDeleted;
+        return !this.isLoading && this.hasAccess && this.canCreate && !this.hasEmployee && !this.showSections && !this.recordsDeleted;
     }
 
     get showRecordsView() {
-        return !this.isLoading && this.hasAccess && (this.hasEmployee || this.showSections) && !this.recordsDeleted;
+        return !this.isLoading && this.hasAccess && (this.hasEmployee || this.showSections || !this.canCreate) && !this.recordsDeleted;
     }
 
     get showNoAccessMessage() {
@@ -267,6 +267,10 @@ export default class DemoDataSetup extends NavigationMixin(LightningElement) {
 
     get showDeletedMessage() {
         return !this.isLoading && this.recordsDeleted;
+    }
+
+    get showCleanupOnlyNote() {
+        return this.showRecordsView && !this.canCreate;
     }
 
     get showProductionWarning() {
@@ -282,25 +286,25 @@ export default class DemoDataSetup extends NavigationMixin(LightningElement) {
     }
 
     get employeesHint() {
-        return this.hasEmployees ? null : 'No demo employees yet.';
+        return this.hasEmployees ? null : 'No demo employees.';
     }
     get projectsHint() {
         if (this.hasProjects) return null;
-        return this.hasChildEmployees ? 'No demo projects yet.' : 'Create the demo employee and its child employees first.';
+        return this.hasChildEmployees || !this.canCreate ? 'No demo projects.' : 'Create the demo employee and its child employees first.';
     }
     get projectAssignmentsHint() {
         if (this.hasProjectAssignments) return null;
-        return this.hasProjects ? 'No project assignments yet.' : 'Create the demo projects first.';
+        return this.hasProjects || !this.canCreate ? 'No project assignments.' : 'Create the demo projects first.';
     }
     get timesheetsHint() {
         if (this.hasTimesheets) return null;
-        return this.hasProjectAssignments ? 'No demo timesheets yet.' : 'Create the project assignments first.';
+        return this.hasProjectAssignments || !this.canCreate ? 'No demo timesheets.' : 'Create the project assignments first.';
     }
 
-    get showNewEmployee() { return !this.hasEmployees; }
-    get showNewProjects() { return this.hasChildEmployees && !this.hasProjects; }
-    get showNewProjectAssignments() { return this.hasProjects && !this.hasProjectAssignments; }
-    get showNewTimesheets() { return this.hasProjectAssignments && !this.hasTimesheets; }
+    get showNewEmployee() { return this.canCreate && !this.hasEmployees; }
+    get showNewProjects() { return this.canCreate && this.hasChildEmployees && !this.hasProjects; }
+    get showNewProjectAssignments() { return this.canCreate && this.hasProjects && !this.hasProjectAssignments; }
+    get showNewTimesheets() { return this.canCreate && this.hasProjectAssignments && !this.hasTimesheets; }
 
     get showDeleteButton() {
         return this.showRecordsView && (this.hasEmployees || this.hasProjects);

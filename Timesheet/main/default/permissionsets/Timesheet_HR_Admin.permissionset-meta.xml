@@ -464,10 +464,6 @@
         <visibility>Visible</visibility>
     </tabSettings>
     <tabSettings>
-        <tab>Demo_Data_Setup</tab>
-        <visibility>Visible</visibility>
-    </tabSettings>
-    <tabSettings>
         <tab>Employee__c</tab>
         <visibility>Visible</visibility>
     </tabSettings>
