@@ -101,25 +101,25 @@
                         <lightning-accordion-section name="employees" label={employeesLabel}>
                             <template lwc:if={hasEmployees}>
                                 <lightning-datatable key-field="recordId" data={employees} columns={employeeColumns}
-                                    hide-checkbox-column onrowaction={handleRowAction}></lightning-datatable>
+                                    hide-checkbox-column></lightning-datatable>
                             </template>
                         </lightning-accordion-section>
                         <lightning-accordion-section name="projects" label={projectsLabel}>
                             <template lwc:if={hasProjects}>
                                 <lightning-datatable key-field="recordId" data={projects} columns={projectColumns}
-                                    hide-checkbox-column onrowaction={handleRowAction}></lightning-datatable>
+                                    hide-checkbox-column></lightning-datatable>
                             </template>
                         </lightning-accordion-section>
                         <lightning-accordion-section name="projectEmployees" label={projectAssignmentsLabel}>
                             <template lwc:if={hasProjectAssignments}>
                                 <lightning-datatable key-field="recordId" data={projectEmployees} columns={projectAssignmentColumns}
-                                    hide-checkbox-column onrowaction={handleRowAction}></lightning-datatable>
+                                    hide-checkbox-column></lightning-datatable>
                             </template>
                         </lightning-accordion-section>
                         <lightning-accordion-section name="timesheets" label={timesheetsLabel}>
                             <template lwc:if={hasTimesheets}>
                                 <lightning-tree-grid key-field="id" data={timesheets} columns={timesheetColumns}
-                                    hide-checkbox-column onrowaction={handleRowAction}></lightning-tree-grid>
+                                    hide-checkbox-column></lightning-tree-grid>
                             </template>
                         </lightning-accordion-section>
                     </lightning-accordion>

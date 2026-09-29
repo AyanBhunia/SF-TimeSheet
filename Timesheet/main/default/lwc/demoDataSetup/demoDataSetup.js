@@ -1,5 +1,4 @@
 import { LightningElement } from 'lwc';
-import { NavigationMixin } from 'lightning/navigation';
 import getDemoStatus from '@salesforce/apex/DemoDataController.getDemoStatus';
 import getDemoRecords from '@salesforce/apex/DemoDataController.getDemoRecords';
 import createDemoEmployee from '@salesforce/apex/DemoDataController.createDemoEmployee';
@@ -10,17 +9,23 @@ import createDemoTimesheets from '@salesforce/apex/DemoDataController.createDemo
 import getDeleteSummary from '@salesforce/apex/DemoDataController.getDeleteSummary';
 import deleteDemoRecords from '@salesforce/apex/DemoDataController.deleteDemoRecords';
 
+// Plain link column so the browser opens the record in a new tab (no popup blocking).
+// Rows without recordUrl (timesheet line items) show an empty cell.
 const VIEW_ACTION = {
-    type: 'button-icon',
-    fixedWidth: 50,
+    label: '',
+    fieldName: 'recordUrl',
+    type: 'url',
+    fixedWidth: 80,
     typeAttributes: {
-        iconName: 'utility:new_window',
-        name: 'view',
-        title: 'Open record in a new tab',
-        alternativeText: 'Open record',
-        variant: 'bare'
+        label: { fieldName: 'viewLabel' },
+        tooltip: 'Open record in a new tab',
+        target: '_blank'
     }
 };
+
+function withViewLink(row, recordId) {
+    return { ...row, recordUrl: `${window.location.origin}/lightning/r/${recordId}/view`, viewLabel: 'View' };
+}
 
 // Setup steps in order. Each step is done once the records it creates exist.
 const STEPS = [
@@ -71,7 +76,7 @@ const STEPS = [
     }
 ];
 
-export default class DemoDataSetup extends NavigationMixin(LightningElement) {
+export default class DemoDataSetup extends LightningElement {
     isLoading = true;
     hasAccess = false;
     canCreate = false;
@@ -146,10 +151,10 @@ export default class DemoDataSetup extends NavigationMixin(LightningElement) {
 
     async loadDemoRecords() {
         const wrapper = await getDemoRecords();
-        this.employees = wrapper.employees || [];
-        this.projects = wrapper.projects || [];
-        this.projectEmployees = wrapper.projectEmployees || [];
-        this.timesheets = (wrapper.timesheets || []).map((ts) => ({
+        this.employees = (wrapper.employees || []).map((row) => withViewLink(row, row.recordId));
+        this.projects = (wrapper.projects || []).map((row) => withViewLink(row, row.recordId));
+        this.projectEmployees = (wrapper.projectEmployees || []).map((row) => withViewLink(row, row.recordId));
+        this.timesheets = (wrapper.timesheets || []).map((ts) => withViewLink({
             id: ts.recordId,
             name: `${ts.employeeName} - ${ts.periodName}`,
             dates: ts.dateRange,
@@ -162,7 +167,7 @@ export default class DemoDataSetup extends NavigationMixin(LightningElement) {
                 hours: item.duration,
                 description: item.description
             }))
-        }));
+        }, ts.recordId));
     }
 
     async handleNextStep() {
@@ -222,20 +227,6 @@ export default class DemoDataSetup extends NavigationMixin(LightningElement) {
             this.isLoading = false;
             this.showDeleteConfirm = false;
         }
-    }
-
-    async handleRowAction(event) {
-        if (event.detail.action.name !== 'view') {
-            return;
-        }
-        const url = await this[NavigationMixin.GenerateUrl]({
-            type: 'standard__recordPage',
-            attributes: {
-                recordId: event.detail.row.recordId || event.detail.row.id,
-                actionName: 'view'
-            }
-        });
-        window.open(url, '_blank');
     }
 
     handleDismissMessage() {
