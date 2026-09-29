@@ -1,5 +1,11 @@
-/**
- * @file demoDataSetup.css
- * @description Modern Salesforce Lightning styling for Demo Data Setup LWC
- * All custom styling has been removed in favor of standard SLDS and Base Lightning Components.
- */
+:host {
+    display: block;
+}
+
+.slds-is-relative {
+    min-height: 12rem;
+}
+
+.delete-confirm {
+    border-color: var(--slds-g-color-error-base-40, #ea001e);
+}

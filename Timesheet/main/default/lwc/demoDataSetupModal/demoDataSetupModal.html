@@ -1,6 +1,11 @@
 <template>
-    <lightning-modal-header label="Timesheet Demo Data Setup"></lightning-modal-header>
+    <lightning-modal-header label="Timesheet Demo Data Setup">
+        Create sample employees, projects and timesheets to explore the app. Only records you create here are affected.
+    </lightning-modal-header>
     <lightning-modal-body>
-        <c-demo-data-setup onclose={handleClose}></c-demo-data-setup>
+        <c-demo-data-setup></c-demo-data-setup>
     </lightning-modal-body>
+    <lightning-modal-footer>
+        <lightning-button label="Close" onclick={handleClose}></lightning-button>
+    </lightning-modal-footer>
 </template>

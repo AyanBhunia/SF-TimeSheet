@@ -1,5 +1,4 @@
 import { LightningElement } from 'lwc';
-import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { NavigationMixin } from 'lightning/navigation';
 import getDemoStatus from '@salesforce/apex/DemoDataController.getDemoStatus';
 import getDemoRecords from '@salesforce/apex/DemoDataController.getDemoRecords';
@@ -11,30 +10,117 @@ import createDemoTimesheets from '@salesforce/apex/DemoDataController.createDemo
 import getDeleteSummary from '@salesforce/apex/DemoDataController.getDeleteSummary';
 import deleteDemoRecords from '@salesforce/apex/DemoDataController.deleteDemoRecords';
 
+const VIEW_ACTION = {
+    type: 'button-icon',
+    fixedWidth: 50,
+    typeAttributes: {
+        iconName: 'utility:new_window',
+        name: 'view',
+        title: 'Open record in a new tab',
+        alternativeText: 'Open record',
+        variant: 'bare'
+    }
+};
+
+// Setup steps in order. Each step is done once the records it creates exist.
+const STEPS = [
+    {
+        value: 'employee',
+        label: 'Employee',
+        title: 'Create the demo employee',
+        description: 'Creates "Demo Employee", managed by your manager (or by you if you have none).',
+        buttonLabel: 'Create Employee',
+        successMessage: 'Demo employee created.',
+        action: createDemoEmployee
+    },
+    {
+        value: 'children',
+        label: 'Child Employees',
+        title: 'Create child employees',
+        description: 'Creates two employees who report to you, so you can approve their timesheets.',
+        buttonLabel: 'Create Child Employees',
+        successMessage: 'Child employees created.',
+        action: createChildEmployees
+    },
+    {
+        value: 'projects',
+        label: 'Projects',
+        title: 'Create demo projects',
+        description: 'Creates a billable, a non-billable and a legacy project.',
+        buttonLabel: 'Create Projects',
+        successMessage: 'Demo projects created.',
+        action: createDemoProjects
+    },
+    {
+        value: 'assignments',
+        label: 'Assignments',
+        title: 'Assign employees to projects',
+        description: 'Assigns every demo employee to every demo project at an hourly rate of 150.',
+        buttonLabel: 'Create Assignments',
+        successMessage: 'Project assignments created.',
+        action: createDemoProjectAssignments
+    },
+    {
+        value: 'timesheets',
+        label: 'Timesheets',
+        title: 'Create demo timesheets',
+        description: 'Creates four weekly timesheets per employee with line items; the two oldest weeks are approved and the legacy project is deactivated.',
+        buttonLabel: 'Create Timesheets',
+        successMessage: 'Demo timesheets created.',
+        action: createDemoTimesheets
+    }
+];
+
 export default class DemoDataSetup extends NavigationMixin(LightningElement) {
     isLoading = true;
     hasAccess = false;
     canCreate = false;
-    hasEmployee = false;
     isProductionOrg = false;
-    showSections = false;
     recordsDeleted = false;
+    message;
 
     employees = [];
     projects = [];
     projectEmployees = [];
     timesheets = [];
-    activeSections = ['employees', 'projects', 'projectEmployees', 'timesheets'];
 
-    showDeleteModal = false;
+    showDeleteConfirm = false;
     isDeleting = false;
     deleteSummary;
 
-    lineItemColumns = [
-        { label: 'Date', fieldName: 'dateStr', type: 'text', initialWidth: 120 },
+    // Path shown above the next-step card; the extra "Ready" step is current once everything exists.
+    steps = [...STEPS, { value: 'done', label: 'Ready' }];
+
+    employeeColumns = [
+        { label: 'Name', fieldName: 'name' },
+        { label: 'Manager', fieldName: 'manager' },
+        { label: 'Accrual Start Date', fieldName: 'accrualStartDate', type: 'date-local' },
+        { label: 'Accrual Divisor', fieldName: 'accrualDivisor', type: 'number' },
+        VIEW_ACTION
+    ];
+
+    projectColumns = [
+        { label: 'Name', fieldName: 'name' },
+        { label: 'Status', fieldName: 'status' },
+        { label: 'Billable', fieldName: 'billable' },
+        VIEW_ACTION
+    ];
+
+    projectAssignmentColumns = [
+        { label: 'Employee', fieldName: 'employeeName' },
+        { label: 'Project', fieldName: 'projectName' },
+        { label: 'Hourly Rate', fieldName: 'hourlyRate', type: 'number' },
+        VIEW_ACTION
+    ];
+
+    timesheetColumns = [
+        { label: 'Timesheet / Date', fieldName: 'name', type: 'text', initialWidth: 320 },
+        { label: 'Week', fieldName: 'dates', type: 'text', initialWidth: 200 },
         { label: 'Project / Type', fieldName: 'projectOrType', type: 'text' },
-        { label: 'Hours', fieldName: 'duration', type: 'number', initialWidth: 100 },
-        { label: 'Description', fieldName: 'description', type: 'text' }
+        { label: 'Status', fieldName: 'status', type: 'text', initialWidth: 110 },
+        { label: 'Hours', fieldName: 'hours', type: 'number', initialWidth: 90 },
+        { label: 'Description', fieldName: 'description', type: 'text' },
+        VIEW_ACTION
     ];
 
     connectedCallback() {
@@ -47,13 +133,12 @@ export default class DemoDataSetup extends NavigationMixin(LightningElement) {
             const status = await getDemoStatus();
             this.hasAccess = status.hasAccess;
             this.canCreate = status.canCreate === true;
-            this.hasEmployee = status.hasEmployee === true;
             this.isProductionOrg = status.isProductionOrg === true;
             if (this.hasAccess && !this.recordsDeleted) {
                 await this.loadDemoRecords();
             }
         } catch (error) {
-            this.showToast('Error', 'Error loading demo status: ' + this.getErrorMessage(error), 'error');
+            this.showMessage('error', 'Error loading demo data: ' + this.getErrorMessage(error));
         } finally {
             this.isLoading = false;
         }
@@ -61,126 +146,104 @@ export default class DemoDataSetup extends NavigationMixin(LightningElement) {
 
     async loadDemoRecords() {
         const wrapper = await getDemoRecords();
-        this.employees = (wrapper.employees || []).map((emp) => ({
-            ...emp,
-            showCreateChildren: this.canCreate && emp.canCreateChildren
-        }));
+        this.employees = wrapper.employees || [];
         this.projects = wrapper.projects || [];
         this.projectEmployees = wrapper.projectEmployees || [];
         this.timesheets = (wrapper.timesheets || []).map((ts) => ({
-            ...ts,
-            isOpen: false,
-            iconName: 'utility:chevronright',
-            toggleLabel: 'Show line items',
-            hasLineItems: ts.lineItems && ts.lineItems.length > 0
+            id: ts.recordId,
+            name: `${ts.employeeName} - ${ts.periodName}`,
+            dates: ts.dateRange,
+            status: ts.status,
+            hours: ts.totalHours,
+            _children: (ts.lineItems || []).map((item) => ({
+                id: item.id,
+                name: item.dateStr,
+                projectOrType: item.projectOrType,
+                hours: item.duration,
+                description: item.description
+            }))
         }));
     }
 
-    handleShowSections() {
-        this.showSections = true;
-    }
-
-    handleCreateEmployee() {
-        this.runCreate(createDemoEmployee, 'Demo employee created.');
-    }
-
-    handleCreateChildEmployees() {
-        this.runCreate(createChildEmployees, 'Child employees created.');
-    }
-
-    handleCreateProjects() {
-        this.runCreate(createDemoProjects, 'Demo projects created.');
-    }
-
-    handleCreateProjectAssignments() {
-        this.runCreate(createDemoProjectAssignments, 'Project assignments created.');
-    }
-
-    handleCreateTimesheets() {
-        this.runCreate(createDemoTimesheets, 'Demo timesheets created.');
-    }
-
-    async runCreate(apexMethod, successMessage) {
+    async handleNextStep() {
+        const step = this.nextStep;
+        if (!step) {
+            return;
+        }
         this.isLoading = true;
         try {
-            await apexMethod();
-            this.showToast('Success', successMessage, 'success');
+            await step.action();
+            this.showMessage('success', step.successMessage);
             await this.loadStatus();
         } catch (error) {
             this.isLoading = false;
-            this.showToast('Error', this.getErrorMessage(error), 'error');
+            this.showMessage('error', this.getErrorMessage(error));
         }
     }
 
-    async handleOpenDeleteModal() {
+    async handleShowDeleteConfirm() {
         this.isLoading = true;
         try {
             this.deleteSummary = await getDeleteSummary();
-            this.showDeleteModal = true;
+            this.showDeleteConfirm = true;
+            // Bring the confirmation (rendered below the tables) into view.
+            requestAnimationFrame(() => {
+                const panel = this.template.querySelector('.delete-confirm');
+                if (panel) {
+                    panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            });
         } catch (error) {
-            this.showToast('Error', 'Error loading demo records: ' + this.getErrorMessage(error), 'error');
+            this.showMessage('error', 'Error loading demo records: ' + this.getErrorMessage(error));
         } finally {
             this.isLoading = false;
         }
     }
 
     handleCancelDelete() {
-        this.showDeleteModal = false;
+        this.showDeleteConfirm = false;
     }
 
     async handleConfirmDelete() {
         this.isDeleting = true;
+        this.isLoading = true;
         try {
             await deleteDemoRecords();
-            this.showToast('Success', 'All demo records have been deleted.', 'success');
             this.recordsDeleted = true;
             this.employees = [];
             this.projects = [];
             this.projectEmployees = [];
             this.timesheets = [];
+            this.message = undefined;
         } catch (error) {
-            this.showToast('Error', 'Error deleting demo records: ' + this.getErrorMessage(error), 'error');
+            this.showMessage('error', 'Error deleting demo records: ' + this.getErrorMessage(error));
         } finally {
             this.isDeleting = false;
-            this.showDeleteModal = false;
+            this.isLoading = false;
+            this.showDeleteConfirm = false;
         }
     }
 
-    handleModalKeydown(event) {
-        if (event.key === 'Escape' && !this.isDeleting) {
-            this.handleCancelDelete();
+    async handleRowAction(event) {
+        if (event.detail.action.name !== 'view') {
+            return;
         }
-    }
-
-    handleToggleTimesheet(event) {
-        const recordId = event.currentTarget.dataset.id;
-        this.timesheets = this.timesheets.map((ts) => {
-            if (ts.recordId !== recordId) {
-                return ts;
-            }
-            const isOpen = !ts.isOpen;
-            return {
-                ...ts,
-                isOpen,
-                iconName: isOpen ? 'utility:chevrondown' : 'utility:chevronright',
-                toggleLabel: isOpen ? 'Hide line items' : 'Show line items'
-            };
-        });
-    }
-
-    async handleViewRecord(event) {
         const url = await this[NavigationMixin.GenerateUrl]({
             type: 'standard__recordPage',
             attributes: {
-                recordId: event.currentTarget.dataset.id,
+                recordId: event.detail.row.recordId || event.detail.row.id,
                 actionName: 'view'
             }
         });
         window.open(url, '_blank');
     }
 
-    handleClose() {
-        this.dispatchEvent(new CustomEvent('close'));
+    handleDismissMessage() {
+        this.message = undefined;
+    }
+
+    showMessage(variant, text) {
+        this.message = { variant, text };
     }
 
     get approvedEmailBody() {
@@ -195,7 +258,7 @@ export default class DemoDataSetup extends NavigationMixin(LightningElement) {
         const text = event.currentTarget.dataset.text;
         if (navigator.clipboard && window.isSecureContext) {
             navigator.clipboard.writeText(text)
-                .then(() => this.showToast('Success', 'Copied to clipboard', 'success'))
+                .then(() => this.showMessage('success', 'Copied to clipboard.'))
                 .catch(() => this.fallbackCopyTextToClipboard(text));
         } else {
             this.fallbackCopyTextToClipboard(text);
@@ -216,16 +279,12 @@ export default class DemoDataSetup extends NavigationMixin(LightningElement) {
 
         try {
             document.execCommand('copy');
-            this.showToast('Success', 'Copied to clipboard', 'success');
+            this.showMessage('success', 'Copied to clipboard.');
         } catch (err) {
-            this.showToast('Error', 'Failed to copy text', 'error');
+            this.showMessage('error', 'Failed to copy text.');
         }
 
         document.body.removeChild(textArea);
-    }
-
-    showToast(title, message, variant) {
-        this.dispatchEvent(new ShowToastEvent({ title, message, variant }));
     }
 
     getErrorMessage(error) {
@@ -248,33 +307,13 @@ export default class DemoDataSetup extends NavigationMixin(LightningElement) {
         return error.message || JSON.stringify(error);
     }
 
-    get employeesLabel() { return `Employees (${this.employees.length})`; }
-    get projectsLabel() { return `Projects (${this.projects.length})`; }
-    get projectAssignmentsLabel() { return `Project Assignments (${this.projectEmployees.length})`; }
-    get timesheetsLabel() { return `Timesheets (${this.timesheets.length})`; }
-
-    get showSetupPrompt() {
-        return !this.isLoading && this.hasAccess && this.canCreate && !this.hasEmployee && !this.showSections && !this.recordsDeleted;
+    get messageClass() {
+        const theme = this.message && this.message.variant === 'error' ? 'slds-theme_error' : 'slds-theme_success';
+        return `slds-scoped-notification slds-media slds-media_center slds-m-bottom_medium ${theme}`;
     }
 
-    get showRecordsView() {
-        return !this.isLoading && this.hasAccess && (this.hasEmployee || this.showSections || !this.canCreate) && !this.recordsDeleted;
-    }
-
-    get showNoAccessMessage() {
-        return !this.isLoading && !this.hasAccess;
-    }
-
-    get showDeletedMessage() {
-        return !this.isLoading && this.recordsDeleted;
-    }
-
-    get showCleanupOnlyNote() {
-        return this.showRecordsView && !this.canCreate;
-    }
-
-    get showProductionWarning() {
-        return !this.isLoading && this.hasAccess && this.isProductionOrg && !this.recordsDeleted;
+    get messageIcon() {
+        return this.message && this.message.variant === 'error' ? 'utility:error' : 'utility:success';
     }
 
     get hasEmployees() { return this.employees.length > 0; }
@@ -284,29 +323,81 @@ export default class DemoDataSetup extends NavigationMixin(LightningElement) {
     get hasChildEmployees() {
         return this.hasEmployees && !this.employees.some((emp) => emp.canCreateChildren);
     }
-
-    get employeesHint() {
-        return this.hasEmployees ? null : 'No demo employees.';
-    }
-    get projectsHint() {
-        if (this.hasProjects) return null;
-        return this.hasChildEmployees || !this.canCreate ? 'No demo projects.' : 'Create the demo employee and its child employees first.';
-    }
-    get projectAssignmentsHint() {
-        if (this.hasProjectAssignments) return null;
-        return this.hasProjects || !this.canCreate ? 'No project assignments.' : 'Create the demo projects first.';
-    }
-    get timesheetsHint() {
-        if (this.hasTimesheets) return null;
-        return this.hasProjectAssignments || !this.canCreate ? 'No demo timesheets.' : 'Create the project assignments first.';
+    get hasAnyRecords() {
+        return this.hasEmployees || this.hasProjects;
     }
 
-    get showNewEmployee() { return this.canCreate && !this.hasEmployees; }
-    get showNewProjects() { return this.canCreate && this.hasChildEmployees && !this.hasProjects; }
-    get showNewProjectAssignments() { return this.canCreate && this.hasProjects && !this.hasProjectAssignments; }
-    get showNewTimesheets() { return this.canCreate && this.hasProjectAssignments && !this.hasTimesheets; }
+    get employeesLabel() { return `Employees (${this.employees.length})`; }
+    get projectsLabel() { return `Projects (${this.projects.length})`; }
+    get projectAssignmentsLabel() { return `Project Assignments (${this.projectEmployees.length})`; }
+    get timesheetsLabel() { return `Timesheets (${this.timesheets.length})`; }
 
-    get showDeleteButton() {
-        return this.showRecordsView && (this.hasEmployees || this.hasProjects);
+    /** First step whose records don't exist yet; undefined when everything is created. */
+    get nextStep() {
+        const done = {
+            employee: this.hasEmployees,
+            children: this.hasChildEmployees,
+            projects: this.hasProjects,
+            assignments: this.hasProjectAssignments,
+            timesheets: this.hasTimesheets
+        };
+        return STEPS.find((step) => !done[step.value]);
+    }
+
+    get currentStep() {
+        return this.nextStep ? this.nextStep.value : 'done';
+    }
+
+    get stepNumber() {
+        return STEPS.indexOf(this.nextStep) + 1;
+    }
+
+    get stepCount() {
+        return STEPS.length;
+    }
+
+    get showNoAccessMessage() {
+        return !this.isLoading && !this.hasAccess;
+    }
+
+    get showDataView() {
+        return this.hasAccess && !this.recordsDeleted;
+    }
+
+    get showProgress() {
+        return this.showDataView && this.canCreate;
+    }
+
+    get showNextStep() {
+        return this.showProgress && this.nextStep;
+    }
+
+    get showAllDone() {
+        return this.showProgress && !this.nextStep;
+    }
+
+    get showCleanupOnlyNote() {
+        return this.showDataView && !this.canCreate;
+    }
+
+    get showProductionWarning() {
+        return this.showDataView && this.isProductionOrg;
+    }
+
+    get showRecords() {
+        return this.showDataView && this.hasAnyRecords;
+    }
+
+    get showDeleteSection() {
+        return this.showRecords && !this.showDeleteConfirm;
+    }
+
+    get activeSections() {
+        const sections = [];
+        if (this.hasEmployees) sections.push('employees');
+        if (this.hasProjects) sections.push('projects');
+        if (this.hasProjectAssignments) sections.push('projectEmployees');
+        if (this.hasTimesheets) sections.push('timesheets');
+        return sections;
     }
 }

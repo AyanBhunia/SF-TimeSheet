@@ -16,11 +16,19 @@ public with sharing class DemoDataController {
     private static final List<String> PROJECT_NAMES = new List<String>{ PROJECT_BILLABLE, PROJECT_NON_BILLABLE, PROJECT_LEGACY };
     private static final Decimal HOURLY_RATE = 150;
 
+    /** One row in the employee, project or project assignment table; only the fields for that table are set. */
     public class DemoRecordDetail {
         @AuraEnabled public String recordId { get; set; }
-        @AuraEnabled public String title { get; set; }
-        @AuraEnabled public String summary { get; set; }
+        @AuraEnabled public String name { get; set; }
+        @AuraEnabled public String manager { get; set; }
+        @AuraEnabled public Date accrualStartDate { get; set; }
+        @AuraEnabled public Decimal accrualDivisor { get; set; }
         @AuraEnabled public Boolean canCreateChildren { get; set; }
+        @AuraEnabled public String status { get; set; }
+        @AuraEnabled public String billable { get; set; }
+        @AuraEnabled public String employeeName { get; set; }
+        @AuraEnabled public String projectName { get; set; }
+        @AuraEnabled public Decimal hourlyRate { get; set; }
     }
 
     public class TimesheetLineItemDetail {
@@ -288,10 +296,10 @@ public with sharing class DemoDataController {
         for (Employee__c emp : emps) {
             DemoRecordDetail detail = new DemoRecordDetail();
             detail.recordId = emp.Id;
-            detail.title = emp.Name;
-            detail.summary = 'Manager: ' + (emp.Manager__r != null ? emp.Manager__r.Name : 'None')
-                + ' | Accrual Start Date: ' + (emp.Accrual_Start_Date__c != null ? emp.Accrual_Start_Date__c.format() : 'None')
-                + ' | Accrual Divisor: ' + emp.Accrual_Divisor__c;
+            detail.name = emp.Name;
+            detail.manager = emp.Manager__r != null ? emp.Manager__r.Name : null;
+            detail.accrualStartDate = emp.Accrual_Start_Date__c;
+            detail.accrualDivisor = emp.Accrual_Divisor__c;
             detail.canCreateChildren = emp.Last_Name__c == PARENT_LAST_NAME && !childExists;
             wrapper.employees.add(detail);
         }
@@ -305,8 +313,9 @@ public with sharing class DemoDataController {
         ]) {
             DemoRecordDetail detail = new DemoRecordDetail();
             detail.recordId = proj.Id;
-            detail.title = proj.Name;
-            detail.summary = 'Status: ' + (proj.Active__c ? 'Active' : 'Inactive') + ' | Billable: ' + proj.Billable__c;
+            detail.name = proj.Name;
+            detail.status = proj.Active__c ? 'Active' : 'Inactive';
+            detail.billable = proj.Billable__c;
             wrapper.projects.add(detail);
         }
 
@@ -319,8 +328,9 @@ public with sharing class DemoDataController {
         ]) {
             DemoRecordDetail detail = new DemoRecordDetail();
             detail.recordId = pe.Id;
-            detail.title = pe.Project__r.Name + ' for ' + pe.Employee__r.Name;
-            detail.summary = 'Hourly Rate: ' + pe.Hourly_Rate__c;
+            detail.employeeName = pe.Employee__r.Name;
+            detail.projectName = pe.Project__r.Name;
+            detail.hourlyRate = pe.Hourly_Rate__c;
             wrapper.projectEmployees.add(detail);
         }
 
