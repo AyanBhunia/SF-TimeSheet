@@ -67,7 +67,7 @@ public with sharing class EmployeeTriggerHandler {
         Map<Id, Employee__c> userEmployeeMap = getUserEmployeeMapForBeforeInsert(employees);
         if (userEmployeeMap.size() > 0){
             for(Employee__c	 employee : employees){
-            	if(userEmployeeMap.get(employee.User__c) != null){
+            	if(employee.User__c != null && userEmployeeMap.get(employee.User__c) != null){
                 	employee.User__c.addError('An Employee with same user already exists');
             	}
         	}  
@@ -78,7 +78,7 @@ public with sharing class EmployeeTriggerHandler {
         Map<Id, Employee__c> userEmployeeMap = getUserEmployeeMapForBeforeUpdate(employees);
         if (userEmployeeMap.size() > 0){
             for(Employee__c	 employee : employees){
-            	if(userEmployeeMap.get(employee.User__c) != null && employee.Id != userEmployeeMap.get(employee.User__c).Id  ){
+            	if(employee.User__c != null && userEmployeeMap.get(employee.User__c) != null && employee.Id != userEmployeeMap.get(employee.User__c).Id  ){
                 	employee.User__c.addError('An Employee with same user already exists');
             	}
         	}
@@ -126,7 +126,9 @@ public with sharing class EmployeeTriggerHandler {
     private static List<Id> getUserIds(List<Employee__c> employees){
         List<Id> userIds = new List<Id>();
         for(Employee__c	 employee : employees){
-            userIds.add(employee.User__c);
+            if (employee.User__c != null) {
+                userIds.add(employee.User__c);
+            }
         }
         return userIds;
     }
