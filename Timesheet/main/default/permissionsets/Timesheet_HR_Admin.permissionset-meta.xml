@@ -128,6 +128,25 @@
         <enabled>true</enabled>
         <name>Timesheet_Default_Value__mdt</name>
     </customMetadataTypeAccesses>
+    <customPermissions>
+        <enabled>true</enabled>
+        <name>Timesheet_Demo_Data_Access</name>
+    </customPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Employee__c.Is_Demo__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Project__c.Is_Demo__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Timesheet__c.Is_Demo__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
         <field>Charge_Code__c.Description__c</field>
@@ -346,6 +365,11 @@
     <fieldPermissions>
         <editable>true</editable>
         <field>Timesheet__c.Start_Date__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Timesheet__c.Total_Hours__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
