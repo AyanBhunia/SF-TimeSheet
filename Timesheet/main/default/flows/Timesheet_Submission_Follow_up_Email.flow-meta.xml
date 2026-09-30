@@ -78,13 +78,6 @@
                 <stringValue>New</stringValue>
             </value>
         </filters>
-        <filters>
-            <field>Is_Demo__c</field>
-            <operator>EqualTo</operator>
-            <value>
-                <booleanValue>false</booleanValue>
-            </value>
-        </filters>
         <object>Timesheet__c</object>
         <schedule>
             <frequency>Weekly</frequency>

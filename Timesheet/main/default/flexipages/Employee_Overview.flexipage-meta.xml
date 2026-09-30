@@ -119,12 +119,6 @@
     <flexiPageRegions>
         <itemInstances>
             <componentInstance>
-                <componentName>demoDataPrompt</componentName>
-                <identifier>c_demoDataPrompt</identifier>
-            </componentInstance>
-        </itemInstances>
-        <itemInstances>
-            <componentInstance>
                 <componentInstanceProperties>
                     <name>accordionSections</name>
                     <value>Facet-8eb95255-c52a-440a-b069-80c3a7f5408d</value>
