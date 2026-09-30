@@ -1,0 +1,144 @@
+<template>
+    <lightning-card title="Assign Employees to Projects">
+        <!-- Spinner -->
+        <template if:true={isLoading}>
+            <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+        </template>
+
+        <!-- Page 1: Form -->
+        <template if:true={isPageOne}>
+            <div class="slds-p-around_medium">
+                <div class="slds-m-bottom_small">
+                    <c-multi-select-combobox 
+                        label="Project" 
+                        options={projectOptions} 
+                        values={selectedProjects} 
+                        onchange={handleProjectChange} 
+                        placeholder="Select Projects..."
+                        show-pills="true">
+                    </c-multi-select-combobox>
+                </div>
+
+                <div class="slds-m-bottom_small">
+                        <lightning-combobox 
+                            name="publicGroup" 
+                            label="Public Group" 
+                            value={selectedGroup} 
+                            placeholder="Select Group..." 
+                            options={groupOptions} 
+                            onchange={handleGroupChange}
+                            disabled={isFormDisabled}>
+                        </lightning-combobox>
+                    </div>
+
+                    <div class="slds-m-bottom_small">
+                        <c-multi-select-combobox 
+                            label="Employee" 
+                            options={employeeOptions} 
+                            values={selectedEmployees} 
+                            onchange={handleEmployeeChange} 
+                            placeholder="Select Employees..."
+                            disabled={isFormDisabled}
+                            show-pills="true">
+                        </c-multi-select-combobox>
+                    </div>
+
+                    <div class="slds-m-bottom_medium">
+                        <lightning-input 
+                            type="number" 
+                            label="Hourly Rate" 
+                            value={hourlyRate} 
+                            onchange={handleRateChange} 
+                            min="0" 
+                            step="1"
+                            disabled={isFormDisabled}>
+                        </lightning-input>
+                    </div>
+
+                    <div class="slds-text-align_right">
+                        <lightning-button label="Cancel" onclick={handleCancel} class="slds-m-right_x-small"></lightning-button>
+                        <lightning-button label="Next" variant="brand" onclick={handleNext} disabled={isNextDisabled}></lightning-button>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Page 2: Datatable -->
+            <template if:false={isPageOne}>
+                <div class="slds-p-around_medium">
+                    <h2 class="slds-text-heading_small slds-m-bottom_medium">Confirmation</h2>
+                    
+                    <div style="max-height: 400px; overflow-y: auto;">
+                        <table class="slds-table slds-table_bordered slds-table_cell-buffer slds-no-row-hover">
+                            <thead>
+                                <tr class="slds-line-height_reset">
+                                    <th scope="col" style="width: 35%;">Employee Name</th>
+                                    <th scope="col" style="width: 35%;">Project Name</th>
+                                    <th scope="col" style="width: 20%;">Hourly Rate</th>
+                                    <th scope="col" style="width: 10%;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template for:each={dataTableRows} for:item="row" for:index="index">
+                                    <tr key={row.key} class="slds-hint-parent">
+                                        <td >
+                                            <lightning-combobox
+                                                name="employee" dropdown-alignment="auto"
+                                                variant="label-hidden"
+                                                value={row.employeeId}
+                                                options={employeeOptions}
+                                                data-index={index}
+                                                onchange={handleRowEmployeeChange}>
+                                            </lightning-combobox>
+                                        </td>
+                                        <td >
+                                            <lightning-combobox
+                                                name="project" dropdown-alignment="auto"
+                                                variant="label-hidden"
+                                                value={row.projectId}
+                                                options={projectOptions}
+                                                data-index={index}
+                                                onchange={handleRowProjectChange}>
+                                            </lightning-combobox>
+                                        </td>
+                                        <td>
+                                            <lightning-input
+                                                type="number"
+                                                variant="label-hidden"
+                                                value={row.hourlyRate}
+                                                data-index={index}
+                                                min="0"
+                                                onchange={handleRowRateChange}>
+                                            </lightning-input>
+                                        </td>
+                                        <td>
+                                            <lightning-button-icon icon-name="utility:delete" alternative-text="Delete Row" title="Delete Row" data-index={index} onclick={handleDeleteRow}></lightning-button-icon>
+                                        </td>
+                                    </tr>
+                                </template>
+                                <template if:false={dataTableRows.length}>
+                                    <tr>
+                                        <td colspan="4" class="slds-text-align_center slds-p-around_small slds-text-color_weak">
+                                            {emptyTableMessage}
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="slds-m-top_small slds-grid slds-grid_align-spread">
+                        <div>
+                            <lightning-button label="Add Row" icon-name="utility:add" onclick={handleAddRow}></lightning-button>
+                        </div>
+                        <div>
+                            <lightning-button label="Previous" onclick={handlePrevious} class="slds-m-right_x-small"></lightning-button>
+                            <lightning-button label="Cancel" onclick={handleCancel} class="slds-m-right_x-small"></lightning-button>
+                            <template if:true={hasRecordsToSave}>
+                                <lightning-button label="Save" variant="brand" onclick={handleSave}></lightning-button>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </lightning-card>
+</template>
