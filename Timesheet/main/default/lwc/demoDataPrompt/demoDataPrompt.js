@@ -1,16 +1,22 @@
 import { LightningElement } from 'lwc';
+import USER_ID from '@salesforce/user/Id';
 import hasHrAdminPermission from '@salesforce/apex/GetDashboardProfileDetails.hasHrAdminPermission';
-import getDemoStatus from '@salesforce/apex/DemoDataController.getDemoStatus';
+import getEmployeeDetails from '@salesforce/apex/GetDashboardProfileDetails.getEmployeeDetails';
+import isProductionOrg from '@salesforce/apex/DemoDataController.isProductionOrg';
 import DemoDataSetupModal from 'c/demoDataSetupModal';
 
 /**
- * Employee Overview card that opens the demo data setup popup.
- * Only HR admins (Timesheet_HR_Admin) can call DemoDataController, so other users stop after the HR admin check.
- * The card renders only when DemoDataController grants access (no active employee, or demo records to clean up).
+ * Employee Overview card that opens the demo data setup popup, for HR admins without an employee record of
+ * their own (or whose employee record is the Demo Employee). hasHrAdminPermission and getEmployeeDetails are
+ * cacheable and called with the same parameters as dashboardProfile, so they are served from the client cache
+ * instead of running their queries again.
  */
 export default class DemoDataPrompt extends LightningElement {
-    hasAccess = false;
-    canCreate = false;
+    showCard = false;
+    hasDemoData = false;
+    productionOrg = false;
+    // Set once the popup created or deleted records: the profile and charts still show their cached data.
+    dataChanged = false;
 
     connectedCallback() {
         this.loadStatus();
@@ -19,38 +25,64 @@ export default class DemoDataPrompt extends LightningElement {
     async loadStatus() {
         try {
             if (!(await hasHrAdminPermission())) {
-                this.hasAccess = false;
                 return;
             }
-            const status = await getDemoStatus();
-            this.hasAccess = status.hasAccess === true;
-            this.canCreate = status.canCreate === true;
+            const employee = await this.getLinkedEmployee();
+            // A real employee record means the user uses the app for real: no demo data.
+            if (employee && employee.IsDemo !== true) {
+                return;
+            }
+            this.hasDemoData = Boolean(employee);
+            this.productionOrg = await isProductionOrg();
+            this.showCard = true;
         } catch (error) {
-            this.hasAccess = false;
+            this.showCard = false;
             console.error('Error loading demo data status', error);
         }
     }
 
-    async handleOpen() {
-        await DemoDataSetupModal.open({
+    /**
+     * The employee linked to the user, or undefined when there is none: getEmployeeDetails then fails with
+     * "List has no rows". Any other error is rethrown, so the card stays hidden rather than offering demo
+     * data to a user who may have a real employee record.
+     */
+    async getLinkedEmployee() {
+        try {
+            return await getEmployeeDetails({ userID: USER_ID });
+        } catch (error) {
+            const message = (error && error.body && error.body.message) || '';
+            if (message.includes('List has no rows')) {
+                return undefined;
+            }
+            throw error;
+        }
+    }
+
+    handleOpen() {
+        DemoDataSetupModal.open({
             size: 'full',
             label: 'Timesheet Demo Data Setup',
-            description: 'Create, review and delete demo data'
+            description: 'Create, review and delete demo data',
+            isProductionOrg: this.productionOrg,
+            // The popup reports the result, so the card updates without another server call.
+            ondatachange: (event) => {
+                this.hasDemoData = event.detail.hasDemoData;
+                this.dataChanged = true;
+            }
         });
-        this.loadStatus();
     }
 
     get title() {
-        return this.canCreate ? 'Explore the app with demo data' : 'You still have demo records';
+        return this.hasDemoData ? 'Your demo data' : 'Explore the app with demo data';
     }
 
     get description() {
-        return this.canCreate
-            ? 'You have no active employee record. Create sample employees, projects and timesheets step by step, and delete them when you are done.'
-            : "You now have an active employee record, so new demo data can't be created. You can still review and delete your demo data.";
+        return this.hasDemoData
+            ? 'Continue setting up your demo data, review it, or delete it when you are done.'
+            : 'You have no employee record. Create sample employees, projects and timesheets step by step, and delete them when you are done.';
     }
 
     get buttonLabel() {
-        return this.canCreate ? 'Open Demo Data Setup' : 'Manage Demo Data';
+        return this.hasDemoData ? 'Manage Demo Data' : 'Open Demo Data Setup';
     }
 }

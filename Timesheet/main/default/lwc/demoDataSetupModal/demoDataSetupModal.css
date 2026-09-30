@@ -1,6 +1,8 @@
-.slds-is-relative {
-    /* Fill the full-size popup (it has no header) instead of shrinking to the content. */
-    min-height: calc(100vh - 16rem);
+.modal-content {
+    /* One fixed height for every step and tab; longer content scrolls inside. */
+    position: relative;
+    height: calc(100vh - 16rem);
+    overflow-y: auto;
 }
 
 .delete-confirm {
@@ -14,4 +16,15 @@
 
 .guide-step li {
     margin-bottom: 0.5rem;
+}
+
+/* Preview of the records a step will create: long tables scroll inside a fixed height. */
+.preview-table {
+    border: 1px solid var(--slds-g-color-border-base-1, #e5e5e5);
+    border-radius: 0.25rem;
+    background: var(--slds-g-color-neutral-base-100, #ffffff);
+}
+
+.preview-table_scroll {
+    height: 20rem;
 }

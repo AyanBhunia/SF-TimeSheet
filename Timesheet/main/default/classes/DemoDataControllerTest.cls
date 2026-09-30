@@ -1,331 +1,415 @@
 /**
- * @description Tests for DemoDataController: the demo data flow, step order, and who may create or delete demo data.
+ * @description Tests for DemoDataController: every record the demo creates (with and without child employees),
+ *              that it matches the blueprint the popup previews, how many queries each method uses, and that
+ *              delete removes everything and nothing else.
  */
 @IsTest
 private class DemoDataControllerTest {
 
     private static final String HR_ADMIN_PERMISSION_SET = 'Timesheet_HR_Admin';
-    private static final String USER_PERMISSION_SET = 'Timesheet_User';
 
     @IsTest
-    static void eligibleHrAdminCanCreate() {
-        User hrAdmin = createUser('hradm', HR_ADMIN_PERMISSION_SET);
-
+    static void fullFlowWithChildEmployees() {
+        User hrAdmin = createUser('hradm');
         System.runAs(hrAdmin) {
-            Map<String, Object> status = DemoDataController.getDemoStatus();
-            Assert.isTrue((Boolean) status.get('hasAccess'), 'HR admin without an employee should have access');
-            Assert.isTrue((Boolean) status.get('canCreate'), 'HR admin without an employee should be able to create demo data');
-            Assert.isTrue(status.containsKey('isProductionOrg'), 'Status should say whether the org is production');
+            runFullFlow(true);
+            assertCreatedRecords(hrAdmin, true);
+            assertDeletesEverything(true);
         }
     }
 
     @IsTest
-    static void fullDemoFlowCreatesAndDeletesRecords() {
-        User hrAdmin = createUser('hradm', HR_ADMIN_PERMISSION_SET);
-
+    static void fullFlowWithoutChildEmployees() {
+        User hrAdmin = createUser('hradm');
         System.runAs(hrAdmin) {
-            DemoDataController.createDemoEmployee();
-            DemoDataController.createChildEmployees();
-            DemoDataController.createDemoProjects();
-            DemoDataController.createDemoProjectAssignments();
-            Test.startTest();
-            DemoDataController.createDemoTimesheets();
-            Test.stopTest();
-
-            Employee__c demoEmployee = [
-                SELECT User__c, Manager__c FROM Employee__c
-                WHERE Is_Demo__c = true AND Last_Name__c = :DemoDataController.PARENT_LAST_NAME
-            ];
-            Assert.areEqual(hrAdmin.Id, demoEmployee.User__c, 'Demo Employee should be linked to the running user');
-            Assert.isNull(demoEmployee.Manager__c, 'Demo Employee should have no manager when the user has none');
-            for (Employee__c child : [SELECT Manager__c FROM Employee__c WHERE Is_Demo__c = true AND Last_Name__c LIKE 'Child Employee%']) {
-                Assert.areEqual(hrAdmin.Id, child.Manager__c, 'Child employees should report to the running user');
-            }
-
-            DemoDataController.DemoDataWrapper records = DemoDataController.getDemoRecords();
-            Assert.areEqual(3, records.employees.size(), 'Demo employee plus two child employees');
-            Assert.areEqual(3, records.projects.size(), 'Billable, non-billable and legacy projects');
-            Assert.areEqual(9, records.projectEmployees.size(), 'Every employee assigned to every project');
-            Assert.areEqual(12, records.timesheets.size(), 'Four weekly timesheets per employee');
-            Assert.isTrue(records.userTimesheetsWithoutManager, 'The user has no manager, so their timesheets have none');
-
-            Integer approved = 0;
-            Integer lineItems = 0;
-            for (DemoDataController.TimesheetDetail ts : records.timesheets) {
-                if (ts.status == 'Approved') {
-                    approved++;
-                }
-                lineItems += ts.lineItems.size();
-            }
-            Assert.areEqual(6, approved, 'The two oldest weeks of each employee should be approved');
-            // Per employee: 5 legacy days + (4 days x 2 projects + 1 sick day) + (3 days x 2 projects + 2 sick days) = 22
-            Assert.areEqual(66, lineItems, 'Line items for three employees');
-
-            for (DemoDataController.DemoRecordDetail project : records.projects) {
-                Assert.areEqual(project.name != DemoDataController.PROJECT_LEGACY, project.active, 'Only the legacy project is deactivated: ' + project.name);
-            }
-
-            DemoDataController.DeleteSummary summary = DemoDataController.getDeleteSummary();
-            Assert.areEqual(66, summary.lineItems, 'Line items to delete');
-            Assert.areEqual(12, summary.timesheets, 'Timesheets to delete');
-            Assert.areEqual(9, summary.projectEmployees, 'Project assignments to delete');
-            Assert.areEqual(3, summary.projects, 'Projects to delete');
-            Assert.areEqual(3, summary.employees, 'Employees to delete');
-
-            DemoDataController.deleteDemoRecords();
+            runFullFlow(false);
+            assertCreatedRecords(hrAdmin, false);
+            assertDeletesEverything(false);
         }
-
-        Assert.areEqual(0, [SELECT COUNT() FROM Employee__c WHERE Is_Demo__c = true], 'Demo employees deleted');
-        Assert.areEqual(0, [SELECT COUNT() FROM Project__c WHERE Is_Demo__c = true], 'Demo projects deleted');
-        Assert.areEqual(0, [SELECT COUNT() FROM Timesheet__c WHERE Is_Demo__c = true], 'Demo timesheets deleted');
-        Assert.areEqual(0, [SELECT COUNT() FROM Timesheet_Line_Item__c], 'Demo line items deleted');
-        Assert.areEqual(0, [SELECT COUNT() FROM Project_Employee__c], 'Demo project assignments deleted');
     }
 
     @IsTest
-    static void skippedChildEmployeesCanBeAddedLater() {
-        User hrAdmin = createUser('hradm', HR_ADMIN_PERMISSION_SET);
-
+    static void blueprintDescribesTheDemo() {
+        User hrAdmin = createUser('hradm');
         System.runAs(hrAdmin) {
-            // Child employees skipped: only the demo employee gets assignments, timesheets and line items.
-            DemoDataController.createDemoEmployee();
+            DemoDataController.DemoState state = DemoDataController.getDemoData();
+            Assert.areEqual(0, state.employees.size(), 'No demo data yet');
+            Assert.areEqual(0, state.projects.size(), 'No demo projects yet');
+
+            DemoDataController.Blueprint blueprint = state.blueprint;
+            Assert.areEqual(3, blueprint.employees.size(), 'Demo Employee and two child employees');
+            Assert.areEqual('Demo Employee', blueprint.employees[0].name, 'Demo Employee first');
+            Assert.isFalse(blueprint.employees[0].isChild, 'Demo Employee is not a child');
+            Assert.isNull(blueprint.employees[0].manager, 'Demo Employee has no manager');
+            for (Integer i = 1; i < 3; i++) {
+                Assert.isTrue(blueprint.employees[i].isChild, 'Child employee flagged');
+                Assert.areEqual(UserInfo.getName(), blueprint.employees[i].manager, 'Child employees report to the user');
+            }
+            Assert.areEqual(3, blueprint.projects.size(), 'Three projects');
+            Assert.areEqual(150, blueprint.hourlyRate, 'Hourly rate');
+            Assert.areEqual(4, blueprint.weeks.size(), 'Four weeks');
+            List<Integer> itemCounts = new List<Integer>();
+            List<Integer> rounds = new List<Integer>();
+            for (DemoDataController.WeekPlan week : blueprint.weeks) {
+                itemCounts.add(week.lineItems.size());
+                rounds.add(week.approvalRound);
+                Assert.areEqual(week.startDate.addDays(6), week.endDate, 'Monday to Sunday');
+            }
+            Assert.areEqual(new List<Integer>{ 5, 9, 8, 0 }, itemCounts, 'Line items per week');
+            Assert.areEqual(new List<Integer>{ 1, 2, 0, 0 }, rounds, 'Approval rounds per week');
+            Assert.areEqual(0, Math.mod(Date.newInstance(1900, 1, 1).daysBetween(blueprint.weeks[0].startDate), 7), 'Weeks start on Monday');
+        }
+    }
+
+    @IsTest
+    static void weekPlanFollowsTheTimesheetsIntoLaterWeeks() {
+        User hrAdmin = createUser('hradm');
+        System.runAs(hrAdmin) {
+            DemoDataController.createDemoEmployees(true);
             DemoDataController.createDemoProjects();
             DemoDataController.createDemoProjectAssignments();
             DemoDataController.createDemoTimesheets();
+        }
+        // As if the timesheets were created a week ago and the Line Items step runs in the following week.
+        List<Timesheet__c> sheets = [SELECT Id, Start_Date__c, End_Date__c FROM Timesheet__c WHERE Is_Demo__c = true];
+        for (Timesheet__c ts : sheets) {
+            ts.Start_Date__c = ts.Start_Date__c.addDays(-7);
+            ts.End_Date__c = ts.End_Date__c.addDays(-7);
+        }
+        update sheets;
 
-            DemoDataController.DemoDataWrapper records = DemoDataController.getDemoRecords();
-            Assert.areEqual(1, records.employees.size(), 'Only the demo employee');
-            Assert.isTrue(records.employees[0].canCreateChildren, 'Child employees can still be added');
-            Assert.areEqual(3, records.employees[0].assignmentCount, 'Demo employee assigned to every project');
-            Assert.areEqual(4, records.employees[0].timesheetCount, 'Four weekly timesheets');
-            Assert.areEqual(3, records.projectEmployees.size(), 'Assignments for the demo employee only');
-            Assert.areEqual(22, countLineItems(records), 'Line items for the demo employee only');
-
-            // Added later: the assignment and timesheet steps only fill the gaps.
-            DemoDataController.createChildEmployees();
-            records = DemoDataController.getDemoRecords();
-            Assert.areEqual(3, records.employees.size(), 'Demo employee plus two child employees');
-            for (DemoDataController.DemoRecordDetail emp : records.employees) {
-                Assert.isFalse(emp.canCreateChildren, 'Child employees exist now');
+        System.runAs(hrAdmin) {
+            DemoDataController.DemoState state = DemoDataController.getDemoData();
+            Date oldest = state.blueprint.weeks[0].startDate;
+            Assert.areEqual(oldest.addDays(7), DemoDataController.getDemoData().blueprint.weeks[1].startDate, 'Weeks follow each other');
+            Assert.isTrue(oldest < Date.today().addDays(-14), 'The plan starts at the moved timesheets, not two weeks before today');
+            for (DemoDataController.TimesheetDetail ts : state.timesheets) {
+                Assert.isTrue(ts.startDate >= oldest, 'Every timesheet is on a planned week');
             }
+            Assert.areEqual(12, DemoDataController.createDemoTimesheets().timesheets.size(), 'No extra timesheets for the new week');
 
             Test.startTest();
-            DemoDataController.createDemoProjectAssignments();
-            DemoDataController.createDemoTimesheets();
+            state = DemoDataController.createDemoLineItems();
             Test.stopTest();
 
-            records = DemoDataController.getDemoRecords();
-            Assert.areEqual(9, records.projectEmployees.size(), 'Every employee assigned to every project once');
-            Assert.areEqual(12, records.timesheets.size(), 'Four weekly timesheets per employee, no duplicates');
-            Assert.areEqual(66, countLineItems(records), 'Line items for three employees');
-            for (DemoDataController.DemoRecordDetail emp : records.employees) {
-                Assert.areEqual(3, emp.assignmentCount, 'Assignments of ' + emp.name);
-                Assert.areEqual(4, emp.timesheetCount, 'Timesheets of ' + emp.name);
+            Assert.areEqual(66, countLineItems(state), 'Every timesheet got its planned line items');
+            Map<String, Integer> itemsByPeriod = new Map<String, Integer>();
+            for (DemoDataController.TimesheetDetail ts : state.timesheets) {
+                Boolean approved = ts.periodName == 'Two Weeks Ago' || ts.periodName == 'Last Week';
+                Assert.areEqual(approved ? 'Approved' : 'New', ts.status, 'Status of ' + ts.periodName);
+                Integer count = itemsByPeriod.containsKey(ts.periodName) ? itemsByPeriod.get(ts.periodName) : 0;
+                itemsByPeriod.put(ts.periodName, count + ts.lineItems.size());
             }
-            for (DemoDataController.DemoRecordDetail project : records.projects) {
-                Assert.areEqual(project.name != DemoDataController.PROJECT_LEGACY, project.active, 'Project states restored after filling the gaps: ' + project.name);
-            }
+            Assert.areEqual(new Map<String, Integer>{ 'Two Weeks Ago' => 15, 'Last Week' => 27, 'Current Week' => 24, 'Next Week' => 0 },
+                itemsByPeriod, 'Line items per week keep their creation-time names');
         }
     }
 
     @IsTest
-    static void saveDemoRecordsUpdatesAllowedFields() {
-        User hrAdmin = createUser('hradm', HR_ADMIN_PERMISSION_SET);
-
+    static void rerunningStepsCreatesNothingNew() {
+        User hrAdmin = createUser('hradm');
         System.runAs(hrAdmin) {
-            DemoDataController.createDemoEmployee();
+            DemoDataController.createDemoEmployees(false);
             DemoDataController.createDemoProjects();
             DemoDataController.createDemoProjectAssignments();
+            DemoDataController.createDemoTimesheets();
             Test.startTest();
-            DemoDataController.createDemoTimesheets();
+            DemoDataController.createDemoLineItems();
+
+            Assert.areEqual(3, DemoDataController.createDemoProjects().projects.size(), 'No duplicate projects');
+            DemoDataController.DemoState state = DemoDataController.createDemoProjectAssignments();
+            Assert.areEqual(3, state.projectEmployees.size(), 'No duplicate assignments');
+            state = DemoDataController.createDemoTimesheets();
+            Assert.areEqual(4, state.timesheets.size(), 'No duplicate timesheets');
+            state = DemoDataController.createDemoLineItems();
             Test.stopTest();
-
-            // Edit an assignment on the legacy project, which the timesheet step deactivated: the Project
-            // lookup filter (active projects only) is checked on every update, even when the lookup doesn't change.
-            DemoDataController.DemoDataWrapper records = DemoDataController.getDemoRecords();
-            String employeeId = records.employees[0].recordId;
-            String assignmentId;
-            for (DemoDataController.DemoRecordDetail pe : records.projectEmployees) {
-                if (pe.projectName == DemoDataController.PROJECT_LEGACY) {
-                    assignmentId = pe.recordId;
-                }
-            }
-
-            Map<String, String> errors = DemoDataController.saveDemoRecords('employees', new List<Map<String, Object>>{
-                new Map<String, Object>{ 'recordId' => employeeId, 'email' => 'edited@example.com', 'active' => false }
-            });
-            Assert.isTrue(errors.isEmpty(), 'Employee saved: ' + errors);
-            errors = DemoDataController.saveDemoRecords('projectEmployees', new List<Map<String, Object>>{
-                new Map<String, Object>{ 'recordId' => assignmentId, 'hourlyRate' => '200' }
-            });
-            Assert.isTrue(errors.isEmpty(), 'Legacy assignment saved: ' + errors);
+            Assert.areEqual(22, countLineItems(state), 'No duplicate line items');
+            Assert.isNull(state.projects, 'Nothing changed, so projects are not returned');
         }
-
-        Employee__c emp = [SELECT Email__c, Active__c FROM Employee__c WHERE Is_Demo__c = true];
-        Assert.areEqual('edited@example.com', emp.Email__c, 'Email updated');
-        Assert.isFalse(emp.Active__c, 'Active updated');
-        Assert.areEqual(1, [SELECT COUNT() FROM Project_Employee__c WHERE Hourly_Rate__c = 200], 'Hourly rate updated');
-        Assert.isFalse([SELECT Active__c FROM Project__c WHERE Name = :DemoDataController.PROJECT_LEGACY].Active__c, 'Legacy project stays inactive');
     }
 
     @IsTest
-    static void saveDemoRecordsRejectsOtherRecordsAndFields() {
-        User hrAdmin = createUser('hradm', HR_ADMIN_PERMISSION_SET);
-        Employee__c realEmployee = newEmployee(null, true);
-        insert realEmployee;
-
+    static void demoEmployeesCanOnlyBeCreatedOnce() {
+        User hrAdmin = createUser('hradm');
         System.runAs(hrAdmin) {
-            DemoDataController.createDemoEmployee();
-            DemoDataController.createDemoProjects();
-        }
-        // A real employee assigned to a demo project: not shown in the demo tables, so not editable there.
-        Project__c demoProject = [SELECT Id FROM Project__c WHERE Name = :DemoDataController.PROJECT_BILLABLE];
-        Project_Employee__c realAssignment = new Project_Employee__c(Employee__c = realEmployee.Id, Project__c = demoProject.Id, Hourly_Rate__c = 100);
-        insert realAssignment;
-
-        System.runAs(hrAdmin) {
-            String demoEmployeeId = DemoDataController.getDemoRecords().employees[0].recordId;
-
-            Map<String, String> errors = DemoDataController.saveDemoRecords('employees', new List<Map<String, Object>>{
-                new Map<String, Object>{ 'recordId' => realEmployee.Id, 'email' => 'changed@example.com' },
-                new Map<String, Object>{ 'recordId' => demoEmployeeId, 'accrualDivisor' => '10' }
-            });
-            Assert.areEqual('This record cannot be edited here.', errors.get(realEmployee.Id), 'Non-demo records are rejected');
-            Assert.areEqual('The field accrualDivisor cannot be edited here.', errors.get(demoEmployeeId), 'Read-only columns are rejected');
-
-            errors = DemoDataController.saveDemoRecords('projectEmployees', new List<Map<String, Object>>{
-                new Map<String, Object>{ 'recordId' => realAssignment.Id, 'hourlyRate' => '999' }
-            });
-            Assert.areEqual('This record cannot be edited here.', errors.get(realAssignment.Id), 'Real employees on demo projects are rejected');
-
+            DemoDataController.createDemoEmployees(false);
+            // Children can't be added later: the Employee trigger rejects a second employee for the user.
             try {
-                DemoDataController.saveDemoRecords('lineItems', new List<Map<String, Object>>());
-                Assert.fail('Unknown tables should be rejected');
+                DemoDataController.createDemoEmployees(true);
+                Assert.fail('A second Demo Employee should be rejected');
             } catch (AuraHandledException e) {
-                Assert.areEqual('Unknown demo data table: lineItems', e.getMessage(), 'Line items are read-only');
+                Assert.isTrue(e.getMessage().contains('same user already exists'), e.getMessage());
+            }
+            Assert.areEqual(1, DemoDataController.getDemoData().employees.size(), 'Still one employee');
+        }
+    }
+
+    @IsTest
+    static void userWithEmployeeRecordCannotCreateDemoEmployee() {
+        User hrAdmin = createUser('hradm');
+        insert newEmployee(hrAdmin.Id);
+        System.runAs(hrAdmin) {
+            try {
+                DemoDataController.createDemoEmployees(true);
+                Assert.fail('The user already has an employee record');
+            } catch (AuraHandledException e) {
+                Assert.isTrue(e.getMessage().contains('same user already exists'), e.getMessage());
             }
         }
-
-        Assert.areEqual('real.employee@example.com', [SELECT Email__c FROM Employee__c WHERE Id = :realEmployee.Id].Email__c, 'Real employee not changed');
-        Assert.areNotEqual(10, [SELECT Accrual_Divisor__c FROM Employee__c WHERE Is_Demo__c = true].Accrual_Divisor__c, 'Demo employee not changed');
-        Assert.areEqual(100, [SELECT Hourly_Rate__c FROM Project_Employee__c WHERE Id = :realAssignment.Id].Hourly_Rate__c, 'Real assignment not changed');
+        Assert.areEqual(0, [SELECT COUNT() FROM Employee__c WHERE Is_Demo__c = true], 'No demo employees');
     }
 
     @IsTest
     static void stepsRequirePreviousSteps() {
-        User hrAdmin = createUser('hradm', HR_ADMIN_PERMISSION_SET);
-
+        User hrAdmin = createUser('hradm');
         System.runAs(hrAdmin) {
-            assertAuraError('Create the demo employee first.', 'children');
-            assertAuraError('Create the demo projects first.', 'timesheets');
-
-            DemoDataController.createDemoEmployee();
-            assertAuraError('A demo employee already exists.', 'employee');
-
-            DemoDataController.createChildEmployees();
-            assertAuraError('Child employees already exist.', 'children');
+            try {
+                DemoDataController.createDemoTimesheets();
+                Assert.fail('Timesheets need employees');
+            } catch (AuraHandledException e) {
+                Assert.areEqual('Create the demo employees first.', e.getMessage(), 'Timesheets without employees');
+            }
+            try {
+                DemoDataController.createDemoLineItems();
+                Assert.fail('Line items need projects');
+            } catch (AuraHandledException e) {
+                Assert.areEqual('Create the demo projects first.', e.getMessage(), 'Line items without projects');
+            }
+            // Assignments without employees or projects create nothing.
+            Assert.areEqual(0, DemoDataController.createDemoProjectAssignments().projectEmployees.size(), 'No assignments');
         }
     }
 
     @IsTest
-    static void activeEmployeeCanOnlyCleanUp() {
-        User hrAdmin = createUser('hradm', HR_ADMIN_PERMISSION_SET);
-        System.runAs(hrAdmin) {
+    static void deleteOnlyTouchesTheUsersDemoData() {
+        User hrAdmin = createUser('hradm');
+        User otherAdmin = createUser('other');
+        Employee__c realEmployee = newEmployee(null);
+        insert realEmployee;
+        System.runAs(otherAdmin) {
+            DemoDataController.createDemoEmployees(false);
             DemoDataController.createDemoProjects();
         }
-
-        insert newEmployee(hrAdmin.Id, true);
+        System.runAs(hrAdmin) {
+            DemoDataController.createDemoEmployees(false);
+            DemoDataController.createDemoProjects();
+        }
+        // A real employee on one of the user's demo projects goes with the project (master-detail).
+        Project__c demoProject = [SELECT Id FROM Project__c WHERE CreatedById = :hrAdmin.Id AND Name = :DemoDataController.PROJECT_BILLABLE];
+        insert new Project_Employee__c(Employee__c = realEmployee.Id, Project__c = demoProject.Id, Hourly_Rate__c = 100);
 
         System.runAs(hrAdmin) {
-            Map<String, Object> status = DemoDataController.getDemoStatus();
-            Assert.isTrue((Boolean) status.get('hasAccess'), 'HR admin with demo records should keep access to clean up');
-            Assert.isFalse((Boolean) status.get('canCreate'), 'HR admin with an active employee cannot create demo data');
-            assertAuraError('Demo data can only be created by HR admins without an active employee record.', 'employee');
-
             DemoDataController.deleteDemoRecords();
-
-            status = DemoDataController.getDemoStatus();
-            Assert.isFalse((Boolean) status.get('hasAccess'), 'No access once the demo records are gone');
         }
-        Assert.areEqual(0, [SELECT COUNT() FROM Project__c WHERE Is_Demo__c = true], 'Demo projects deleted');
-        Assert.areEqual(1, [SELECT COUNT() FROM Employee__c WHERE Is_Demo__c = false], 'Real employee kept');
+        Assert.areEqual(0, [SELECT COUNT() FROM Employee__c WHERE CreatedById = :hrAdmin.Id], 'User\'s demo employees deleted');
+        Assert.areEqual(0, [SELECT COUNT() FROM Project__c WHERE CreatedById = :hrAdmin.Id], 'User\'s demo projects deleted');
+        Assert.areEqual(1, [SELECT COUNT() FROM Employee__c WHERE CreatedById = :otherAdmin.Id], 'Other user\'s demo employee kept');
+        Assert.areEqual(3, [SELECT COUNT() FROM Project__c WHERE CreatedById = :otherAdmin.Id], 'Other user\'s demo projects kept');
+        Assert.areEqual(1, [SELECT COUNT() FROM Employee__c WHERE Id = :realEmployee.Id], 'Real employee kept');
+        Assert.areEqual(0, [SELECT COUNT() FROM Project_Employee__c WHERE Employee__c = :realEmployee.Id], 'Assignment went with the demo project');
     }
 
     @IsTest
-    static void linkedInactiveEmployeeBlocksDemoEmployee() {
-        User hrAdmin = createUser('hradm', HR_ADMIN_PERMISSION_SET);
-        insert newEmployee(hrAdmin.Id, false);
-
-        System.runAs(hrAdmin) {
-            Assert.isTrue((Boolean) DemoDataController.getDemoStatus().get('canCreate'), 'An inactive employee does not block demo data');
-            assertAuraError('An employee record is already linked to your user, so the demo employee cannot be linked to you.', 'employee');
-        }
+    static void isProductionOrgMatchesOrganization() {
+        Organization org = [SELECT IsSandbox, TrialExpirationDate FROM Organization LIMIT 1];
+        Assert.areEqual(!org.IsSandbox && org.TrialExpirationDate == null, DemoDataController.isProductionOrg(), 'Production check');
     }
 
-    @IsTest
-    static void nonHrAdminHasNoAccess() {
-        User employeeUser = createUser('emplo', USER_PERMISSION_SET);
+    // ---------- Flow and assertions ----------
 
-        System.runAs(employeeUser) {
-            Map<String, Object> status = DemoDataController.getDemoStatus();
-            Assert.isFalse((Boolean) status.get('hasAccess'), 'Only HR admins have access');
-            Assert.isFalse((Boolean) status.get('canCreate'), 'Only HR admins can create demo data');
+    /** Runs every step as the popup does, checking each method's query count and returned state. */
+    private static void runFullFlow(Boolean withChildren) {
+        Integer employees = withChildren ? 3 : 1;
 
-            String accessError = 'Demo data setup is available to HR admins without an active employee record.';
-            try {
-                DemoDataController.getDemoRecords();
-                Assert.fail('getDemoRecords should be rejected');
-            } catch (AuraHandledException e) {
-                Assert.areEqual(accessError, e.getMessage(), 'getDemoRecords error');
-            }
-            try {
-                DemoDataController.deleteDemoRecords();
-                Assert.fail('deleteDemoRecords should be rejected');
-            } catch (AuraHandledException e) {
-                Assert.areEqual(accessError, e.getMessage(), 'deleteDemoRecords error');
-            }
-            assertAuraError('Demo data can only be created by HR admins without an active employee record.', 'projects');
+        Integer queries = Limits.getQueries();
+        DemoDataController.DemoState state = DemoDataController.getDemoData();
+        Assert.areEqual(2, Limits.getQueries() - queries, 'getDemoData: employees and projects queries');
+
+        queries = Limits.getQueries();
+        state = DemoDataController.createDemoEmployees(withChildren);
+        Assert.isTrue(Limits.getQueries() - queries <= 4, 'createDemoEmployees: 1 query plus the Employee trigger, got ' + (Limits.getQueries() - queries));
+        Assert.areEqual(employees, state.employees.size(), 'Employees returned');
+        Assert.isNull(state.projects, 'Projects unchanged, not returned');
+
+        queries = Limits.getQueries();
+        state = DemoDataController.createDemoProjects();
+        Assert.areEqual(1, Limits.getQueries() - queries, 'createDemoProjects: 1 query, result built from memory');
+        Assert.areEqual(3, state.projects.size(), 'Projects returned');
+        Assert.isNull(state.employees, 'Employees unchanged, not returned');
+        List<String> projectNames = new List<String>();
+        for (DemoDataController.DemoRecordDetail proj : state.projects) {
+            Assert.isNotNull(proj.recordId, 'Project saved');
+            projectNames.add(proj.name);
         }
+        Assert.areEqual(new List<String>{ DemoDataController.PROJECT_BILLABLE, DemoDataController.PROJECT_LEGACY, DemoDataController.PROJECT_NON_BILLABLE }, projectNames, 'Projects in name order');
+
+        queries = Limits.getQueries();
+        state = DemoDataController.createDemoProjectAssignments();
+        Assert.areEqual(3, Limits.getQueries() - queries, 'createDemoProjectAssignments: 3 queries');
+        Assert.areEqual(employees * 3, state.projectEmployees.size(), 'Every employee on every project');
+
+        queries = Limits.getQueries();
+        state = DemoDataController.createDemoTimesheets();
+        Assert.areEqual(2, Limits.getQueries() - queries, 'createDemoTimesheets: 2 queries');
+        Assert.areEqual(employees * 4, state.timesheets.size(), 'Four timesheets per employee');
+        for (DemoDataController.TimesheetDetail ts : state.timesheets) {
+            Assert.areEqual('New', ts.status, 'Timesheets start New');
+            Assert.areEqual(0, ts.lineItems.size(), 'No line items yet');
+        }
+
+        Test.startTest();
+        queries = Limits.getQueries();
+        state = DemoDataController.createDemoLineItems();
+        Assert.isTrue(Limits.getQueries() - queries <= 25, 'createDemoLineItems: 3 queries plus the triggers, got ' + (Limits.getQueries() - queries));
+        Test.stopTest();
+        Assert.areEqual(employees * 22, countLineItems(state), '22 line items per employee');
+        Assert.areEqual(3, state.projects.size(), 'Projects returned with Legacy deactivated');
+        for (DemoDataController.DemoRecordDetail proj : state.projects) {
+            Assert.areEqual(proj.name != DemoDataController.PROJECT_LEGACY, proj.active, 'Only Legacy inactive: ' + proj.name);
+        }
+        Assert.isTrue(state.userTimesheetsWithoutManager, 'The user has no manager, so the Demo Employee\'s timesheets have none');
     }
 
-    /** Runs one create step and asserts it fails with the expected message. */
-    private static void assertAuraError(String expectedMessage, String step) {
-        try {
-            if (step == 'employee') {
-                DemoDataController.createDemoEmployee();
-            } else if (step == 'children') {
-                DemoDataController.createChildEmployees();
-            } else if (step == 'projects') {
-                DemoDataController.createDemoProjects();
-            } else if (step == 'timesheets') {
-                DemoDataController.createDemoTimesheets();
+    /** Checks every created record against the blueprint the popup previews. */
+    private static void assertCreatedRecords(User hrAdmin, Boolean withChildren) {
+        DemoDataController.Blueprint blueprint = DemoDataController.getDemoData().blueprint;
+        Integer employees = withChildren ? 3 : 1;
+
+        // Employees
+        List<Employee__c> emps = [
+            SELECT Name, First_Name__c, Last_Name__c, User__c, Manager__c, Email__c, Employment_Type__c, Active__c,
+                Accrual_Start_Date__c, Accrual_Divisor__c, Extra_Accrued_Hours__c, Is_Demo__c
+            FROM Employee__c WHERE CreatedById = :hrAdmin.Id ORDER BY CreatedDate, User__c NULLS LAST, Last_Name__c
+        ];
+        Assert.areEqual(employees, emps.size(), 'Employees created');
+        for (Integer i = 0; i < emps.size(); i++) {
+            Employee__c emp = emps[i];
+            DemoDataController.DemoRecordDetail plan = blueprint.employees[i];
+            Assert.areEqual(plan.name, emp.First_Name__c + ' ' + emp.Last_Name__c, 'Employee name as previewed');
+            Assert.areEqual(plan.email, emp.Email__c, 'Email');
+            Assert.areEqual(plan.employmentType, emp.Employment_Type__c, 'Employment type');
+            Assert.areEqual(plan.accrualStartDate, emp.Accrual_Start_Date__c, 'Accrual start');
+            Assert.areEqual(plan.accrualDivisor, emp.Accrual_Divisor__c, 'Accrual divisor');
+            Assert.areEqual(plan.extraAccruedHours, emp.Extra_Accrued_Hours__c, 'Extra accrued hours');
+            Assert.isTrue(emp.Is_Demo__c && emp.Active__c, 'Active demo employee');
+            if (i == 0) {
+                Assert.areEqual(hrAdmin.Id, emp.User__c, 'Demo Employee linked to the user');
+                Assert.isNull(emp.Manager__c, 'Demo Employee has no manager');
+            } else {
+                Assert.isNull(emp.User__c, 'Child employee not linked to a user');
+                Assert.areEqual(hrAdmin.Id, emp.Manager__c, 'Child employee reports to the user');
             }
-            Assert.fail('Expected "' + expectedMessage + '" from step ' + step);
-        } catch (AuraHandledException e) {
-            Assert.areEqual(expectedMessage, e.getMessage(), 'Error from step ' + step);
         }
+
+        // Projects
+        Map<String, Project__c> projects = new Map<String, Project__c>();
+        for (Project__c proj : [SELECT Name, Billable__c, Active__c, Is_Demo__c FROM Project__c WHERE CreatedById = :hrAdmin.Id]) {
+            projects.put(proj.Name, proj);
+        }
+        Assert.areEqual(3, projects.size(), 'Projects created');
+        for (DemoDataController.DemoRecordDetail plan : blueprint.projects) {
+            Project__c proj = projects.get(plan.name);
+            Assert.isNotNull(proj, 'Project created: ' + plan.name);
+            Assert.areEqual(plan.billable, proj.Billable__c, 'Billable: ' + plan.name);
+            Assert.isTrue(proj.Is_Demo__c, 'Demo project');
+            Assert.areEqual(plan.name != DemoDataController.PROJECT_LEGACY, proj.Active__c, 'Only Legacy deactivated: ' + plan.name);
+        }
+
+        // Assignments
+        Assert.areEqual(employees * 3, [SELECT COUNT() FROM Project_Employee__c WHERE Employee__c IN :emps AND Hourly_Rate__c = 150], 'Every employee on every project at 150');
+
+        // Timesheets and line items, week by week
+        Map<Date, DemoDataController.WeekPlan> weeks = new Map<Date, DemoDataController.WeekPlan>();
+        for (DemoDataController.WeekPlan week : blueprint.weeks) {
+            weeks.put(week.startDate, week);
+        }
+        List<Timesheet__c> timesheets = [
+            SELECT Employee__c, Manager__c, Start_Date__c, End_Date__c, Status__c, Is_Demo__c, Total_Hours__c,
+                (SELECT Date__c, Duration__c, Project__r.Name, Activity__c, Type__c, Absence_Category__c, Employee__c FROM Timesheets__r ORDER BY Date__c, Duration__c DESC, Project__r.Name)
+            FROM Timesheet__c WHERE Employee__c IN :emps
+        ];
+        Assert.areEqual(employees * 4, timesheets.size(), 'Four timesheets per employee');
+        Map<Id, Employee__c> empById = new Map<Id, Employee__c>(emps);
+        for (Timesheet__c ts : timesheets) {
+            DemoDataController.WeekPlan week = weeks.get(ts.Start_Date__c);
+            Assert.isNotNull(week, 'Timesheet on a blueprint week');
+            Assert.areEqual(week.endDate, ts.End_Date__c, 'End date');
+            Assert.areEqual(empById.get(ts.Employee__c).Manager__c, ts.Manager__c, 'Timesheet manager = employee manager');
+            Assert.isTrue(ts.Is_Demo__c, 'Demo timesheet');
+            Assert.areEqual(week.approvalRound > 0 ? 'Approved' : 'New', ts.Status__c, 'Status of ' + week.periodName);
+            Assert.areEqual(week.lineItems.size(), ts.Timesheets__r.size(), 'Line items in ' + week.periodName);
+            Decimal expectedHours = 0;
+            for (DemoDataController.LineItemPlan plan : week.lineItems) {
+                expectedHours += plan.duration;
+            }
+            Decimal actualHours = 0;
+            Map<String, Integer> expected = new Map<String, Integer>();
+            for (DemoDataController.LineItemPlan plan : week.lineItems) {
+                String key = plan.lineDate + '|' + plan.duration.setScale(2) + '|' + plan.projectName + '|' + plan.activity + '|' + plan.type + '|' + plan.absenceCategory;
+                expected.put(key, (expected.containsKey(key) ? expected.get(key) : 0) + 1);
+            }
+            for (Timesheet_Line_Item__c tli : ts.Timesheets__r) {
+                actualHours += tli.Duration__c;
+                Assert.areEqual(ts.Employee__c, tli.Employee__c, 'Line item employee');
+                String key = tli.Date__c + '|' + tli.Duration__c.setScale(2) + '|' + tli.Project__r?.Name + '|' + tli.Activity__c + '|' + tli.Type__c + '|' + tli.Absence_Category__c;
+                Assert.isTrue(expected.containsKey(key) && expected.get(key) > 0, 'Line item as previewed: ' + key);
+                expected.put(key, expected.get(key) - 1);
+            }
+            Assert.areEqual(expectedHours, actualHours, 'Hours in ' + week.periodName);
+        }
+
+        // What the popup loads matches the records
+        DemoDataController.DemoState state = DemoDataController.getDemoData();
+        Assert.areEqual(employees, state.employees.size(), 'Employees loaded');
+        Assert.areEqual(3, state.projects.size(), 'Projects loaded');
+        Assert.areEqual(employees * 3, state.projectEmployees.size(), 'Assignments loaded');
+        Assert.areEqual(employees * 4, state.timesheets.size(), 'Timesheets loaded');
+        Assert.areEqual(employees * 22, countLineItems(state), 'Line items loaded');
+        Integer children = 0;
+        for (DemoDataController.DemoRecordDetail emp : state.employees) {
+            Assert.areEqual(3, emp.assignmentCount, 'Assignments of ' + emp.name);
+            Assert.areEqual(4, emp.timesheetCount, 'Timesheets of ' + emp.name);
+            children += emp.isChild ? 1 : 0;
+        }
+        Assert.areEqual(withChildren ? 2 : 0, children, 'Child employees flagged');
     }
 
-    private static Integer countLineItems(DemoDataController.DemoDataWrapper records) {
+    private static void assertDeletesEverything(Boolean withChildren) {
+        Id userId = UserInfo.getUserId();
+        Integer queries = Limits.getQueries();
+        DemoDataController.deleteDemoRecords();
+        Assert.isTrue(Limits.getQueries() - queries <= 8, 'deleteDemoRecords: 2 queries plus the Timesheet trigger, got ' + (Limits.getQueries() - queries));
+
+        Assert.areEqual(0, [SELECT COUNT() FROM Employee__c WHERE CreatedById = :userId], 'Employees deleted');
+        Assert.areEqual(0, [SELECT COUNT() FROM Project__c WHERE CreatedById = :userId], 'Projects deleted');
+        Assert.areEqual(0, [SELECT COUNT() FROM Timesheet__c WHERE CreatedById = :userId], 'Timesheets deleted');
+        Assert.areEqual(0, [SELECT COUNT() FROM Timesheet_Line_Item__c WHERE CreatedById = :userId], 'Line items deleted with their timesheets');
+        Assert.areEqual(0, [SELECT COUNT() FROM Project_Employee__c WHERE CreatedById = :userId], 'Assignments deleted with their projects');
+
+        DemoDataController.DemoState state = DemoDataController.getDemoData();
+        Assert.areEqual(0, state.employees.size() + state.projects.size(), 'Nothing left to load');
+    }
+
+    private static Integer countLineItems(DemoDataController.DemoState state) {
         Integer count = 0;
-        for (DemoDataController.TimesheetDetail ts : records.timesheets) {
+        for (DemoDataController.TimesheetDetail ts : state.timesheets) {
             count += ts.lineItems.size();
         }
         return count;
     }
 
-    private static Employee__c newEmployee(Id userId, Boolean active) {
+    private static Employee__c newEmployee(Id userId) {
         return new Employee__c(
             First_Name__c = 'Real',
             Last_Name__c = 'Employee',
             User__c = userId,
             Email__c = 'real.employee@example.com',
             Employment_Type__c = 'Full Time',
-            Active__c = active
+            Active__c = true
         );
     }
 
-    private static User createUser(String alias, String permissionSetName) {
+    private static User createUser(String alias) {
         String unique = alias + Datetime.now().getTime() + Crypto.getRandomInteger();
         User u = new User(
             FirstName = 'Test',
@@ -345,7 +429,7 @@ private class DemoDataControllerTest {
             insert u;
             insert new PermissionSetAssignment(
                 AssigneeId = u.Id,
-                PermissionSetId = [SELECT Id FROM PermissionSet WHERE Name = :permissionSetName LIMIT 1].Id
+                PermissionSetId = [SELECT Id FROM PermissionSet WHERE Name = :HR_ADMIN_PERMISSION_SET LIMIT 1].Id
             );
         }
         return u;

@@ -1,11 +1,14 @@
 <template>
     <!-- Renders nothing unless the user may use demo data setup. -->
-    <template lwc:if={hasAccess}>
+    <template lwc:if={showCard}>
         <lightning-card title="Demo Data" icon-name="custom:custom63" class="demo-card">
             <lightning-button slot="actions" label={buttonLabel} variant="brand" icon-name="utility:setup" onclick={handleOpen}></lightning-button>
             <div class="slds-p-horizontal_medium">
                 <p class="slds-text-heading_small slds-m-bottom_xx-small">{title}</p>
                 <p class="slds-text-color_weak">{description}</p>
+                <template lwc:if={dataChanged}>
+                    <p class="slds-text-color_weak slds-m-top_x-small">Refresh the page to see the demo data changes in the profile and charts.</p>
+                </template>
             </div>
         </lightning-card>
     </template>

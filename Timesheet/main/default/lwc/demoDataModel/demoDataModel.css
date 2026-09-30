@@ -1,0 +1,89 @@
+.model-scroll {
+    overflow-x: auto;
+}
+
+.model-diagram {
+    display: block;
+    width: 100%;
+    max-width: 1120px;
+    min-width: 760px;
+    /* Centred when the popup is wider than the diagram's maximum size (wide screens, zoomed out). */
+    margin: 0 auto;
+    font-family: inherit;
+}
+
+/* Cards */
+.card-body {
+    fill: var(--slds-g-color-neutral-base-100, #ffffff);
+    stroke: var(--slds-g-color-neutral-base-70, #aeaeae);
+    stroke-width: 1.5;
+}
+
+.card-divider {
+    stroke: var(--slds-g-color-neutral-base-80, #c9c9c9);
+}
+
+.card-title {
+    font-size: 14px;
+    font-weight: 700;
+    fill: var(--slds-g-color-neutral-base-10, #181818);
+}
+
+.card-purpose,
+.field-hint {
+    font-size: 11px;
+    fill: var(--slds-g-color-neutral-base-50, #747474);
+}
+
+.field {
+    font-size: 12px;
+    fill: var(--slds-g-color-neutral-base-30, #444444);
+}
+
+/* Relationships: solid = Master-Detail, dashed = Lookup; the arrow shows the direction */
+.edge {
+    fill: none;
+    stroke: var(--slds-g-color-neutral-base-50, #747474);
+    stroke-width: 1.5;
+}
+
+.edge_master {
+    stroke-width: 2.5;
+}
+
+.edge_lookup {
+    stroke-dasharray: 6 4;
+}
+
+.edge-arrow {
+    fill: var(--slds-g-color-neutral-base-50, #747474);
+}
+
+/* Legend */
+.legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.25rem 1.5rem;
+    margin-top: 0.25rem;
+}
+
+.legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.legend-line {
+    display: inline-block;
+    width: 2rem;
+    border-top: 2px solid var(--slds-g-color-neutral-base-50, #747474);
+}
+
+.legend-line_master {
+    border-top-width: 3px;
+}
+
+.legend-line_lookup {
+    border-top-style: dashed;
+}
