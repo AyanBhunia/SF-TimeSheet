@@ -1,0 +1,12 @@
+<template>
+    <!-- Renders nothing unless the user may use demo data setup. -->
+    <template lwc:if={hasAccess}>
+        <lightning-card title="Demo Data" icon-name="custom:custom63" class="demo-card">
+            <lightning-button slot="actions" label={buttonLabel} variant="brand" icon-name="utility:setup" onclick={handleOpen}></lightning-button>
+            <div class="slds-p-horizontal_medium">
+                <p class="slds-text-heading_small slds-m-bottom_xx-small">{title}</p>
+                <p class="slds-text-color_weak">{description}</p>
+            </div>
+        </lightning-card>
+    </template>
+</template>
