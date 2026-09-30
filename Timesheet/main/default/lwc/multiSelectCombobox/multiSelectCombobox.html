@@ -1,0 +1,56 @@
+<template>
+    <div class="slds-form-element">
+        <label if:true={label} class="slds-form-element__label">{label}</label>
+        <div class="slds-form-element__control">
+            <div class={dropdownClass} aria-expanded={isOpen} aria-haspopup="listbox" role="combobox">
+                <div class="slds-combobox__form-element slds-input-has-icon slds-input-has-icon_right" role="none">
+                    
+                    <!-- Pill display mode -->
+                    <template if:true={showPills}>
+                        <div class={inputContainerClass} onclick={toggleDropdown} style="min-height: 32px; height: auto; display: flex; flex-wrap: wrap; padding: 2px; border: 1px solid #dddbda; border-radius: .25rem; background-color: #fff; cursor: text;">
+                            <template if:false={hasSelection}>
+                                <span class="slds-p-left_small slds-p-top_xxx-small slds-text-color_weak" style="line-height: 1.8;">{placeholder}</span>
+                            </template>
+                            <template for:each={selectedOptions} for:item="opt">
+                                <lightning-pill key={opt.value} label={opt.label} name={opt.value} onremove={handleRemovePill} class="slds-m-around_xxx-small"></lightning-pill>
+                            </template>
+                        </div>
+                    </template>
+                    
+                    <!-- Text display mode -->
+                    <template if:false={showPills}>
+                        <input type="text" class="slds-input slds-combobox__input" readonly value={displayText} placeholder={placeholder} onclick={toggleDropdown} disabled={disabled} style="cursor: pointer;" />
+                    </template>
+
+                    <lightning-icon icon-name="utility:down" size="x-small" class="slds-icon-utility-down slds-input__icon slds-input__icon_right" style="margin-top: -10px;"></lightning-icon>
+                </div>
+                
+                <div class="slds-dropdown slds-dropdown_length-5 slds-dropdown_fluid" role="listbox" style="z-index: 9999; position: absolute;">
+                    <ul class="slds-listbox slds-listbox_vertical" role="presentation">
+                        <template for:each={optionsToDisplay} for:item="option">
+                            <li role="presentation" class="slds-listbox__item" key={option.value} data-value={option.value} onclick={handleSelect}>
+                                <div class="slds-media slds-listbox__option slds-listbox__option_plain slds-media_small slds-media_center" role="option">
+                                    <span class="slds-media__figure slds-listbox__option-icon">
+                                        <lightning-icon if:true={option.selected} icon-name="utility:check" size="x-small"></lightning-icon>
+                                    </span>
+                                    <span class="slds-media__body">
+                                        <span class="slds-truncate" title={option.label}>{option.label}</span>
+                                    </span>
+                                </div>
+                            </li>
+                        </template>
+                        <template if:false={optionsToDisplay.length}>
+                            <li role="presentation" class="slds-listbox__item">
+                                <div class="slds-media slds-listbox__option slds-listbox__option_plain slds-media_small" role="option">
+                                    <span class="slds-media__body">
+                                        <span class="slds-truncate slds-text-color_weak">No options available</span>
+                                    </span>
+                                </div>
+                            </li>
+                        </template>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
