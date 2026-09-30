@@ -85,12 +85,20 @@
                 </template>
 
                 <template lwc:if={showAllDone}>
-                    <div class="slds-scoped-notification slds-media slds-media_center slds-theme_success slds-m-bottom_large" role="status">
+                    <div class="slds-scoped-notification slds-media slds-media_center slds-theme_success slds-m-bottom_small" role="status">
                         <div class="slds-media__figure">
                             <lightning-icon icon-name="utility:success" alternative-text="Done" size="small" variant="inverse"></lightning-icon>
                         </div>
                         <div class="slds-media__body">
                             <p>Your demo data is ready. Close this window to explore the Employee Overview, timesheets and approvals.</p>
+                        </div>
+                    </div>
+                    <div class="slds-scoped-notification slds-media slds-media_center slds-theme_info slds-m-bottom_large" role="note">
+                        <div class="slds-media__figure">
+                            <lightning-icon icon-name="utility:info" alternative-text="Info" size="small"></lightning-icon>
+                        </div>
+                        <div class="slds-media__body">
+                            <p>For demo purposes, the child employees are not linked to any user, and your Demo Employee's timesheets have no manager. In real use these fields are required: link every employee to a user and make sure every employee has a manager.</p>
                         </div>
                     </div>
                 </template>
