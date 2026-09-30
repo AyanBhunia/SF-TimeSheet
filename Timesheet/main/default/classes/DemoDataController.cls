@@ -6,7 +6,6 @@
  */
 public with sharing class DemoDataController {
 
-    @TestVisible private static final String DEMO_PERMISSION = 'Timesheet_Demo_Data_Access';
     @TestVisible private static final String DEMO_FIRST_NAME = 'Demo';
     @TestVisible private static final String PARENT_LAST_NAME = 'Employee';
     @TestVisible private static final String CHILD_LAST_NAME_PREFIX = 'Child Employee ';
@@ -527,12 +526,12 @@ public with sharing class DemoDataController {
     }
 
     /**
-     * HR admins (Timesheet_Demo_Data_Access) without an active employee record can create demo data.
+     * HR admins (Timesheet_HR_Admin permission set) without an active employee record can create demo data.
      * HR admins who still own demo records can always review and delete them.
      */
     private static AccessState getAccessState() {
         AccessState state = new AccessState();
-        if (!FeatureManagement.checkPermission(DEMO_PERMISSION)) {
+        if (!GetDashboardProfileDetails.hasHrAdminPermission()) {
             return state;
         }
         Id currentUserId = UserInfo.getUserId();

@@ -121,13 +121,6 @@
             <componentInstance>
                 <componentName>demoDataPrompt</componentName>
                 <identifier>c_demoDataPrompt</identifier>
-                <visibilityRule>
-                    <criteria>
-                        <leftValue>{!$Permission.CustomPermission.Timesheet_Demo_Data_Access}</leftValue>
-                        <operator>EQUAL</operator>
-                        <rightValue>true</rightValue>
-                    </criteria>
-                </visibilityRule>
             </componentInstance>
         </itemInstances>
         <itemInstances>

@@ -1,11 +1,12 @@
 import { LightningElement } from 'lwc';
+import hasHrAdminPermission from '@salesforce/apex/GetDashboardProfileDetails.hasHrAdminPermission';
 import getDemoStatus from '@salesforce/apex/DemoDataController.getDemoStatus';
 import DemoDataSetupModal from 'c/demoDataSetupModal';
 
 /**
  * Employee Overview card that opens the demo data setup popup.
- * The page places it only for users with the Timesheet_Demo_Data_Access custom permission;
- * the card itself renders only when DemoDataController grants access (no active employee, or demo records to clean up).
+ * Only HR admins (Timesheet_HR_Admin) can call DemoDataController, so other users stop after the HR admin check.
+ * The card renders only when DemoDataController grants access (no active employee, or demo records to clean up).
  */
 export default class DemoDataPrompt extends LightningElement {
     hasAccess = false;
@@ -17,6 +18,10 @@ export default class DemoDataPrompt extends LightningElement {
 
     async loadStatus() {
         try {
+            if (!(await hasHrAdminPermission())) {
+                this.hasAccess = false;
+                return;
+            }
             const status = await getDemoStatus();
             this.hasAccess = status.hasAccess === true;
             this.canCreate = status.canCreate === true;

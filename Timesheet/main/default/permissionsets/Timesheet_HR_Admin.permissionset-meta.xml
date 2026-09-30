@@ -128,10 +128,6 @@
         <enabled>true</enabled>
         <name>Timesheet_Default_Value__mdt</name>
     </customMetadataTypeAccesses>
-    <customPermissions>
-        <enabled>true</enabled>
-        <name>Timesheet_Demo_Data_Access</name>
-    </customPermissions>
     <fieldPermissions>
         <editable>true</editable>
         <field>Employee__c.Is_Demo__c</field>
