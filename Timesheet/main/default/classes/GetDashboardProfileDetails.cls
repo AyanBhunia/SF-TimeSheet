@@ -54,7 +54,7 @@ public with sharing class GetDashboardProfileDetails {
      */
     private static Employee__c getEmployeeRecord(Id userID) {
         return [
-            SELECT Id, Name, Client_Manager__r.Name, Client_Manager_email__c,Email__c,Hire_Date__c,Last_Working_Date__c,No_of_Vacations_Taken__c,Phone_Number__c,Total_Accrued_Hours__c,Total_Absence_Hours__c,Total_Absence_Hours_Available__c,
+            SELECT Id, Name, Active__c, Is_Demo__c, Client_Manager__r.Name, Client_Manager_email__c,Email__c,Hire_Date__c,Last_Working_Date__c,No_of_Vacations_Taken__c,Phone_Number__c,Total_Accrued_Hours__c,Total_Absence_Hours__c,Total_Absence_Hours_Available__c,
                 (SELECT Project_Name__c FROM Project_Employees__r)
             FROM Employee__c
             WHERE User__c = :userID
@@ -92,6 +92,9 @@ public with sharing class GetDashboardProfileDetails {
     private static void populateEmployeeDetails(Map<String, Object> resultData, Employee__c emp) {
         // Basic Information
         resultData.put('Name', emp.Name);
+        // Used by demoDataPrompt, not shown as profile columns: whether the user's employee is active and a demo record.
+        resultData.put('Active', emp.Active__c);
+        resultData.put('IsDemo', emp.Is_Demo__c);
         resultData.put('ClientManager', emp.Client_Manager__r?.Name);
         resultData.put('ClientManagerEmail', emp.Client_Manager_email__c);
 

@@ -4,13 +4,13 @@
 -->
 <template>
     <lightning-modal-body>
-        <div class="slds-is-relative">
+        <div class="modal-content">
             <template lwc:if={isLoading}>
                 <lightning-spinner alternative-text="Loading" size="medium" variant="brand"></lightning-spinner>
             </template>
 
             <lightning-tabset variant="scoped">
-                <lightning-tab label="Demo Data" value="demoData">
+                <lightning-tab label="Demo Data" value="demoData" onactive={handleTabActive}>
 
                     <!-- Result of the last action -->
                     <template lwc:if={message}>
@@ -39,49 +39,63 @@
                         </div>
                     </template>
 
-                    <!-- No access -->
-                    <template lwc:if={showNoAccessMessage}>
-                        <div class="slds-text-align_center slds-p-around_large">
-                            <h3 class="slds-text-heading_medium slds-m-bottom_small">Demo data setup isn't available</h3>
-                            <p class="slds-text-color_weak">Demo data setup is available to HR admins without an active employee record.</p>
-                        </div>
-                    </template>
-
-                    <!-- Cleanup only: user now has an active employee record -->
-                    <template lwc:if={showCleanupOnlyNote}>
-                        <div class="slds-scoped-notification slds-media slds-media_center slds-theme_info slds-m-bottom_medium" role="status">
-                            <div class="slds-media__figure">
-                                <lightning-icon icon-name="utility:info" alternative-text="Info" size="small"></lightning-icon>
-                            </div>
-                            <div class="slds-media__body">
-                                <p>You now have an active employee record, so new demo data can't be created. You can still review and delete your demo data.</p>
-                            </div>
-                        </div>
-                    </template>
-
                     <!-- Guided setup -->
                     <template lwc:if={showProgress}>
                         <div class="slds-m-bottom_medium">
                             <lightning-progress-indicator current-step={currentStep} type="path" variant="base">
                                 <template for:each={steps} for:item="step">
-                                    <lightning-progress-step key={step.value} label={step.label} value={step.value}></lightning-progress-step>
+                                    <lightning-progress-step key={step.value} label={step.label} value={step.value}
+                                        data-step={step.value} onclick={handleStepClick}></lightning-progress-step>
                                 </template>
                             </lightning-progress-indicator>
                         </div>
                     </template>
 
                     <template lwc:if={showNextStep}>
-                        <div class="slds-box slds-theme_shade slds-m-bottom_large">
+                        <div class="slds-box slds-theme_shade slds-m-bottom_medium">
                             <lightning-layout vertical-align="center" multiple-rows>
                                 <lightning-layout-item flexibility="auto" padding="around-small">
-                                    <p class="slds-text-title_caps slds-m-bottom_xx-small">Step {stepNumber} of {stepCount}</p>
-                                    <h3 class="slds-text-heading_small slds-m-bottom_xx-small">{nextStep.title}</h3>
-                                    <p class="slds-text-color_weak">{nextStep.description}</p>
-                                </lightning-layout-item>
-                                <lightning-layout-item padding="around-small">
-                                    <lightning-button label={nextStep.buttonLabel} variant="brand" icon-name="utility:add" onclick={handleNextStep} disabled={isLoading}></lightning-button>
+                                    <h3 class="slds-text-heading_small slds-m-bottom_xx-small">
+                                        {activeStep.title}
+                                        <template lwc:if={showStepDoneBadge}>
+                                            <lightning-badge label="Done" icon-name="utility:check" class="slds-theme_success slds-m-left_x-small"></lightning-badge>
+                                        </template>
+                                    </h3>
+                                    <p class="slds-text-color_weak">{activeStep.description}</p>
                                 </lightning-layout-item>
                             </lightning-layout>
+
+                            <!-- First step: static data model -->
+                            <template lwc:if={isModelStep}>
+                                <div class="slds-box slds-theme_default slds-m-around_small">
+                                    <c-demo-data-model></c-demo-data-model>
+                                </div>
+                            </template>
+
+                            <!-- Employee step: child employees are decided once, before the employees are created -->
+                            <template lwc:if={showIncludeChildren}>
+                                <div class="slds-p-horizontal_small slds-p-bottom_small">
+                                    <lightning-input type="checkbox" label="Create child employees" checked={includeChildren}
+                                        onchange={handleIncludeChildrenChange} disabled={isLoading}></lightning-input>
+                                    <p class="slds-text-body_small slds-text-color_weak slds-m-top_xx-small">Two employees who report to you, so you can approve their timesheets. This choice is final: to change it later, delete the demo data and start again.</p>
+                                </div>
+                            </template>
+
+                            <!-- Read-only preview of the records the step will create -->
+                            <template lwc:if={showPreview}>
+                                <div class="slds-p-horizontal_small slds-p-bottom_small">
+                                    <h4 class="slds-text-title_bold slds-m-bottom_x-small">{previewHeading}</h4>
+                                    <template lwc:if={hasPreviewRows}>
+                                        <div class={previewTableClass}>
+                                            <lightning-datatable key-field="key" data={previewRows} columns={previewColumns}
+                                                hide-checkbox-column></lightning-datatable>
+                                        </div>
+                                    </template>
+                                    <template lwc:else>
+                                        <p class="slds-text-color_weak">Nothing to create: these records already exist.</p>
+                                    </template>
+                                </div>
+                            </template>
                         </div>
                     </template>
 
@@ -104,34 +118,61 @@
                         </div>
                     </template>
 
-                    <!-- Created records -->
+                    <!-- Created records: the active step's table, or every table on the Ready step -->
                     <template lwc:if={showRecords}>
-                        <lightning-accordion allow-multiple-sections-open active-section-name={activeSections}>
-                            <lightning-accordion-section name="employees" label={employeesLabel}>
-                                <template lwc:if={hasEmployees}>
-                                    <lightning-datatable key-field="recordId" data={employees} columns={employeeColumns}
-                                        hide-checkbox-column></lightning-datatable>
-                                </template>
-                            </lightning-accordion-section>
-                            <lightning-accordion-section name="projects" label={projectsLabel}>
-                                <template lwc:if={hasProjects}>
-                                    <lightning-datatable key-field="recordId" data={projects} columns={projectColumns}
-                                        hide-checkbox-column></lightning-datatable>
-                                </template>
-                            </lightning-accordion-section>
-                            <lightning-accordion-section name="projectEmployees" label={projectAssignmentsLabel}>
-                                <template lwc:if={hasProjectAssignments}>
-                                    <lightning-datatable key-field="recordId" data={projectEmployees} columns={projectAssignmentColumns}
-                                        hide-checkbox-column></lightning-datatable>
-                                </template>
-                            </lightning-accordion-section>
-                            <lightning-accordion-section name="timesheets" label={timesheetsLabel}>
-                                <template lwc:if={hasTimesheets}>
-                                    <lightning-tree-grid key-field="id" data={timesheets} columns={timesheetColumns}
-                                        hide-checkbox-column></lightning-tree-grid>
-                                </template>
-                            </lightning-accordion-section>
-                        </lightning-accordion>
+                        <template lwc:if={recordsView.employees}>
+                            <div class="slds-m-bottom_medium">
+                                <h3 class="slds-text-heading_small slds-m-bottom_x-small">{employeesLabel}</h3>
+                                <lightning-datatable key-field="recordId" data={employees} columns={employeeColumns}
+                                    hide-checkbox-column></lightning-datatable>
+                            </div>
+                        </template>
+                        <template lwc:if={recordsView.projects}>
+                            <div class="slds-m-bottom_medium">
+                                <h3 class="slds-text-heading_small slds-m-bottom_x-small">{projectsLabel}</h3>
+                                <lightning-datatable key-field="recordId" data={projects} columns={projectColumns}
+                                    hide-checkbox-column></lightning-datatable>
+                            </div>
+                        </template>
+                        <template lwc:if={recordsView.projectEmployees}>
+                            <div class="slds-m-bottom_medium">
+                                <h3 class="slds-text-heading_small slds-m-bottom_x-small">{projectAssignmentsLabel}</h3>
+                                <lightning-datatable key-field="recordId" data={projectEmployees} columns={projectAssignmentColumns}
+                                    hide-checkbox-column></lightning-datatable>
+                            </div>
+                        </template>
+                        <!-- Timesheet step: the timesheets only; they have no line items yet -->
+                        <template lwc:if={recordsView.timesheets}>
+                            <div class="slds-m-bottom_medium">
+                                <h3 class="slds-text-heading_small slds-m-bottom_x-small">{timesheetsOnlyLabel}</h3>
+                                <lightning-datatable key-field="recordId" data={timesheets} columns={timesheetColumns}
+                                    hide-checkbox-column></lightning-datatable>
+                            </div>
+                        </template>
+                        <!-- Line item step and Ready: selecting a timesheet shows its line items on the right -->
+                        <template lwc:if={recordsView.lineItems}>
+                            <div class="slds-m-bottom_medium">
+                                <h3 class="slds-text-heading_small slds-m-bottom_x-small">{timesheetsLabel}</h3>
+                                <lightning-layout multiple-rows>
+                                    <lightning-layout-item size="12" large-device-size="7" padding="around-small">
+                                        <h4 class="slds-text-title_bold slds-m-bottom_x-small">Timesheets</h4>
+                                        <lightning-datatable key-field="recordId" data={timesheets} columns={timesheetColumns}
+                                            max-row-selection="1" selected-rows={selectedTimesheetRows}
+                                            onrowselection={handleTimesheetSelect}></lightning-datatable>
+                                    </lightning-layout-item>
+                                    <lightning-layout-item size="12" large-device-size="5" padding="around-small">
+                                        <h4 class="slds-text-title_bold slds-m-bottom_x-small">{lineItemsHeading}</h4>
+                                        <template lwc:if={hasSelectedLineItems}>
+                                            <lightning-datatable key-field="recordId" data={selectedLineItems} columns={lineItemColumns}
+                                                hide-checkbox-column></lightning-datatable>
+                                        </template>
+                                        <template lwc:else>
+                                            <p class="slds-text-color_weak slds-p-around_small">This timesheet has no line items.</p>
+                                        </template>
+                                    </lightning-layout-item>
+                                </lightning-layout>
+                            </div>
+                        </template>
                     </template>
 
                     <!-- Delete -->
@@ -179,7 +220,7 @@
                 </lightning-tab>
 
                 <!-- Manual approval process guide -->
-                <lightning-tab label="Approval Process Guide" value="approvalGuide">
+                <lightning-tab label="Approval Process Guide" value="approvalGuide" onactive={handleTabActive}>
                     <p class="slds-text-color_weak slds-m-bottom_small">Follow these steps to manually configure the Timesheet approval process in your org.</p>
                     <div class="slds-m-bottom_medium">
                         <lightning-progress-indicator current-step={guideStep} type="path" variant="base">
@@ -190,7 +231,6 @@
                         </lightning-progress-indicator>
                     </div>
                     <div class="slds-box slds-theme_shade slds-m-bottom_medium guide-step">
-                        <p class="slds-text-title_caps slds-m-bottom_xx-small">Step {guideStepNumber} of {guideStepCount}</p>
                         <template lwc:if={guideStepVisible.emailTemplates}>
                             <h3 class="slds-text-heading_small slds-m-bottom_small">Create Email Templates</h3>
                             <ol class="slds-list_decimal slds-p-left_medium">
@@ -310,15 +350,35 @@
                             <p class="slds-p-left_medium">Finally, click the <strong>Activate</strong><lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small slds-m-right_xx-small" onclick={handleCopy} data-text="Activate" title="Copy to Clipboard" alternative-text="Copy to Clipboard"></lightning-button-icon> button on the Approval Process detail page to make it active.</p>
                         </template>
                     </div>
-                    <div class="slds-grid slds-grid_align-spread">
-                        <lightning-button label="Previous" icon-name="utility:chevronleft" onclick={handleGuidePrevious} disabled={isFirstGuideStep}></lightning-button>
-                        <lightning-button label="Next" variant="brand" icon-name="utility:chevronright" icon-position="right" onclick={handleGuideNext} disabled={isLastGuideStep}></lightning-button>
-                    </div>
                 </lightning-tab>
             </lightning-tabset>
         </div>
     </lightning-modal-body>
     <lightning-modal-footer>
-        <lightning-button label="Close" onclick={handleClose}></lightning-button>
+        <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+            <!-- Step navigation of the active tab. Demo Data: Next unlocks once the step's records are created -->
+            <div>
+                <template lwc:if={showStepNavigation}>
+                    <lightning-button label="Previous" icon-name="utility:chevronleft" onclick={handlePreviousStep} disabled={isPreviousDisabled}></lightning-button>
+                </template>
+                <template lwc:if={showGuideNavigation}>
+                    <lightning-button label="Previous" icon-name="utility:chevronleft" onclick={handleGuidePrevious} disabled={isFirstGuideStep}></lightning-button>
+                </template>
+            </div>
+            <div>
+                <template lwc:if={showFooterCreateButton}>
+                    <lightning-button label={activeStep.buttonLabel} variant="brand" icon-name="utility:add"
+                        onclick={handleCreateStep} disabled={isLoading} class="slds-m-right_x-small"></lightning-button>
+                </template>
+                <template lwc:if={showStepNavigation}>
+                    <lightning-button label="Next" variant="brand" icon-name="utility:chevronright" icon-position="right"
+                        onclick={handleNextStep} disabled={isNextDisabled}></lightning-button>
+                </template>
+                <template lwc:if={showGuideNavigation}>
+                    <lightning-button label="Next" variant="brand" icon-name="utility:chevronright" icon-position="right"
+                        onclick={handleGuideNext} disabled={isLastGuideStep}></lightning-button>
+                </template>
+            </div>
+        </div>
     </lightning-modal-footer>
 </template>

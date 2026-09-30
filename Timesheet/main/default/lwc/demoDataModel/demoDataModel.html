@@ -1,0 +1,42 @@
+<!--
+  @file demoDataModel.html
+  @description Static data model diagram for the first step of the demo data popup
+-->
+<template>
+    <div class="model">
+        <div class="model-scroll">
+            <svg class="model-diagram" viewBox="0 0 1120 430" role="img" aria-label={diagramLabel}>
+                <!-- Relationship lines first, so the cards cover the line ends -->
+                <template for:each={edges} for:item="edge">
+                    <path key={edge.key} class={edge.className} d={edge.d}></path>
+                </template>
+
+                <template for:each={cards} for:item="card">
+                    <g key={card.key} class="card" transform={card.transform}>
+                        <rect class="card-body" width={card.width} height={card.height} rx="6" ry="6"></rect>
+                        <text class="card-title" x="12" y="21">{card.label}</text>
+                        <text class="card-purpose" x="12" y="37">{card.purpose}</text>
+                        <template lwc:if={card.hasFields}>
+                            <line class="card-divider" x1="0" y1={card.dividerY} x2={card.width} y2={card.dividerY}></line>
+                        </template>
+                        <template for:each={card.fields} for:item="field">
+                            <g key={field.key}>
+                                <text class="field" x="12" y={field.y}>{field.label}</text>
+                                <text class="field-hint" x={card.hintX} y={field.y} text-anchor="end">{field.hint}</text>
+                            </g>
+                        </template>
+                    </g>
+                </template>
+
+                <!-- Arrowheads last, on the card borders -->
+                <template for:each={edges} for:item="edge">
+                    <polygon key={edge.arrowKey} class="edge-arrow" points={edge.arrow}></polygon>
+                </template>
+            </svg>
+        </div>
+        <div class="legend slds-text-body_small slds-text-color_weak">
+            <span class="legend-item"><span class="legend-line legend-line_master"></span>Master-Detail: belongs to its parent and is deleted with it</span>
+            <span class="legend-item"><span class="legend-line legend-line_lookup"></span>Lookup: a link to another record</span>
+        </div>
+    </div>
+</template>
