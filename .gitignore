@@ -47,6 +47,7 @@ $RECYCLE.BIN/
 # Random files
 new.txt
 *.html
+!Timesheet/main/default/lwc/**/*.html
 import.ps1
 vsc_history.txt
 data/
