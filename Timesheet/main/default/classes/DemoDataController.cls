@@ -16,6 +16,27 @@ public with sharing class DemoDataController {
     private static final List<String> PROJECT_NAMES = new List<String>{ PROJECT_BILLABLE, PROJECT_NON_BILLABLE, PROJECT_LEGACY };
     private static final Decimal HOURLY_RATE = 150;
 
+    /**
+     * Fields the demo data tables may edit, by table and column key (the LWC's fieldName).
+     * Anything else sent to saveDemoRecords() is rejected. Fields that feed the accrual and absence
+     * totals (accrual settings, extra hours, line item dates and hours) are left out: the totals are
+     * only recalculated when a timesheet is approved, so editing them here would leave them stale.
+     */
+    private static final Map<String, Map<String, SObjectField>> EDITABLE_FIELDS = new Map<String, Map<String, SObjectField>>{
+        'employees' => new Map<String, SObjectField>{
+            'email' => Employee__c.Email__c,
+            'active' => Employee__c.Active__c
+        },
+        'projects' => new Map<String, SObjectField>{
+            'active' => Project__c.Active__c,
+            'startDate' => Project__c.Start_Date__c,
+            'endDate' => Project__c.End_Date__c
+        },
+        'projectEmployees' => new Map<String, SObjectField>{
+            'hourlyRate' => Project_Employee__c.Hourly_Rate__c
+        }
+    };
+
     /** One row in the employee, project or project assignment table; only the fields for that table are set. */
     public class DemoRecordDetail {
         @AuraEnabled public String recordId { get; set; }
@@ -24,19 +45,32 @@ public with sharing class DemoDataController {
         @AuraEnabled public Date accrualStartDate { get; set; }
         @AuraEnabled public Decimal accrualDivisor { get; set; }
         @AuraEnabled public Boolean canCreateChildren { get; set; }
-        @AuraEnabled public String status { get; set; }
         @AuraEnabled public String billable { get; set; }
         @AuraEnabled public String employeeName { get; set; }
         @AuraEnabled public String projectName { get; set; }
         @AuraEnabled public Decimal hourlyRate { get; set; }
+        @AuraEnabled public String email { get; set; }
+        @AuraEnabled public String employmentType { get; set; }
+        @AuraEnabled public Boolean active { get; set; }
+        @AuraEnabled public Decimal extraAccruedHours { get; set; }
+        @AuraEnabled public Decimal extraAbsenceHours { get; set; }
+        @AuraEnabled public Decimal totalAccruedHours { get; set; }
+        @AuraEnabled public Decimal totalAbsenceHours { get; set; }
+        @AuraEnabled public Date startDate { get; set; }
+        @AuraEnabled public Date endDate { get; set; }
+        /** An employee's project assignments and timesheets, so the LWC can tell which steps still have gaps. */
+        @AuraEnabled public Integer assignmentCount { get; set; }
+        @AuraEnabled public Integer timesheetCount { get; set; }
     }
 
     public class TimesheetLineItemDetail {
         @AuraEnabled public String id { get; set; }
-        @AuraEnabled public String dateStr { get; set; }
-        @AuraEnabled public String projectOrType { get; set; }
+        @AuraEnabled public String timesheetId { get; set; }
+        @AuraEnabled public Date lineDate { get; set; }
+        @AuraEnabled public String projectName { get; set; }
+        @AuraEnabled public String activity { get; set; }
+        @AuraEnabled public String absenceCategory { get; set; }
         @AuraEnabled public Decimal duration { get; set; }
-        @AuraEnabled public String description { get; set; }
     }
 
     public class TimesheetDetail {
@@ -46,6 +80,7 @@ public with sharing class DemoDataController {
         @AuraEnabled public String dateRange { get; set; }
         @AuraEnabled public String status { get; set; }
         @AuraEnabled public Decimal totalHours { get; set; }
+        @AuraEnabled public Decimal billableHours { get; set; }
         @AuraEnabled public List<TimesheetLineItemDetail> lineItems { get; set; }
     }
 
@@ -122,9 +157,9 @@ public with sharing class DemoDataController {
         try {
             Boolean hasParent = false;
             for (Employee__c emp : getDemoEmployees()) {
-                if (emp.Last_Name__c == PARENT_LAST_NAME) {
+                if (isParent(emp)) {
                     hasParent = true;
-                } else if (emp.Last_Name__c != null && emp.Last_Name__c.startsWith(CHILD_LAST_NAME_PREFIX)) {
+                } else if (isChild(emp)) {
                     throw newAuraException('Child employees already exist.');
                 }
             }
@@ -190,7 +225,10 @@ public with sharing class DemoDataController {
                 }
             }
             if (!toInsert.isEmpty()) {
+                // Child employees added after the timesheet step still get the (now inactive) legacy project.
+                List<Project__c> reactivated = activateProjectsFor(toInsert);
                 Database.insert(toInsert, AccessLevel.USER_MODE);
+                deactivateProjects(reactivated);
             }
         } catch (Exception e) {
             throw toAuraException(e);
@@ -263,7 +301,9 @@ public with sharing class DemoDataController {
                     addWorkWeek(items, ts, billableId, nonBillableId, new Set<Integer>{ 1, 2 });
                 }
             }
+            List<Project__c> reactivated = new List<Project__c>();
             if (!items.isEmpty()) {
+                reactivated = activateProjectsFor(items);
                 Database.insert(items, AccessLevel.USER_MODE);
             }
 
@@ -276,7 +316,10 @@ public with sharing class DemoDataController {
                 Database.update(approveSecond, AccessLevel.USER_MODE);
             }
 
-            Database.update(new Project__c(Id = legacyId, Active__c = false), AccessLevel.USER_MODE);
+            // Restore projects that were inactive before, and deactivate the legacy project.
+            Map<Id, Project__c> toDeactivate = new Map<Id, Project__c>(reactivated);
+            toDeactivate.put(legacyId, new Project__c(Id = legacyId));
+            deactivateProjects(toDeactivate.values());
         } catch (Exception e) {
             throw toAuraException(e);
         }
@@ -295,23 +338,34 @@ public with sharing class DemoDataController {
         List<Employee__c> emps = getDemoEmployees();
         Boolean childExists = false;
         for (Employee__c emp : emps) {
-            if (emp.Last_Name__c != null && emp.Last_Name__c.startsWith(CHILD_LAST_NAME_PREFIX)) {
+            if (isChild(emp)) {
                 childExists = true;
             }
         }
+        Map<Id, DemoRecordDetail> employeeDetails = new Map<Id, DemoRecordDetail>();
         for (Employee__c emp : emps) {
             DemoRecordDetail detail = new DemoRecordDetail();
             detail.recordId = emp.Id;
             detail.name = emp.Name;
             detail.manager = emp.Manager__r != null ? emp.Manager__r.Name : null;
+            detail.email = emp.Email__c;
+            detail.employmentType = emp.Employment_Type__c;
+            detail.active = emp.Active__c;
             detail.accrualStartDate = emp.Accrual_Start_Date__c;
             detail.accrualDivisor = emp.Accrual_Divisor__c;
-            detail.canCreateChildren = emp.Last_Name__c == PARENT_LAST_NAME && !childExists;
+            detail.extraAccruedHours = emp.Extra_Accrued_Hours__c;
+            detail.extraAbsenceHours = emp.Extra_Absence_Hours__c;
+            detail.totalAccruedHours = emp.Total_Accrued_Hours__c;
+            detail.totalAbsenceHours = emp.Total_Absence_Hours__c;
+            detail.canCreateChildren = isParent(emp) && !childExists;
+            detail.assignmentCount = 0;
+            detail.timesheetCount = 0;
             wrapper.employees.add(detail);
+            employeeDetails.put(emp.Id, detail);
         }
 
         for (Project__c proj : [
-            SELECT Id, Name, Active__c, Billable__c
+            SELECT Id, Name, Active__c, Billable__c, Start_Date__c, End_Date__c
             FROM Project__c
             WHERE Is_Demo__c = true AND CreatedById = :UserInfo.getUserId()
             WITH USER_MODE
@@ -320,13 +374,15 @@ public with sharing class DemoDataController {
             DemoRecordDetail detail = new DemoRecordDetail();
             detail.recordId = proj.Id;
             detail.name = proj.Name;
-            detail.status = proj.Active__c ? 'Active' : 'Inactive';
+            detail.active = proj.Active__c;
             detail.billable = proj.Billable__c;
+            detail.startDate = proj.Start_Date__c;
+            detail.endDate = proj.End_Date__c;
             wrapper.projects.add(detail);
         }
 
         for (Project_Employee__c pe : [
-            SELECT Id, Project__r.Name, Employee__r.Name, Hourly_Rate__c
+            SELECT Id, Employee__c, Project__r.Name, Employee__r.Name, Hourly_Rate__c
             FROM Project_Employee__c
             WHERE Employee__c IN :emps AND Project__r.Is_Demo__c = true
             WITH USER_MODE
@@ -338,6 +394,7 @@ public with sharing class DemoDataController {
             detail.projectName = pe.Project__r.Name;
             detail.hourlyRate = pe.Hourly_Rate__c;
             wrapper.projectEmployees.add(detail);
+            employeeDetails.get(pe.Employee__c).assignmentCount++;
         }
 
         Date thisWeek = getWeekStart(Date.today());
@@ -348,8 +405,9 @@ public with sharing class DemoDataController {
             thisWeek.addDays(7) => 'Next Week'
         };
         for (Timesheet__c ts : [
-            SELECT Id, Start_Date__c, End_Date__c, Status__c, Total_Hours__c, Manager__c, Employee__r.Name, Employee__r.User__c,
-                (SELECT Id, Date__c, Type__c, Absence_Category__c, Project__r.Name, Duration__c, Description__c
+            SELECT Id, Start_Date__c, End_Date__c, Status__c, Total_Hours__c, Billable_Hours__c, Manager__c,
+                Employee__c, Employee__r.Name, Employee__r.User__c,
+                (SELECT Id, Date__c, Activity__c, Absence_Category__c, Project__r.Name, Duration__c
                  FROM Timesheets__r ORDER BY Date__c, Type__c)
             FROM Timesheet__c
             WHERE Employee__c IN :emps AND Is_Demo__c = true AND CreatedById = :UserInfo.getUserId()
@@ -366,20 +424,159 @@ public with sharing class DemoDataController {
             detail.dateRange = ts.Start_Date__c.format() + ' - ' + ts.End_Date__c.format();
             detail.status = ts.Status__c;
             detail.totalHours = ts.Total_Hours__c != null ? ts.Total_Hours__c : 0;
+            detail.billableHours = ts.Billable_Hours__c != null ? ts.Billable_Hours__c : 0;
             detail.lineItems = new List<TimesheetLineItemDetail>();
             for (Timesheet_Line_Item__c tli : ts.Timesheets__r) {
                 TimesheetLineItemDetail item = new TimesheetLineItemDetail();
                 item.id = tli.Id;
-                item.dateStr = tli.Date__c.format();
-                item.projectOrType = tli.Project__r != null ? tli.Project__r.Name : tli.Type__c + ' - ' + tli.Absence_Category__c;
+                item.timesheetId = ts.Id;
+                item.lineDate = tli.Date__c;
+                item.projectName = tli.Project__r != null ? tli.Project__r.Name : null;
+                item.activity = tli.Activity__c;
+                item.absenceCategory = tli.Absence_Category__c;
                 item.duration = tli.Duration__c;
-                item.description = tli.Description__c;
                 detail.lineItems.add(item);
             }
             wrapper.timesheets.add(detail);
+            if (employeeDetails.containsKey(ts.Employee__c)) {
+                employeeDetails.get(ts.Employee__c).timesheetCount++;
+            }
         }
 
         return wrapper;
+    }
+
+    /**
+     * Saves inline edits from one demo data table. Each draft holds the row's recordId and the edited
+     * column keys; only the running user's demo records and the fields in EDITABLE_FIELDS can be changed.
+     * Rows are saved independently, so one failing row does not block the others.
+     * @return error message by record Id for every row that was not saved
+     */
+    @AuraEnabled
+    public static Map<String, String> saveDemoRecords(String tableKey, List<Map<String, Object>> drafts) {
+        assertAccess();
+        Map<String, SObjectField> fields = EDITABLE_FIELDS.get(tableKey);
+        if (fields == null) {
+            throw newAuraException('Unknown demo data table: ' + tableKey);
+        }
+        Map<String, String> errors = new Map<String, String>();
+        try {
+            Set<Id> allowedIds = getScopeIds(tableKey);
+            List<SObject> records = new List<SObject>();
+            for (Map<String, Object> draft : drafts) {
+                String recordId = String.valueOf(draft.get('recordId'));
+                SObject record = toRecord(draft, fields, allowedIds, errors);
+                if (record != null) {
+                    records.add(record);
+                } else if (!errors.containsKey(recordId)) {
+                    errors.put(recordId, 'This record cannot be edited here.');
+                }
+            }
+            if (records.isEmpty()) {
+                return errors;
+            }
+            // The Project lookup filter is checked on every update, so assignments to the
+            // deactivated legacy project need it active while they are saved.
+            List<Project__c> reactivated = activateProjectsFor(getLinkedProjects(tableKey, records));
+            List<Database.SaveResult> results = Database.update(records, false, AccessLevel.USER_MODE);
+            deactivateProjects(reactivated);
+            for (Integer i = 0; i < results.size(); i++) {
+                if (!results[i].isSuccess()) {
+                    errors.put(records[i].Id, results[i].getErrors()[0].getMessage());
+                }
+            }
+        } catch (Exception e) {
+            throw toAuraException(e);
+        }
+        return errors;
+    }
+
+    /** The record to update for one draft, or null when the record or one of its fields may not be edited. */
+    private static SObject toRecord(Map<String, Object> draft, Map<String, SObjectField> fields, Set<Id> allowedIds, Map<String, String> errors) {
+        Id recordId;
+        try {
+            recordId = Id.valueOf(String.valueOf(draft.get('recordId')));
+        } catch (Exception e) {
+            return null;
+        }
+        if (!allowedIds.contains(recordId)) {
+            return null;
+        }
+        SObject record = recordId.getSObjectType().newSObject(recordId);
+        for (String key : draft.keySet()) {
+            if (key == 'recordId') {
+                continue;
+            }
+            SObjectField field = fields.get(key);
+            if (field == null) {
+                errors.put(recordId, 'The field ' + key + ' cannot be edited here.');
+                return null;
+            }
+            try {
+                record.put(field, toFieldValue(field, draft.get(key)));
+            } catch (Exception e) {
+                errors.put(recordId, 'Invalid value for ' + field.getDescribe().getLabel() + '.');
+                return null;
+            }
+        }
+        return record;
+    }
+
+    /** Converts a datatable draft value (dates and numbers arrive as strings) to the field's type. */
+    private static Object toFieldValue(SObjectField field, Object value) {
+        Schema.DisplayType fieldType = field.getDescribe().getType();
+        if (fieldType == Schema.DisplayType.BOOLEAN) {
+            return value != null && Boolean.valueOf(value);
+        }
+        if (value == null || String.isBlank(String.valueOf(value))) {
+            return null;
+        }
+        String text = String.valueOf(value);
+        switch on fieldType {
+            when DATE {
+                return Date.valueOf(text);
+            }
+            when DOUBLE, CURRENCY, PERCENT {
+                return Decimal.valueOf(text);
+            }
+            when else {
+                return text;
+            }
+        }
+    }
+
+    /** The records' Project__c values, for tables whose object has a filtered Project lookup. */
+    private static List<SObject> getLinkedProjects(String tableKey, List<SObject> records) {
+        if (tableKey == 'projectEmployees') {
+            return [SELECT Project__c FROM Project_Employee__c WHERE Id IN :records WITH USER_MODE];
+        }
+        return new List<SObject>();
+    }
+
+    /**
+     * Ids of the records the given table shows, with the same filters as getDemoRecords(). Narrower than
+     * getDemoScope(), which also covers non-demo records linked to demo ones so they can be deleted.
+     */
+    private static Set<Id> getScopeIds(String tableKey) {
+        Id currentUserId = UserInfo.getUserId();
+        List<SObject> records;
+        switch on tableKey {
+            when 'employees' {
+                records = [SELECT Id FROM Employee__c WHERE Is_Demo__c = true AND CreatedById = :currentUserId WITH USER_MODE];
+            }
+            when 'projects' {
+                records = [SELECT Id FROM Project__c WHERE Is_Demo__c = true AND CreatedById = :currentUserId WITH USER_MODE];
+            }
+            when else {
+                records = [
+                    SELECT Id FROM Project_Employee__c
+                    WHERE Employee__r.Is_Demo__c = true AND Employee__r.CreatedById = :currentUserId
+                        AND Project__r.Is_Demo__c = true
+                    WITH USER_MODE
+                ];
+            }
+        }
+        return new Map<Id, SObject>(records).keySet();
     }
 
     @AuraEnabled
@@ -449,12 +646,59 @@ public with sharing class DemoDataController {
 
     private static List<Employee__c> getDemoEmployees() {
         return [
-            SELECT Id, Name, Last_Name__c, Manager__c, Manager__r.Name, Accrual_Start_Date__c, Accrual_Divisor__c
+            SELECT Id, Name, Last_Name__c, User__c, Manager__c, Manager__r.Name, Email__c, Employment_Type__c, Active__c,
+                Accrual_Start_Date__c, Accrual_Divisor__c, Extra_Accrued_Hours__c, Extra_Absence_Hours__c,
+                Total_Accrued_Hours__c, Total_Absence_Hours__c
             FROM Employee__c
             WHERE Is_Demo__c = true AND CreatedById = :UserInfo.getUserId()
             WITH USER_MODE
             ORDER BY CreatedDate, Last_Name__c
         ];
+    }
+
+    /** The demo employee linked to the running user. Found by the link, so it survives name edits. */
+    private static Boolean isParent(Employee__c emp) {
+        return emp.User__c == UserInfo.getUserId();
+    }
+
+    /** A child employee: not linked to a user and reporting to the running user. */
+    private static Boolean isChild(Employee__c emp) {
+        return emp.User__c == null && emp.Manager__c == UserInfo.getUserId();
+    }
+
+    /**
+     * The Project lookups on assignments and line items only accept active projects when they are set,
+     * so the inactive projects the new records point to are activated for the insert. That only happens
+     * when records are added after a project was deactivated (e.g. child employees added after the
+     * timesheet step). Returns the activated projects for deactivateProjects().
+     */
+    private static List<Project__c> activateProjectsFor(List<SObject> records) {
+        Set<Id> projectIds = new Set<Id>();
+        for (SObject record : records) {
+            projectIds.add((Id) record.get('Project__c'));
+        }
+        projectIds.remove(null);
+        List<Project__c> inactive = [
+            SELECT Id FROM Project__c
+            WHERE Id IN :projectIds AND Active__c = false
+            WITH USER_MODE
+        ];
+        for (Project__c proj : inactive) {
+            proj.Active__c = true;
+        }
+        if (!inactive.isEmpty()) {
+            Database.update(inactive, AccessLevel.USER_MODE);
+        }
+        return inactive;
+    }
+
+    private static void deactivateProjects(List<Project__c> projects) {
+        for (Project__c proj : projects) {
+            proj.Active__c = false;
+        }
+        if (!projects.isEmpty()) {
+            Database.update(projects, AccessLevel.USER_MODE);
+        }
     }
 
     private static Map<String, Project__c> getDemoProjectsByName() {

@@ -3,13 +3,14 @@ $flipSlashes = ($args -contains "--opp") -or ($args -contains "-opp")
 
 Write-Host "Scanning for local changes..." -ForegroundColor Cyan
 
-# Get changed files, filter for the force-app folder, and extract the path
-$changedFiles = git status --porcelain | 
-    Where-Object { $_ -match "^[ MAU\?]{2}\s+(.*force-app/main/default/.*)" } | 
+# Get changed files, filter for the package source folders, and extract the path.
+# Renamed/copied entries ("R  old -> new") deploy the new path.
+$changedFiles = git status --porcelain |
+    Where-Object { $_ -match "^[ MARCU\?]{2}\s+(?:.* -> )?(.*(?:force-app|Timesheet)/main/default/.*)" } |
     ForEach-Object { $matches[1] }
 
 if (-not $changedFiles) {
-    Write-Host "No deployable changes detected in force-app/main/default." -ForegroundColor Yellow
+    Write-Host "No deployable changes detected in force-app/main/default or Timesheet/main/default." -ForegroundColor Yellow
     exit
 }
 

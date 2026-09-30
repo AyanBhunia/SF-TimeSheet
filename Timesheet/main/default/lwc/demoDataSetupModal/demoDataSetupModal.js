@@ -8,9 +8,9 @@ import createDemoProjectAssignments from '@salesforce/apex/DemoDataController.cr
 import createDemoTimesheets from '@salesforce/apex/DemoDataController.createDemoTimesheets';
 import getDeleteSummary from '@salesforce/apex/DemoDataController.getDeleteSummary';
 import deleteDemoRecords from '@salesforce/apex/DemoDataController.deleteDemoRecords';
+import saveDemoRecords from '@salesforce/apex/DemoDataController.saveDemoRecords';
 
 // Plain link column so the browser opens the record in a new tab (no popup blocking).
-// Rows without recordUrl (timesheet line items) show an empty cell.
 const VIEW_ACTION = {
     label: '',
     fieldName: 'recordUrl',
@@ -25,6 +25,15 @@ const VIEW_ACTION = {
 
 function withViewLink(row, recordId) {
     return { ...row, recordUrl: `${window.location.origin}/lightning/r/${recordId}/view`, viewLabel: 'View' };
+}
+
+/** "2026-09-14" -> "Mon, Sep 14" in the user's locale (date-local cells always show the year). */
+function formatShortDate(isoDate) {
+    if (!isoDate) {
+        return '';
+    }
+    const [year, month, day] = isoDate.split('-').map(Number);
+    return new Date(year, month - 1, day).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
 // Setup steps in order. Each step is done once the records it creates exist.
@@ -42,9 +51,10 @@ const STEPS = [
         value: 'children',
         label: 'Child Employees',
         title: 'Create child employees',
-        description: 'Creates two employees who report to you, so you can approve their timesheets.',
+        description: 'Creates two employees who report to you, so you can approve their timesheets. Skip this step to create demo data for yourself only; you can add them later from the Employees section.',
         buttonLabel: 'Create Child Employees',
         successMessage: 'Child employees created.',
+        optional: true,
         action: createChildEmployees
     },
     {
@@ -105,48 +115,76 @@ export default class DemoDataSetupModal extends LightningModal {
     projects = [];
     projectEmployees = [];
     timesheets = [];
+    lineItems = [];
     userTimesheetsWithoutManager = false;
+
+    // Set by the Skip button; once projects exist the children step counts as skipped without it.
+    childrenSkipped = false;
+    // Step clicked in the path; undefined follows the first step that isn't done.
+    selectedStepValue;
+    selectedTimesheetId;
+    selectedTimesheetRows = [];
+
+    // Inline edit state per editable table (employees, projects, projectEmployees).
+    drafts = { employees: [], projects: [], projectEmployees: [] };
+    tableErrors = {};
 
     showDeleteConfirm = false;
     isDeleting = false;
     deleteSummary;
 
-    // Path shown above the next-step card; the extra "Ready" step is current once everything exists.
-    steps = [...STEPS, { value: 'done', label: 'Ready' }];
-
     guideSteps = GUIDE_STEPS;
     guideStep = GUIDE_STEPS[0].value;
 
+    // Columns: read-only fields first, then editable fields, then the View link. Read-only: picklists
+    // and lookups (the datatable can't edit them natively), and fields that feed the accrual and
+    // absence totals, which are only recalculated on timesheet approval (see EDITABLE_FIELDS in Apex).
     employeeColumns = [
-        { label: 'Name', fieldName: 'name' },
+        { label: 'Name', fieldName: 'name', initialWidth: 200 },
         { label: 'Manager', fieldName: 'manager' },
+        { label: 'Employment Type', fieldName: 'employmentType' },
         { label: 'Accrual Start Date', fieldName: 'accrualStartDate', type: 'date-local' },
         { label: 'Accrual Divisor', fieldName: 'accrualDivisor', type: 'number' },
+        { label: 'Extra Accrued Hours', fieldName: 'extraAccruedHours', type: 'number' },
+        { label: 'Extra Absence Hours', fieldName: 'extraAbsenceHours', type: 'number' },
+        { label: 'Total Accrued Hours', fieldName: 'totalAccruedHours', type: 'number' },
+        { label: 'Total Absence Hours', fieldName: 'totalAbsenceHours', type: 'number' },
+        { label: 'Email', fieldName: 'email', type: 'email', editable: true },
+        { label: 'Active', fieldName: 'active', type: 'boolean', editable: true },
         VIEW_ACTION
     ];
 
     projectColumns = [
         { label: 'Name', fieldName: 'name' },
-        { label: 'Status', fieldName: 'status' },
         { label: 'Billable', fieldName: 'billable' },
+        { label: 'Active', fieldName: 'active', type: 'boolean', editable: true },
+        { label: 'Start Date', fieldName: 'startDate', type: 'date-local', editable: true },
+        { label: 'End Date', fieldName: 'endDate', type: 'date-local', editable: true },
         VIEW_ACTION
     ];
 
     projectAssignmentColumns = [
         { label: 'Employee', fieldName: 'employeeName' },
         { label: 'Project', fieldName: 'projectName' },
-        { label: 'Hourly Rate', fieldName: 'hourlyRate', type: 'number' },
+        { label: 'Hourly Rate', fieldName: 'hourlyRate', type: 'currency', editable: true },
         VIEW_ACTION
     ];
 
     timesheetColumns = [
-        { label: 'Timesheet / Date', fieldName: 'name', type: 'text', initialWidth: 320 },
-        { label: 'Week', fieldName: 'dates', type: 'text', initialWidth: 200 },
-        { label: 'Project / Type', fieldName: 'projectOrType', type: 'text' },
-        { label: 'Status', fieldName: 'status', type: 'text', initialWidth: 110 },
-        { label: 'Hours', fieldName: 'hours', type: 'number', initialWidth: 90 },
-        { label: 'Description', fieldName: 'description', type: 'text' },
+        { label: 'Employee', fieldName: 'employeeName' },
+        { label: 'Period', fieldName: 'periodName' },
+        { label: 'Week', fieldName: 'dates', initialWidth: 190 },
+        { label: 'Status', fieldName: 'status' },
+        { label: 'Total Hours', fieldName: 'totalHours', type: 'number' },
+        { label: 'Billable Hours', fieldName: 'billableHours', type: 'number' },
         VIEW_ACTION
+    ];
+
+    lineItemColumns = [
+        { label: 'Date', fieldName: 'dateLabel', initialWidth: 110 },
+        { label: 'Project / Absence', fieldName: 'projectOrAbsence' },
+        { label: 'Activity', fieldName: 'activity' },
+        { label: 'Hours', fieldName: 'duration', type: 'number', initialWidth: 70 }
     ];
 
     connectedCallback() {
@@ -176,30 +214,133 @@ export default class DemoDataSetupModal extends LightningModal {
         this.projects = (wrapper.projects || []).map((row) => withViewLink(row, row.recordId));
         this.projectEmployees = (wrapper.projectEmployees || []).map((row) => withViewLink(row, row.recordId));
         this.userTimesheetsWithoutManager = wrapper.userTimesheetsWithoutManager === true;
-        this.timesheets = (wrapper.timesheets || []).map((ts) => withViewLink({
-            id: ts.recordId,
-            name: `${ts.employeeName} - ${ts.periodName}`,
+        const timesheets = wrapper.timesheets || [];
+        this.timesheets = timesheets.map((ts) => withViewLink({
+            recordId: ts.recordId,
+            employeeName: ts.employeeName,
+            periodName: ts.periodName,
             dates: ts.dateRange,
             status: ts.status,
-            hours: ts.totalHours,
-            _children: (ts.lineItems || []).map((item) => ({
-                id: item.id,
-                name: item.dateStr,
-                projectOrType: item.projectOrType,
-                hours: item.duration,
-                description: item.description
-            }))
+            totalHours: ts.totalHours,
+            billableHours: ts.billableHours
         }, ts.recordId));
+        this.lineItems = timesheets.flatMap((ts) => (ts.lineItems || []).map((item) => ({
+            ...item,
+            recordId: item.id,
+            dateLabel: formatShortDate(item.lineDate),
+            projectOrAbsence: item.projectName || item.absenceCategory
+        })));
+        // Keep the selected timesheet across reloads; default to the first one.
+        if (!this.timesheets.some((ts) => ts.recordId === this.selectedTimesheetId)) {
+            this.selectedTimesheetId = this.timesheets.length ? this.timesheets[0].recordId : undefined;
+        }
+        this.selectedTimesheetRows = this.selectedTimesheetId ? [this.selectedTimesheetId] : [];
+    }
+
+    handleSkipStep() {
+        this.childrenSkipped = true;
+        this.selectedStepValue = undefined;
+        this.showMessage('success', 'Child employees skipped. You can add them later from the Employees section.');
+    }
+
+    /** Path click: go back to any step up to the next one to do; later steps stay locked. */
+    handleStepClick(event) {
+        const value = event.currentTarget.dataset.step;
+        const index = STEPS.findIndex((step) => step.value === value);
+        const nextIndex = this.nextStep ? STEPS.indexOf(this.nextStep) : STEPS.length;
+        if (value === 'done' || index === nextIndex) {
+            this.selectedStepValue = undefined;
+        } else if (index >= 0 && index < nextIndex) {
+            this.selectedStepValue = value;
+        }
+    }
+
+    /** From a completed step, move one step right; reaching the next step to do clears the selection. */
+    handleStepContinue() {
+        const index = STEPS.indexOf(this.activeStep);
+        const nextIndex = this.nextStep ? STEPS.indexOf(this.nextStep) : STEPS.length;
+        this.selectedStepValue = index + 1 < nextIndex ? STEPS[index + 1].value : undefined;
+    }
+
+    async handleAddChildEmployees() {
+        this.isLoading = true;
+        try {
+            await createChildEmployees();
+            this.selectedStepValue = undefined;
+            this.showMessage('success', 'Child employees created. Create their assignments and timesheets with the next steps.');
+            await this.loadStatus();
+        } catch (error) {
+            this.isLoading = false;
+            this.showMessage('error', this.getErrorMessage(error));
+        }
+    }
+
+    /** One timesheet is always selected: a deselect re-selects the current row so grid and line items stay in sync. */
+    handleTimesheetSelect(event) {
+        const [row] = event.detail.selectedRows;
+        if (row) {
+            this.selectedTimesheetId = row.recordId;
+        }
+        this.selectedTimesheetRows = this.selectedTimesheetId ? [this.selectedTimesheetId] : [];
+    }
+
+    /** Saves inline edits of one table; rows that fail keep their drafts and show the error. */
+    async handleSave(event) {
+        const table = event.target.dataset.table;
+        const draftValues = event.detail.draftValues;
+        this.isLoading = true;
+        let errors;
+        try {
+            errors = await saveDemoRecords({ tableKey: table, drafts: draftValues });
+        } catch (error) {
+            this.isLoading = false;
+            this.showMessage('error', 'Error saving changes: ' + this.getErrorMessage(error));
+            return;
+        }
+        const failedIds = Object.keys(errors || {});
+        this.drafts = { ...this.drafts, [table]: draftValues.filter((draft) => failedIds.includes(draft.recordId)) };
+        this.tableErrors = { ...this.tableErrors, [table]: this.toTableErrors(errors) };
+        const savedCount = draftValues.length - failedIds.length;
+        if (failedIds.length) {
+            this.showMessage('error', `${failedIds.length} of ${draftValues.length} records could not be saved. See the highlighted rows.`);
+        } else {
+            this.showMessage('success', 'Changes saved.');
+        }
+        // A failed refresh doesn't undo the save, so report it separately.
+        try {
+            await this.loadDemoRecords();
+        } catch (error) {
+            this.showMessage('error', `${savedCount} records saved, but the tables could not be refreshed: ${this.getErrorMessage(error)}`);
+        } finally {
+            this.isLoading = false;
+        }
+    }
+
+    handleCancelEdit(event) {
+        const table = event.target.dataset.table;
+        this.drafts = { ...this.drafts, [table]: [] };
+        this.tableErrors = { ...this.tableErrors, [table]: undefined };
+    }
+
+    /** { recordId: message } from Apex to the lightning-datatable errors format. */
+    toTableErrors(errors) {
+        const entries = Object.entries(errors || {});
+        if (!entries.length) {
+            return undefined;
+        }
+        const rows = Object.fromEntries(entries.map(([recordId, message]) => [recordId, { title: 'Not saved', messages: [message] }]));
+        return { rows, table: { title: 'Some records could not be saved', messages: entries.map(([, message]) => message) } };
     }
 
     async handleNextStep() {
-        const step = this.nextStep;
+        const step = this.activeStep;
         if (!step) {
             return;
         }
         this.isLoading = true;
         try {
             await step.action();
+            this.selectedStepValue = undefined;
             this.showMessage('success', step.successMessage);
             await this.loadStatus();
         } catch (error) {
@@ -241,6 +382,7 @@ export default class DemoDataSetupModal extends LightningModal {
             this.projects = [];
             this.projectEmployees = [];
             this.timesheets = [];
+            this.lineItems = [];
             this.message = undefined;
         } catch (error) {
             this.showMessage('error', 'Error deleting demo records: ' + this.getErrorMessage(error));
@@ -383,29 +525,92 @@ export default class DemoDataSetupModal extends LightningModal {
         return this.hasEmployees || this.hasProjects;
     }
 
+    /** No child employees, and the user skipped them (or moved on to projects, which implies it). */
+    get isChildrenSkipped() {
+        return this.hasEmployees && !this.hasChildEmployees && (this.childrenSkipped || this.hasProjects);
+    }
+
     get employeesLabel() { return `Employees (${this.employees.length})`; }
     get projectsLabel() { return `Projects (${this.projects.length})`; }
     get projectAssignmentsLabel() { return `Project Assignments (${this.projectEmployees.length})`; }
-    get timesheetsLabel() { return `Timesheets (${this.timesheets.length})`; }
+    get timesheetsLabel() { return `Timesheets (${this.timesheets.length}) & Line Items (${this.lineItems.length})`; }
 
-    /** First step whose records don't exist yet; undefined when everything is created. */
+    get selectedTimesheet() {
+        return this.timesheets.find((ts) => ts.recordId === this.selectedTimesheetId);
+    }
+
+    get selectedLineItems() {
+        return this.lineItems.filter((item) => item.timesheetId === this.selectedTimesheetId);
+    }
+
+    get hasSelectedLineItems() {
+        return this.selectedLineItems.length > 0;
+    }
+
+    get lineItemsHeading() {
+        const ts = this.selectedTimesheet;
+        return ts ? `Line Items: ${ts.employeeName}, ${ts.periodName} (${ts.dates})` : 'Line Items';
+    }
+
+    get showAddChildEmployees() {
+        return this.canCreate && this.isChildrenSkipped;
+    }
+
+    /**
+     * First step that is not done yet; undefined when everything is created. Assignments and
+     * timesheets are done only when every employee has them, so child employees added later
+     * send the user back through those steps (which only create the missing records).
+     */
     get nextStep() {
-        const done = {
-            employee: this.hasEmployees,
-            children: this.hasChildEmployees,
-            projects: this.hasProjects,
-            assignments: this.hasProjectAssignments,
-            timesheets: this.hasTimesheets
-        };
+        const done = this.doneSteps;
         return STEPS.find((step) => !done[step.value]);
     }
 
+    /** Which steps are done; a skipped children step counts as done. */
+    get doneSteps() {
+        const everyEmployee = (countField) => this.hasEmployees && this.employees.every((emp) => emp[countField] > 0);
+        return {
+            employee: this.hasEmployees,
+            children: this.hasChildEmployees || this.isChildrenSkipped,
+            projects: this.hasProjects,
+            assignments: everyEmployee('assignmentCount'),
+            timesheets: everyEmployee('timesheetCount')
+        };
+    }
+
+    /** Step shown in the card: the one picked in the path, otherwise the next one to do. */
+    get activeStep() {
+        return STEPS.find((step) => step.value === this.selectedStepValue) || this.nextStep;
+    }
+
+    /** A skipped children step is not complete, so going back to it offers to create them. */
+    get isActiveStepComplete() {
+        const step = this.activeStep;
+        if (!step) {
+            return false;
+        }
+        return step.value === 'children' ? this.hasChildEmployees : this.doneSteps[step.value];
+    }
+
+    get showSkipButton() {
+        return this.activeStep && this.activeStep.optional && !this.isActiveStepComplete && !this.isChildrenSkipped;
+    }
+
+    /** Path shown above the next-step card; the extra "Ready" step is current once everything exists. */
+    get steps() {
+        const steps = STEPS.map((step) => (step.value === 'children' && this.isChildrenSkipped
+            ? { value: step.value, label: `${step.label} (Skipped)` }
+            : { value: step.value, label: step.label }));
+        return [...steps, { value: 'done', label: 'Ready' }];
+    }
+
+    // The path marks steps left of the current one as completed and the ones right of it as inactive.
     get currentStep() {
-        return this.nextStep ? this.nextStep.value : 'done';
+        return this.activeStep ? this.activeStep.value : 'done';
     }
 
     get stepNumber() {
-        return STEPS.indexOf(this.nextStep) + 1;
+        return STEPS.indexOf(this.activeStep) + 1;
     }
 
     get stepCount() {
@@ -425,11 +630,11 @@ export default class DemoDataSetupModal extends LightningModal {
     }
 
     get showNextStep() {
-        return this.showProgress && this.nextStep;
+        return this.showProgress && this.activeStep;
     }
 
     get showAllDone() {
-        return this.showProgress && !this.nextStep;
+        return this.showProgress && !this.activeStep;
     }
 
     get showCleanupOnlyNote() {

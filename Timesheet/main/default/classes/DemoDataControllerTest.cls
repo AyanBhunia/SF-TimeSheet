@@ -62,8 +62,7 @@ private class DemoDataControllerTest {
             Assert.areEqual(66, lineItems, 'Line items for three employees');
 
             for (DemoDataController.DemoRecordDetail project : records.projects) {
-                String expected = project.name == DemoDataController.PROJECT_LEGACY ? 'Inactive' : 'Active';
-                Assert.areEqual(expected, project.status, 'Only the legacy project is deactivated: ' + project.name);
+                Assert.areEqual(project.name != DemoDataController.PROJECT_LEGACY, project.active, 'Only the legacy project is deactivated: ' + project.name);
             }
 
             DemoDataController.DeleteSummary summary = DemoDataController.getDeleteSummary();
@@ -81,6 +80,135 @@ private class DemoDataControllerTest {
         Assert.areEqual(0, [SELECT COUNT() FROM Timesheet__c WHERE Is_Demo__c = true], 'Demo timesheets deleted');
         Assert.areEqual(0, [SELECT COUNT() FROM Timesheet_Line_Item__c], 'Demo line items deleted');
         Assert.areEqual(0, [SELECT COUNT() FROM Project_Employee__c], 'Demo project assignments deleted');
+    }
+
+    @IsTest
+    static void skippedChildEmployeesCanBeAddedLater() {
+        User hrAdmin = createUser('hradm', HR_ADMIN_PERMISSION_SET);
+
+        System.runAs(hrAdmin) {
+            // Child employees skipped: only the demo employee gets assignments, timesheets and line items.
+            DemoDataController.createDemoEmployee();
+            DemoDataController.createDemoProjects();
+            DemoDataController.createDemoProjectAssignments();
+            DemoDataController.createDemoTimesheets();
+
+            DemoDataController.DemoDataWrapper records = DemoDataController.getDemoRecords();
+            Assert.areEqual(1, records.employees.size(), 'Only the demo employee');
+            Assert.isTrue(records.employees[0].canCreateChildren, 'Child employees can still be added');
+            Assert.areEqual(3, records.employees[0].assignmentCount, 'Demo employee assigned to every project');
+            Assert.areEqual(4, records.employees[0].timesheetCount, 'Four weekly timesheets');
+            Assert.areEqual(3, records.projectEmployees.size(), 'Assignments for the demo employee only');
+            Assert.areEqual(22, countLineItems(records), 'Line items for the demo employee only');
+
+            // Added later: the assignment and timesheet steps only fill the gaps.
+            DemoDataController.createChildEmployees();
+            records = DemoDataController.getDemoRecords();
+            Assert.areEqual(3, records.employees.size(), 'Demo employee plus two child employees');
+            for (DemoDataController.DemoRecordDetail emp : records.employees) {
+                Assert.isFalse(emp.canCreateChildren, 'Child employees exist now');
+            }
+
+            Test.startTest();
+            DemoDataController.createDemoProjectAssignments();
+            DemoDataController.createDemoTimesheets();
+            Test.stopTest();
+
+            records = DemoDataController.getDemoRecords();
+            Assert.areEqual(9, records.projectEmployees.size(), 'Every employee assigned to every project once');
+            Assert.areEqual(12, records.timesheets.size(), 'Four weekly timesheets per employee, no duplicates');
+            Assert.areEqual(66, countLineItems(records), 'Line items for three employees');
+            for (DemoDataController.DemoRecordDetail emp : records.employees) {
+                Assert.areEqual(3, emp.assignmentCount, 'Assignments of ' + emp.name);
+                Assert.areEqual(4, emp.timesheetCount, 'Timesheets of ' + emp.name);
+            }
+            for (DemoDataController.DemoRecordDetail project : records.projects) {
+                Assert.areEqual(project.name != DemoDataController.PROJECT_LEGACY, project.active, 'Project states restored after filling the gaps: ' + project.name);
+            }
+        }
+    }
+
+    @IsTest
+    static void saveDemoRecordsUpdatesAllowedFields() {
+        User hrAdmin = createUser('hradm', HR_ADMIN_PERMISSION_SET);
+
+        System.runAs(hrAdmin) {
+            DemoDataController.createDemoEmployee();
+            DemoDataController.createDemoProjects();
+            DemoDataController.createDemoProjectAssignments();
+            Test.startTest();
+            DemoDataController.createDemoTimesheets();
+            Test.stopTest();
+
+            // Edit an assignment on the legacy project, which the timesheet step deactivated: the Project
+            // lookup filter (active projects only) is checked on every update, even when the lookup doesn't change.
+            DemoDataController.DemoDataWrapper records = DemoDataController.getDemoRecords();
+            String employeeId = records.employees[0].recordId;
+            String assignmentId;
+            for (DemoDataController.DemoRecordDetail pe : records.projectEmployees) {
+                if (pe.projectName == DemoDataController.PROJECT_LEGACY) {
+                    assignmentId = pe.recordId;
+                }
+            }
+
+            Map<String, String> errors = DemoDataController.saveDemoRecords('employees', new List<Map<String, Object>>{
+                new Map<String, Object>{ 'recordId' => employeeId, 'email' => 'edited@example.com', 'active' => false }
+            });
+            Assert.isTrue(errors.isEmpty(), 'Employee saved: ' + errors);
+            errors = DemoDataController.saveDemoRecords('projectEmployees', new List<Map<String, Object>>{
+                new Map<String, Object>{ 'recordId' => assignmentId, 'hourlyRate' => '200' }
+            });
+            Assert.isTrue(errors.isEmpty(), 'Legacy assignment saved: ' + errors);
+        }
+
+        Employee__c emp = [SELECT Email__c, Active__c FROM Employee__c WHERE Is_Demo__c = true];
+        Assert.areEqual('edited@example.com', emp.Email__c, 'Email updated');
+        Assert.isFalse(emp.Active__c, 'Active updated');
+        Assert.areEqual(1, [SELECT COUNT() FROM Project_Employee__c WHERE Hourly_Rate__c = 200], 'Hourly rate updated');
+        Assert.isFalse([SELECT Active__c FROM Project__c WHERE Name = :DemoDataController.PROJECT_LEGACY].Active__c, 'Legacy project stays inactive');
+    }
+
+    @IsTest
+    static void saveDemoRecordsRejectsOtherRecordsAndFields() {
+        User hrAdmin = createUser('hradm', HR_ADMIN_PERMISSION_SET);
+        Employee__c realEmployee = newEmployee(null, true);
+        insert realEmployee;
+
+        System.runAs(hrAdmin) {
+            DemoDataController.createDemoEmployee();
+            DemoDataController.createDemoProjects();
+        }
+        // A real employee assigned to a demo project: not shown in the demo tables, so not editable there.
+        Project__c demoProject = [SELECT Id FROM Project__c WHERE Name = :DemoDataController.PROJECT_BILLABLE];
+        Project_Employee__c realAssignment = new Project_Employee__c(Employee__c = realEmployee.Id, Project__c = demoProject.Id, Hourly_Rate__c = 100);
+        insert realAssignment;
+
+        System.runAs(hrAdmin) {
+            String demoEmployeeId = DemoDataController.getDemoRecords().employees[0].recordId;
+
+            Map<String, String> errors = DemoDataController.saveDemoRecords('employees', new List<Map<String, Object>>{
+                new Map<String, Object>{ 'recordId' => realEmployee.Id, 'email' => 'changed@example.com' },
+                new Map<String, Object>{ 'recordId' => demoEmployeeId, 'accrualDivisor' => '10' }
+            });
+            Assert.areEqual('This record cannot be edited here.', errors.get(realEmployee.Id), 'Non-demo records are rejected');
+            Assert.areEqual('The field accrualDivisor cannot be edited here.', errors.get(demoEmployeeId), 'Read-only columns are rejected');
+
+            errors = DemoDataController.saveDemoRecords('projectEmployees', new List<Map<String, Object>>{
+                new Map<String, Object>{ 'recordId' => realAssignment.Id, 'hourlyRate' => '999' }
+            });
+            Assert.areEqual('This record cannot be edited here.', errors.get(realAssignment.Id), 'Real employees on demo projects are rejected');
+
+            try {
+                DemoDataController.saveDemoRecords('lineItems', new List<Map<String, Object>>());
+                Assert.fail('Unknown tables should be rejected');
+            } catch (AuraHandledException e) {
+                Assert.areEqual('Unknown demo data table: lineItems', e.getMessage(), 'Line items are read-only');
+            }
+        }
+
+        Assert.areEqual('real.employee@example.com', [SELECT Email__c FROM Employee__c WHERE Id = :realEmployee.Id].Email__c, 'Real employee not changed');
+        Assert.areNotEqual(10, [SELECT Accrual_Divisor__c FROM Employee__c WHERE Is_Demo__c = true].Accrual_Divisor__c, 'Demo employee not changed');
+        Assert.areEqual(100, [SELECT Hourly_Rate__c FROM Project_Employee__c WHERE Id = :realAssignment.Id].Hourly_Rate__c, 'Real assignment not changed');
     }
 
     @IsTest
@@ -176,6 +304,14 @@ private class DemoDataControllerTest {
         } catch (AuraHandledException e) {
             Assert.areEqual(expectedMessage, e.getMessage(), 'Error from step ' + step);
         }
+    }
+
+    private static Integer countLineItems(DemoDataController.DemoDataWrapper records) {
+        Integer count = 0;
+        for (DemoDataController.TimesheetDetail ts : records.timesheets) {
+            count += ts.lineItems.size();
+        }
+        return count;
     }
 
     private static Employee__c newEmployee(Id userId, Boolean active) {
