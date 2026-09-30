@@ -101,6 +101,7 @@ export default class DemoDataSetup extends LightningElement {
     projects = [];
     projectEmployees = [];
     timesheets = [];
+    userTimesheetsWithoutManager = false;
 
     showDeleteConfirm = false;
     isDeleting = false;
@@ -170,6 +171,7 @@ export default class DemoDataSetup extends LightningElement {
         this.employees = (wrapper.employees || []).map((row) => withViewLink(row, row.recordId));
         this.projects = (wrapper.projects || []).map((row) => withViewLink(row, row.recordId));
         this.projectEmployees = (wrapper.projectEmployees || []).map((row) => withViewLink(row, row.recordId));
+        this.userTimesheetsWithoutManager = wrapper.userTimesheetsWithoutManager === true;
         this.timesheets = (wrapper.timesheets || []).map((ts) => withViewLink({
             id: ts.recordId,
             name: `${ts.employeeName} - ${ts.periodName}`,
@@ -345,6 +347,12 @@ export default class DemoDataSetup extends LightningElement {
             }
         }
         return error.message || JSON.stringify(error);
+    }
+
+    get demoDataNote() {
+        return this.userTimesheetsWithoutManager
+            ? "For demo purposes, the child employees are not linked to any user, and your Demo Employee's timesheets have no manager. In real use these fields are required: link every employee to a user and make sure every employee has a manager."
+            : "For demo purposes, the child employees are not linked to any user, and your Demo Employee's timesheets have a manager only if your user has one. In real use every employee must be linked to a user and have a manager.";
     }
 
     get messageClass() {

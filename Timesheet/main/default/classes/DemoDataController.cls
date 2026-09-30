@@ -54,6 +54,8 @@ public with sharing class DemoDataController {
         @AuraEnabled public List<DemoRecordDetail> projects { get; set; }
         @AuraEnabled public List<DemoRecordDetail> projectEmployees { get; set; }
         @AuraEnabled public List<TimesheetDetail> timesheets { get; set; }
+        /** True when a timesheet of the demo employee linked to the running user has no manager. */
+        @AuraEnabled public Boolean userTimesheetsWithoutManager { get; set; }
     }
 
     public class DeleteSummary {
@@ -290,6 +292,7 @@ public with sharing class DemoDataController {
         wrapper.projects = new List<DemoRecordDetail>();
         wrapper.projectEmployees = new List<DemoRecordDetail>();
         wrapper.timesheets = new List<TimesheetDetail>();
+        wrapper.userTimesheetsWithoutManager = false;
 
         List<Employee__c> emps = getDemoEmployees();
         Boolean childExists = false;
@@ -347,7 +350,7 @@ public with sharing class DemoDataController {
             thisWeek.addDays(7) => 'Next Week'
         };
         for (Timesheet__c ts : [
-            SELECT Id, Start_Date__c, End_Date__c, Status__c, Total_Hours__c, Employee__r.Name,
+            SELECT Id, Start_Date__c, End_Date__c, Status__c, Total_Hours__c, Manager__c, Employee__r.Name, Employee__r.User__c,
                 (SELECT Id, Date__c, Type__c, Absence_Category__c, Project__r.Name, Duration__c, Description__c
                  FROM Timesheets__r ORDER BY Date__c, Type__c)
             FROM Timesheet__c
@@ -355,6 +358,9 @@ public with sharing class DemoDataController {
             WITH USER_MODE
             ORDER BY Employee__r.Name, Start_Date__c
         ]) {
+            if (ts.Employee__r.User__c == UserInfo.getUserId() && ts.Manager__c == null) {
+                wrapper.userTimesheetsWithoutManager = true;
+            }
             TimesheetDetail detail = new TimesheetDetail();
             detail.recordId = ts.Id;
             detail.employeeName = ts.Employee__r.Name;

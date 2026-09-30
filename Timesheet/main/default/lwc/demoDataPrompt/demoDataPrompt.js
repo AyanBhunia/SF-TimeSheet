@@ -3,11 +3,11 @@ import getDemoStatus from '@salesforce/apex/DemoDataController.getDemoStatus';
 import DemoDataSetupModal from 'c/demoDataSetupModal';
 
 /**
- * Employee Overview section that opens the demo data setup popup.
- * The page shows this section only to users with the Timesheet_Demo_Data_Access custom permission.
+ * Employee Overview card that opens the demo data setup popup.
+ * The page places it only for users with the Timesheet_Demo_Data_Access custom permission;
+ * the card itself renders only when DemoDataController grants access (no active employee, or demo records to clean up).
  */
 export default class DemoDataPrompt extends LightningElement {
-    isLoading = true;
     hasAccess = false;
     canCreate = false;
 
@@ -16,7 +16,6 @@ export default class DemoDataPrompt extends LightningElement {
     }
 
     async loadStatus() {
-        this.isLoading = true;
         try {
             const status = await getDemoStatus();
             this.hasAccess = status.hasAccess === true;
@@ -24,8 +23,6 @@ export default class DemoDataPrompt extends LightningElement {
         } catch (error) {
             this.hasAccess = false;
             console.error('Error loading demo data status', error);
-        } finally {
-            this.isLoading = false;
         }
     }
 

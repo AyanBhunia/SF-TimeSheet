@@ -121,42 +121,6 @@
             <componentInstance>
                 <componentName>demoDataPrompt</componentName>
                 <identifier>c_demoDataPrompt</identifier>
-            </componentInstance>
-        </itemInstances>
-        <name>Facet-65e263c0-8211-47c4-9432-895ae161f851</name>
-        <type>Facet</type>
-    </flexiPageRegions>
-    <flexiPageRegions>
-        <itemInstances>
-            <componentInstance>
-                <componentInstanceProperties>
-                    <name>body</name>
-                    <value>Facet-65e263c0-8211-47c4-9432-895ae161f851</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>label</name>
-                    <value>Demo Data</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>name</name>
-                    <value>accordionSection1</value>
-                </componentInstanceProperties>
-                <componentName>flexipage:accordionSection</componentName>
-                <identifier>flexipage_accordionSection6</identifier>
-            </componentInstance>
-        </itemInstances>
-        <name>Facet-cd012f68-4b25-4fcd-926e-b86655652923</name>
-        <type>Facet</type>
-    </flexiPageRegions>
-    <flexiPageRegions>
-        <itemInstances>
-            <componentInstance>
-                <componentInstanceProperties>
-                    <name>accordionSections</name>
-                    <value>Facet-cd012f68-4b25-4fcd-926e-b86655652923</value>
-                </componentInstanceProperties>
-                <componentName>flexipage:accordion</componentName>
-                <identifier>flexipage_accordion6</identifier>
                 <visibilityRule>
                     <criteria>
                         <leftValue>{!$Permission.CustomPermission.Timesheet_Demo_Data_Access}</leftValue>

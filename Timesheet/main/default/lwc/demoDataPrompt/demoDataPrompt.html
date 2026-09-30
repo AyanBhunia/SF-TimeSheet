@@ -1,23 +1,12 @@
 <template>
-    <div class="slds-p-horizontal_small slds-p-bottom_small">
-        <template lwc:if={isLoading}>
-            <div class="slds-is-relative slds-p-around_large">
-                <lightning-spinner alternative-text="Loading" size="small"></lightning-spinner>
+    <!-- Renders nothing unless the user may use demo data setup. -->
+    <template lwc:if={hasAccess}>
+        <lightning-card title="Demo Data" icon-name="custom:custom63" class="demo-card">
+            <lightning-button slot="actions" label={buttonLabel} variant="brand" icon-name="utility:setup" onclick={handleOpen}></lightning-button>
+            <div class="slds-p-horizontal_medium">
+                <p class="slds-text-heading_small slds-m-bottom_xx-small">{title}</p>
+                <p class="slds-text-color_weak">{description}</p>
             </div>
-        </template>
-        <template lwc:elseif={hasAccess}>
-            <lightning-layout vertical-align="center" multiple-rows>
-                <lightning-layout-item flexibility="auto" padding="around-small">
-                    <p class="slds-text-heading_small slds-m-bottom_xx-small">{title}</p>
-                    <p class="slds-text-color_weak">{description}</p>
-                </lightning-layout-item>
-                <lightning-layout-item padding="around-small">
-                    <lightning-button label={buttonLabel} variant="brand" icon-name="utility:setup" onclick={handleOpen}></lightning-button>
-                </lightning-layout-item>
-            </lightning-layout>
-        </template>
-        <template lwc:else>
-            <p class="slds-text-color_weak slds-p-around_small">Demo data setup is available to HR admins without an active employee record.</p>
-        </template>
-    </div>
+        </lightning-card>
+    </template>
 </template>
