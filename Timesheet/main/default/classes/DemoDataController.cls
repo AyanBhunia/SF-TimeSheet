@@ -1,8 +1,9 @@
 /**
- * @description Controller for the Demo Data Setup tab. Creates, lists and deletes sample records
- *              for the Timesheet application. Every demo record is flagged with Is_Demo__c and only
- *              the records flagged and created by the running user are ever read or deleted.
- *              All queries and DML run in user mode.
+ * @description Controller for the demo data setup popup (demoDataSetup LWC). Creates, lists and deletes
+ *              sample records for the Timesheet application. Every demo record is flagged with Is_Demo__c;
+ *              only records flagged and created by the running user, and the timesheets, line items and
+ *              project assignments that belong to them, are ever read or deleted.
+ *              Only HR admins may use it; all queries and DML run in user mode.
  */
 public with sharing class DemoDataController {
 
@@ -78,7 +79,6 @@ public with sharing class DemoDataController {
     private class AccessState {
         public Boolean canCreate = false;
         public Boolean hasAccess = false;
-        public Boolean hasDemoEmployees = false;
     }
 
     @AuraEnabled
@@ -93,7 +93,6 @@ public with sharing class DemoDataController {
         }
         Organization org = [SELECT IsSandbox, TrialExpirationDate FROM Organization LIMIT 1];
         result.put('isProductionOrg', !org.IsSandbox && org.TrialExpirationDate == null);
-        result.put('hasEmployee', state.hasDemoEmployees);
         return result;
     }
 
@@ -541,8 +540,7 @@ public with sharing class DemoDataController {
             WITH USER_MODE
             LIMIT 1
         ].isEmpty();
-        state.hasDemoEmployees = !getDemoEmployees().isEmpty();
-        Boolean hasDemoRecords = state.hasDemoEmployees || ![
+        Boolean hasDemoRecords = !getDemoEmployees().isEmpty() || ![
             SELECT Id FROM Project__c
             WHERE Is_Demo__c = true AND CreatedById = :currentUserId
             WITH USER_MODE
