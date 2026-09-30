@@ -3,9 +3,19 @@
 }
 
 .slds-is-relative {
-    min-height: 12rem;
+    /* Fill the full-size popup (it has no header) instead of shrinking to the content. */
+    min-height: calc(100vh - 16rem);
 }
 
 .delete-confirm {
     border-color: var(--slds-g-color-error-base-40, #ea001e);
+}
+
+.guide-step ol {
+    list-style: decimal;
+    padding-left: 1.5rem;
+}
+
+.guide-step li {
+    margin-bottom: 0.5rem;
 }

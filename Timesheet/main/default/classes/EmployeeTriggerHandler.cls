@@ -43,7 +43,10 @@ public with sharing class EmployeeTriggerHandler {
                 if (emp.User__c != null && userMap.containsKey(emp.User__c)) {
                     User u = userMap.get(emp.User__c);
                     // Only map fields from User (not overwriting Name anymore)
-                    emp.Manager__c = u.ManagerId;
+                    // Demo employees (Demo Data Setup) keep their own manager.
+                    if (!emp.Is_Demo__c) {
+                        emp.Manager__c = u.ManagerId;
+                    }
                     emp.OwnerId   = u.Id;
             	}
         	}

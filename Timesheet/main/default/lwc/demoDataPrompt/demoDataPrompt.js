@@ -32,7 +32,8 @@ export default class DemoDataPrompt extends LightningElement {
     async handleOpen() {
         await DemoDataSetupModal.open({
             size: 'full',
-            description: 'Timesheet demo data setup'
+            label: 'Timesheet Demo Data Setup',
+            description: 'Create, review and delete demo data'
         });
         this.loadStatus();
     }

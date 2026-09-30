@@ -33,7 +33,7 @@ const STEPS = [
         value: 'employee',
         label: 'Employee',
         title: 'Create the demo employee',
-        description: 'Creates "Demo Employee", managed by your manager (or by you if you have none).',
+        description: 'Creates "Demo Employee" linked to your user (no manager), so the Employee Overview shows the demo data as yours.',
         buttonLabel: 'Create Employee',
         successMessage: 'Demo employee created.',
         action: createDemoEmployee
@@ -76,6 +76,19 @@ const STEPS = [
     }
 ];
 
+// Manual approval process guide, shown one step at a time.
+const GUIDE_STEPS = [
+    { value: 'emailTemplates', label: 'Email Templates' },
+    { value: 'emailAlerts', label: 'Email Alerts' },
+    { value: 'approvalProcess', label: 'Approval Process' },
+    { value: 'initialSubmission', label: 'Submission Actions' },
+    { value: 'approvalSteps', label: 'Approval Steps' },
+    { value: 'finalApproval', label: 'Final Approval' },
+    { value: 'finalRejection', label: 'Final Rejection' },
+    { value: 'recallActions', label: 'Recall Actions' },
+    { value: 'activate', label: 'Activate' }
+];
+
 export default class DemoDataSetup extends LightningElement {
     isLoading = true;
     hasAccess = false;
@@ -95,6 +108,9 @@ export default class DemoDataSetup extends LightningElement {
 
     // Path shown above the next-step card; the extra "Ready" step is current once everything exists.
     steps = [...STEPS, { value: 'done', label: 'Ready' }];
+
+    guideSteps = GUIDE_STEPS;
+    guideStep = GUIDE_STEPS[0].value;
 
     employeeColumns = [
         { label: 'Name', fieldName: 'name' },
@@ -227,6 +243,39 @@ export default class DemoDataSetup extends LightningElement {
             this.isLoading = false;
             this.showDeleteConfirm = false;
         }
+    }
+
+    handleGuideStepClick(event) {
+        this.guideStep = event.currentTarget.dataset.step;
+    }
+
+    handleGuidePrevious() {
+        this.moveGuideStep(-1);
+    }
+
+    handleGuideNext() {
+        this.moveGuideStep(1);
+    }
+
+    moveGuideStep(offset) {
+        const index = this.guideStepIndex + offset;
+        if (index >= 0 && index < GUIDE_STEPS.length) {
+            this.guideStep = GUIDE_STEPS[index].value;
+        }
+    }
+
+    get guideStepIndex() {
+        return GUIDE_STEPS.findIndex((step) => step.value === this.guideStep);
+    }
+
+    get guideStepNumber() { return this.guideStepIndex + 1; }
+    get guideStepCount() { return GUIDE_STEPS.length; }
+    get isFirstGuideStep() { return this.guideStepIndex === 0; }
+    get isLastGuideStep() { return this.guideStepIndex === GUIDE_STEPS.length - 1; }
+
+    /** { emailTemplates: true, emailAlerts: false, ... } for the template's lwc:if checks. */
+    get guideStepVisible() {
+        return Object.fromEntries(GUIDE_STEPS.map((step) => [step.value, step.value === this.guideStep]));
     }
 
     handleDismissMessage() {

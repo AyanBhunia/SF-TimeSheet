@@ -103,9 +103,14 @@ public with sharing class DemoDataController {
             if (!getDemoEmployees().isEmpty()) {
                 throw newAuraException('A demo employee already exists.');
             }
-            User currentUser = [SELECT Id, ManagerId FROM User WHERE Id = :UserInfo.getUserId() WITH USER_MODE LIMIT 1];
-            Id managerId = currentUser.ManagerId != null ? currentUser.ManagerId : currentUser.Id;
-            Database.insert(newDemoEmployee(PARENT_LAST_NAME, managerId), AccessLevel.USER_MODE);
+            Id currentUserId = UserInfo.getUserId();
+            if (![SELECT Id FROM Employee__c WHERE User__c = :currentUserId WITH USER_MODE LIMIT 1].isEmpty()) {
+                throw newAuraException('An employee record is already linked to your user, so the demo employee cannot be linked to you.');
+            }
+            // Linked to the running user so the Employee Overview shows the demo data as their own. No manager.
+            Employee__c emp = newDemoEmployee(PARENT_LAST_NAME, null);
+            emp.User__c = currentUserId;
+            Database.insert(emp, AccessLevel.USER_MODE);
         } catch (Exception e) {
             throw toAuraException(e);
         }
@@ -527,7 +532,7 @@ public with sharing class DemoDataController {
         Id currentUserId = UserInfo.getUserId();
         Boolean hasActiveEmployee = ![
             SELECT Id FROM Employee__c
-            WHERE User__c = :currentUserId AND Active__c = true
+            WHERE User__c = :currentUserId AND Active__c = true AND Is_Demo__c = false
             WITH USER_MODE
             LIMIT 1
         ].isEmpty();
