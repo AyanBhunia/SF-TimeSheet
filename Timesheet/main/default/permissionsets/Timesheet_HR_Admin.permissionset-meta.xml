@@ -77,6 +77,10 @@
         <enabled>true</enabled>
     </classAccesses>
     <classAccesses>
+        <apexClass>HolidayLoader</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
         <apexClass>PostInstallScript</apexClass>
         <enabled>true</enabled>
     </classAccesses>
@@ -98,6 +102,10 @@
     </classAccesses>
     <classAccesses>
         <apexClass>ProjectEmployeeControllerTest</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>PtoController</apexClass>
         <enabled>true</enabled>
     </classAccesses>
     <classAccesses>
@@ -136,9 +144,48 @@
         <enabled>true</enabled>
         <name>Timesheet_Default_Value__mdt</name>
     </customMetadataTypeAccesses>
+    <customPermissions>
+        <enabled>true</enabled>
+        <name>PTO_Admin_All</name>
+    </customPermissions>
     <fieldPermissions>
         <editable>true</editable>
         <field>Employee__c.Is_Demo__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Leave_and_Holiday__c.Absence_Category__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Leave_and_Holiday__c.Approver__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Leave_and_Holiday__c.Duration__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Leave_and_Holiday__c.Notes__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Leave_and_Holiday__c.Status__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Leave_and_Holiday__c.Type__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Leave_and_Holiday__c.Unique_Key__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
@@ -381,6 +428,10 @@
         <field>Timesheet__c.Status__c</field>
         <readable>true</readable>
     </fieldPermissions>
+    <flowAccesses>
+        <enabled>true</enabled>
+        <flow>PTO_Holiday_Loader</flow>
+    </flowAccesses>
     <hasActivationRequired>false</hasActivationRequired>
     <label>Timesheet HR Admin</label>
     <objectPermissions>
@@ -400,6 +451,16 @@
         <allowRead>true</allowRead>
         <modifyAllRecords>true</modifyAllRecords>
         <object>Employee__c</object>
+        <viewAllFields>true</viewAllFields>
+        <viewAllRecords>true</viewAllRecords>
+    </objectPermissions>
+    <objectPermissions>
+        <allowCreate>true</allowCreate>
+        <allowDelete>true</allowDelete>
+        <allowEdit>true</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>true</modifyAllRecords>
+        <object>Leave_and_Holiday__c</object>
         <viewAllFields>true</viewAllFields>
         <viewAllRecords>true</viewAllRecords>
     </objectPermissions>
@@ -485,6 +546,10 @@
     </tabSettings>
     <tabSettings>
         <tab>Project__c</tab>
+        <visibility>Visible</visibility>
+    </tabSettings>
+    <tabSettings>
+        <tab>PTO</tab>
         <visibility>Visible</visibility>
     </tabSettings>
     <tabSettings>

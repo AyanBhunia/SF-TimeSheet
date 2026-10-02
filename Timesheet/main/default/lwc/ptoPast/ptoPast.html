@@ -1,0 +1,36 @@
+<template>
+    <div class="past-card">
+        <template lwc:if={isLoading}>
+            <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+        </template>
+
+        <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-m-bottom_small">
+            <div class="slds-text-body_small slds-text-color_weak">
+                {showingText}
+            </div>
+            <div class="slds-grid slds-grid_vertical-align-center">
+                <lightning-button
+                    label="Previous"
+                    variant="neutral"
+                    disabled={isPreviousDisabled}
+                    onclick={handlePrevious}
+                    class="slds-m-right_x-small">
+                </lightning-button>
+                <span class="slds-p-horizontal_x-small slds-text-body_small slds-text-color_weak">{pageText}</span>
+                <lightning-button
+                    label="Next"
+                    variant="neutral"
+                    disabled={isNextDisabled}
+                    onclick={handleNext}
+                    class="slds-m-left_x-small">
+                </lightning-button>
+            </div>
+        </div>
+
+        <c-pto-table
+            columns={columns}
+            rows={tableRows}
+            empty-message="No leave or holidays yet.">
+        </c-pto-table>
+    </div>
+</template>

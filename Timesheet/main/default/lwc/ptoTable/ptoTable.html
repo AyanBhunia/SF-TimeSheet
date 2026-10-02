@@ -1,0 +1,133 @@
+<template>
+    <div class="table-wrapper">
+        <table class="slds-table slds-table_bordered slds-table_cell-buffer slds-table_fixed-layout">
+            <thead>
+                <tr class="slds-line-height_reset">
+                    <template for:each={viewColumns} for:item="col">
+                        <th key={col.fieldName} scope="col" class={col.headerClass} style={col.style}>
+                            <template lwc:if={col.sortable}>
+                                <a class={col.actionClass} href="#" data-field={col.fieldName} onclick={handleSortClick}>
+                                    <span class="slds-truncate" title={col.label}>{col.label}</span>
+                                    <template lwc:if={col.isSorted}>
+                                        <lightning-icon icon-name={sortIconName} size="xx-small" class="slds-m-left_xx-small"></lightning-icon>
+                                    </template>
+                                </a>
+                            </template>
+                            <template lwc:else>
+                                <div class="slds-truncate" title={col.label}>{col.label}</div>
+                            </template>
+                        </th>
+                    </template>
+                    <template lwc:if={hasRowActions}>
+                        <th scope="col" style={actionsStyle} class="slds-text-align_right">
+                            <span class="slds-assistive-text">Actions</span>
+                        </th>
+                    </template>
+                </tr>
+            </thead>
+            <tbody>
+                <template lwc:if={isEmpty}>
+                    <tr>
+                        <td colspan={columnCount} class="slds-text-align_center slds-p-around_medium slds-text-color_weak">
+                            {displayEmptyMessage}
+                        </td>
+                    </tr>
+                </template>
+                <template lwc:else>
+                    <template for:each={viewRows} for:item="row">
+                        <tr key={row.key} class={row.rowClass}>
+                            <template for:each={row.cells} for:item="cell">
+                                <td key={cell.key} class={cell.cellClass}>
+                                    <template lwc:if={cell.isEditable}>
+                                        <template lwc:if={cell.isPicklist}>
+                                            <div class="slds-select_container">
+                                                <select class="slds-select" aria-label={cell.label}
+                                                    disabled={cell.disabled}
+                                                    data-value={cell.value}
+                                                    data-row-key={cell.rowKey}
+                                                    data-field={cell.fieldName}
+                                                    onchange={handleCellChange}>
+                                                    <template for:each={cell.selectOptions} for:item="opt">
+                                                        <option key={opt.value} value={opt.value} selected={opt.selected}>{opt.label}</option>
+                                                    </template>
+                                                </select>
+                                            </div>
+                                        </template>
+                                        <template lwc:elseif={cell.isDate}>
+                                            <lightning-input
+                                                type="date"
+                                                label={cell.label}
+                                                variant="label-hidden"
+                                                value={cell.value}
+                                                disabled={cell.disabled}
+                                                data-row-key={cell.rowKey}
+                                                data-field={cell.fieldName}
+                                                onchange={handleCellChange}>
+                                            </lightning-input>
+                                        </template>
+                                        <template lwc:elseif={cell.isNumber}>
+                                            <lightning-input
+                                                type="number"
+                                                step="0.25"
+                                                label={cell.label}
+                                                variant="label-hidden"
+                                                value={cell.value}
+                                                disabled={cell.disabled}
+                                                data-row-key={cell.rowKey}
+                                                data-field={cell.fieldName}
+                                                onchange={handleCellChange}>
+                                            </lightning-input>
+                                        </template>
+                                        <template lwc:else>
+                                            <lightning-input
+                                                type="text"
+                                                label={cell.label}
+                                                variant="label-hidden"
+                                                value={cell.value}
+                                                disabled={cell.disabled}
+                                                data-row-key={cell.rowKey}
+                                                data-field={cell.fieldName}
+                                                onchange={handleCellChange}>
+                                            </lightning-input>
+                                        </template>
+                                    </template>
+                                    <template lwc:else>
+                                        <template lwc:if={cell.isStatus}>
+                                            <span lwc:if={cell.value} class={cell.badgeClass}>{cell.value}</span>
+                                        </template>
+                                        <template lwc:else>
+                                            <div class="slds-truncate" title={cell.value}>{cell.value}</div>
+                                        </template>
+                                    </template>
+                                </td>
+                            </template>
+                            <template lwc:if={hasRowActions}>
+                                <td class="slds-text-align_right">
+                                    <template lwc:if={row.showActions}>
+                                        <template for:each={row.actions} for:item="act">
+                                            <lightning-button
+                                                key={act.name}
+                                                label={act.label}
+                                                variant={act.variant}
+                                                data-row-key={row.key}
+                                                data-action={act.name}
+                                                onclick={handleRowAction}
+                                                class="slds-m-left_xx-small">
+                                            </lightning-button>
+                                        </template>
+                                    </template>
+                                </td>
+                            </template>
+                        </tr>
+                        <tr key={row.messageKey} class={row.messageRowClass}>
+                            <td colspan={columnCount} class="slds-p-horizontal_small slds-p-vertical_xx-small">
+                                <div lwc:if={row.error} class="row-msg-error">{row.error}</div>
+                                <div lwc:if={row.info} class="row-msg-info">{row.info}</div>
+                            </td>
+                        </tr>
+                    </template>
+                </template>
+            </tbody>
+        </table>
+    </div>
+</template>

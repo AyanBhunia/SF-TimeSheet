@@ -14,6 +14,7 @@
     <navType>Standard</navType>
     <tabs>Overview</tabs>
     <tabs>Timesheet__c</tabs>
+    <tabs>PTO</tabs>
     <tabs>Employee__c</tabs>
     <tabs>Project__c</tabs>
     <tabs>Charge_Code__c</tabs>

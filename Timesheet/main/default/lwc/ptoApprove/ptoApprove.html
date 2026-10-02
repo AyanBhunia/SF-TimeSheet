@@ -1,0 +1,29 @@
+<template>
+    <div class="approve-card">
+        <template lwc:if={isLoading}>
+            <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+        </template>
+
+        <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-m-bottom_small">
+            <h2 class="slds-text-heading_small">Waiting for approval</h2>
+            <lightning-button-icon
+                icon-name="utility:refresh"
+                variant="border-filled"
+                alternative-text="Refresh"
+                title="Refresh"
+                onclick={refresh}>
+            </lightning-button-icon>
+        </div>
+
+        <c-pto-table
+            columns={columns}
+            rows={tableRows}
+            row-actions={rowActions}
+            sorted-by={sortedBy}
+            sorted-direction={sortedDirection}
+            empty-message={emptyMessage}
+            onsort={handleSort}
+            onrowaction={handleRowAction}>
+        </c-pto-table>
+    </div>
+</template>

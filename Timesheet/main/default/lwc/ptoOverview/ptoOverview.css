@@ -1,0 +1,25 @@
+:host {
+    display: block;
+}
+
+.pto-overview {
+    min-height: 10rem;
+}
+
+.tile-box {
+    border-radius: 0.25rem;
+    background-color: var(--slds-g-color-surface-container-low, #f3f3f3);
+}
+
+.chart-container {
+    position: relative;
+    width: 100%;
+}
+
+.category-chart-container {
+    min-height: 160px;
+}
+
+.team-chart-container {
+    min-height: 160px;
+}
