@@ -1,18 +1,40 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <actionCalls>
+        <description>Fetches all assignments of the permission set using ALL ROWS so that expired assignments (hidden from Get Records but still blocking a new insert) are returned as well.</description>
+        <name>Get_PS_Assignments</name>
+        <label>Get PS Assignments</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <actionName>GetPermissionSetAssignments</actionName>
+        <actionType>apex</actionType>
+        <connector>
+            <targetReference>Loop_User_Ids</targetReference>
+        </connector>
+        <flowTransactionModel>CurrentTransaction</flowTransactionModel>
+        <inputParameters>
+            <name>permissionSetIds</name>
+            <value>
+                <elementReference>Get_Permission_set.Id</elementReference>
+            </value>
+        </inputParameters>
+        <nameSegment>GetPermissionSetAssignments</nameSegment>
+        <offset>0</offset>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </actionCalls>
     <apiVersion>64.0</apiVersion>
     <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
     <assignments>
-        <description>Storing the newly created permission set assignment in a collection.</description>
-        <name>All_user_permission_sets</name>
-        <label>All user-permission sets</label>
+        <description>Collects the user so each user is processed only once.</description>
+        <name>Add_User_Id</name>
+        <label>Add User Id</label>
         <locationX>0</locationX>
         <locationY>0</locationY>
         <assignmentItems>
-            <assignToReference>PermissionSetAssignments_All</assignToReference>
+            <assignToReference>User_Ids</assignToReference>
             <operator>Add</operator>
             <value>
-                <elementReference>PermissionSetAssignment_Single</elementReference>
+                <elementReference>Loop_Pending_Timesheet_Records.Employee__r.User__c</elementReference>
             </value>
         </assignmentItems>
         <connector>
@@ -20,84 +42,274 @@
         </connector>
     </assignments>
     <assignments>
-        <description>We are creating a permission set assignment record.</description>
-        <name>Storing_single_user_permission_set</name>
-        <label>Storing single user-permission set</label>
+        <description>Creates a new assignment for a user who has none.</description>
+        <name>Set_Assignment_To_Insert</name>
+        <label>Set Assignment To Insert</label>
         <locationX>0</locationX>
         <locationY>0</locationY>
         <assignmentItems>
-            <assignToReference>PermissionSetAssignment_Single.AssigneeId</assignToReference>
+            <assignToReference>PSA_ToInsert.AssigneeId</assignToReference>
             <operator>Assign</operator>
             <value>
-                <elementReference>Loop_Pending_Timesheet_Records.Employee__r.User__r.Id</elementReference>
+                <elementReference>Loop_User_Ids</elementReference>
             </value>
         </assignmentItems>
         <assignmentItems>
-            <assignToReference>PermissionSetAssignment_Single.PermissionSetId</assignToReference>
+            <assignToReference>PSA_ToInsert.PermissionSetId</assignToReference>
             <operator>Assign</operator>
             <value>
                 <elementReference>Get_Permission_set.Id</elementReference>
             </value>
         </assignmentItems>
         <assignmentItems>
-            <assignToReference>PermissionSetAssignment_Single.ExpirationDate</assignToReference>
+            <assignToReference>PSA_ToInsert.ExpirationDate</assignToReference>
             <operator>Assign</operator>
             <value>
                 <elementReference>Expiry_date</elementReference>
             </value>
         </assignmentItems>
+        <assignmentItems>
+            <assignToReference>PSAs_ToInsert</assignToReference>
+            <operator>Add</operator>
+            <value>
+                <elementReference>PSA_ToInsert</elementReference>
+            </value>
+        </assignmentItems>
         <connector>
-            <targetReference>Decision_3</targetReference>
+            <targetReference>Loop_User_Ids</targetReference>
         </connector>
     </assignments>
+    <assignments>
+        <description>Extends the existing (or expired) assignment of the user.</description>
+        <name>Set_Assignment_To_Update</name>
+        <label>Set Assignment To Update</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>PSA_ToUpdate.Id</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>Loop_Existing_Assignment.Id</elementReference>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>PSA_ToUpdate.ExpirationDate</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>Expiry_date</elementReference>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>PSAs_ToUpdate</assignToReference>
+            <operator>Add</operator>
+            <value>
+                <elementReference>PSA_ToUpdate</elementReference>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Loop_Existing_Assignment</targetReference>
+        </connector>
+    </assignments>
+    <collectionProcessors>
+        <name>Filter_User_Assignment</name>
+        <elementSubtype>FilterCollectionProcessor</elementSubtype>
+        <label>Filter User Assignment</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignNextValueToReference>currentItem_Filter_User_Assignment</assignNextValueToReference>
+        <collectionProcessorType>FilterCollectionProcessor</collectionProcessorType>
+        <collectionReference>Get_PS_Assignments</collectionReference>
+        <conditionLogic>and</conditionLogic>
+        <conditions>
+            <leftValueReference>currentItem_Filter_User_Assignment.AssigneeId</leftValueReference>
+            <operator>EqualTo</operator>
+            <rightValue>
+                <elementReference>Loop_User_Ids</elementReference>
+            </rightValue>
+        </conditions>
+        <connector>
+            <targetReference>Assignment_Found</targetReference>
+        </connector>
+    </collectionProcessors>
     <decisions>
-        <name>Decision_3</name>
-        <label>Decision 3</label>
+        <name>Assignment_Found</name>
+        <label>Assignment Found?</label>
         <locationX>0</locationX>
         <locationY>0</locationY>
         <defaultConnector>
-            <targetReference>All_user_permission_sets</targetReference>
+            <targetReference>Set_Assignment_To_Insert</targetReference>
         </defaultConnector>
-        <defaultConnectorLabel>Default Outcome</defaultConnectorLabel>
+        <defaultConnectorLabel>Not Found</defaultConnectorLabel>
         <rules>
-            <name>Already_contains</name>
+            <name>Found</name>
             <conditionLogic>and</conditionLogic>
             <conditions>
-                <leftValueReference>PermissionSetAssignments_All</leftValueReference>
-                <operator>Contains</operator>
+                <leftValueReference>Filter_User_Assignment</leftValueReference>
+                <operator>IsNull</operator>
                 <rightValue>
-                    <elementReference>PermissionSetAssignment_Single</elementReference>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>Filter_User_Assignment</leftValueReference>
+                <operator>IsEmpty</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
                 </rightValue>
             </conditions>
             <connector>
-                <targetReference>Loop_Pending_Timesheet_Records</targetReference>
+                <targetReference>Loop_Existing_Assignment</targetReference>
             </connector>
-            <label>Already contains</label>
+            <label>Found</label>
         </rules>
     </decisions>
     <decisions>
-        <name>is_assignment_already_present</name>
-        <label>is assignment already present?</label>
+        <description>Filters only when the permission set has assignments; otherwise every user needs a new assignment.</description>
+        <name>Has_Existing_Assignments</name>
+        <label>Has Existing Assignments?</label>
         <locationX>0</locationX>
         <locationY>0</locationY>
         <defaultConnector>
-            <targetReference>Storing_single_user_permission_set</targetReference>
+            <targetReference>Set_Assignment_To_Insert</targetReference>
         </defaultConnector>
-        <defaultConnectorLabel>Default Outcome</defaultConnectorLabel>
+        <defaultConnectorLabel>None</defaultConnectorLabel>
         <rules>
-            <name>assignment_present</name>
+            <name>Assignments_Present</name>
             <conditionLogic>and</conditionLogic>
             <conditions>
-                <leftValueReference>assigned_ids</leftValueReference>
+                <leftValueReference>Get_PS_Assignments</leftValueReference>
+                <operator>IsNull</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>Get_PS_Assignments</leftValueReference>
+                <operator>IsEmpty</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Filter_User_Assignment</targetReference>
+            </connector>
+            <label>Present</label>
+        </rules>
+    </decisions>
+    <decisions>
+        <name>Has_Assignments_To_Insert</name>
+        <label>Has Assignments To Insert?</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <defaultConnectorLabel>No</defaultConnectorLabel>
+        <rules>
+            <name>Insert_Present</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>PSAs_ToInsert</leftValueReference>
+                <operator>IsNull</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>PSAs_ToInsert</leftValueReference>
+                <operator>IsEmpty</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Insert_Permission_Set_Assignments</targetReference>
+            </connector>
+            <label>Yes</label>
+        </rules>
+    </decisions>
+    <decisions>
+        <name>Has_Assignments_To_Update</name>
+        <label>Has Assignments To Update?</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <defaultConnector>
+            <targetReference>Has_Assignments_To_Insert</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>No</defaultConnectorLabel>
+        <rules>
+            <name>Update_Present</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>PSAs_ToUpdate</leftValueReference>
+                <operator>IsNull</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>PSAs_ToUpdate</leftValueReference>
+                <operator>IsEmpty</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Update_Permission_Set_Assignments</targetReference>
+            </connector>
+            <label>Yes</label>
+        </rules>
+    </decisions>
+    <decisions>
+        <description>Skips timesheets whose employee has no user, and users already collected.</description>
+        <name>Is_New_User</name>
+        <label>Is New User?</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <defaultConnector>
+            <targetReference>Add_User_Id</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>New User</defaultConnectorLabel>
+        <rules>
+            <name>Skip</name>
+            <conditionLogic>or</conditionLogic>
+            <conditions>
+                <leftValueReference>Loop_Pending_Timesheet_Records.Employee__r.User__c</leftValueReference>
+                <operator>IsBlank</operator>
+                <rightValue>
+                    <booleanValue>true</booleanValue>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>User_Ids</leftValueReference>
                 <operator>Contains</operator>
                 <rightValue>
-                    <elementReference>Loop_Pending_Timesheet_Records.Employee__r.User__r.Id</elementReference>
+                    <elementReference>Loop_Pending_Timesheet_Records.Employee__r.User__c</elementReference>
                 </rightValue>
             </conditions>
             <connector>
                 <targetReference>Loop_Pending_Timesheet_Records</targetReference>
             </connector>
-            <label>assignment present</label>
+            <label>Skip</label>
+        </rules>
+    </decisions>
+    <decisions>
+        <name>Permission_Set_Found</name>
+        <label>Permission Set Found?</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <defaultConnectorLabel>Not Found</defaultConnectorLabel>
+        <rules>
+            <name>Permission_Set_Present</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>Get_Permission_set.Id</leftValueReference>
+                <operator>IsNull</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Get_PS_Assignments</targetReference>
+            </connector>
+            <label>Found</label>
         </rules>
     </decisions>
     <decisions>
@@ -116,10 +328,46 @@
                     <booleanValue>false</booleanValue>
                 </rightValue>
             </conditions>
+            <conditions>
+                <leftValueReference>Get_This_Week_Timesheets</leftValueReference>
+                <operator>IsEmpty</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Loop_Pending_Timesheet_Records</targetReference>
+            </connector>
+            <label>Record present</label>
+        </rules>
+    </decisions>
+    <decisions>
+        <name>Users_Found</name>
+        <label>Users Found?</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <defaultConnectorLabel>No Users</defaultConnectorLabel>
+        <rules>
+            <name>Users_Present</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>User_Ids</leftValueReference>
+                <operator>IsNull</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>User_Ids</leftValueReference>
+                <operator>IsEmpty</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
             <connector>
                 <targetReference>Get_Permission_set</targetReference>
             </connector>
-            <label>Record present</label>
+            <label>Users Present</label>
         </rules>
     </decisions>
     <environments>Default</environments>
@@ -141,6 +389,21 @@
     <interviewLabel>In-app Guidence using STF {!$Flow.CurrentDateTime}</interviewLabel>
     <label>In-app Guidence using STF</label>
     <loops>
+        <description>Loops the matched assignment (at most one) so its Id can be read.</description>
+        <name>Loop_Existing_Assignment</name>
+        <label>Loop Existing Assignment</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <collectionReference>Filter_User_Assignment</collectionReference>
+        <iterationOrder>Asc</iterationOrder>
+        <nextValueConnector>
+            <targetReference>Set_Assignment_To_Update</targetReference>
+        </nextValueConnector>
+        <noMoreValuesConnector>
+            <targetReference>Loop_User_Ids</targetReference>
+        </noMoreValuesConnector>
+    </loops>
+    <loops>
         <name>Loop_Pending_Timesheet_Records</name>
         <label>Loop Pending Timesheet Records</label>
         <locationX>0</locationX>
@@ -148,10 +411,24 @@
         <collectionReference>Get_This_Week_Timesheets</collectionReference>
         <iterationOrder>Asc</iterationOrder>
         <nextValueConnector>
-            <targetReference>is_assignment_already_present</targetReference>
+            <targetReference>Is_New_User</targetReference>
         </nextValueConnector>
         <noMoreValuesConnector>
-            <targetReference>Insert_Permission_Set_Assignments</targetReference>
+            <targetReference>Users_Found</targetReference>
+        </noMoreValuesConnector>
+    </loops>
+    <loops>
+        <name>Loop_User_Ids</name>
+        <label>Loop User Ids</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <collectionReference>User_Ids</collectionReference>
+        <iterationOrder>Asc</iterationOrder>
+        <nextValueConnector>
+            <targetReference>Has_Existing_Assignments</targetReference>
+        </nextValueConnector>
+        <noMoreValuesConnector>
+            <targetReference>Has_Assignments_To_Update</targetReference>
         </noMoreValuesConnector>
     </loops>
     <processMetadataValues>
@@ -178,16 +455,17 @@
         <label>Insert Permission Set Assignments</label>
         <locationX>0</locationX>
         <locationY>0</locationY>
-        <inputReference>PermissionSetAssignments_All</inputReference>
+        <inputReference>PSAs_ToInsert</inputReference>
     </recordCreates>
     <recordLookups>
+        <description>Only the package's permission set (dbt namespace), first record only.</description>
         <name>Get_Permission_set</name>
         <label>Get Permission set</label>
         <locationX>0</locationX>
         <locationY>0</locationY>
         <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
         <connector>
-            <targetReference>Get_Permission_set_assignment_records</targetReference>
+            <targetReference>Permission_Set_Found</targetReference>
         </connector>
         <filterLogic>and</filterLogic>
         <filters>
@@ -197,29 +475,15 @@
                 <stringValue>Timesheet_Reminder_Access</stringValue>
             </value>
         </filters>
-        <getFirstRecordOnly>true</getFirstRecordOnly>
-        <object>PermissionSet</object>
-        <storeOutputAutomatically>true</storeOutputAutomatically>
-    </recordLookups>
-    <recordLookups>
-        <name>Get_Permission_set_assignment_records</name>
-        <label>Get Permission set assignment records</label>
-        <locationX>0</locationX>
-        <locationY>0</locationY>
-        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
-        <connector>
-            <targetReference>assigned_ids</targetReference>
-        </connector>
-        <filterLogic>and</filterLogic>
         <filters>
-            <field>PermissionSetId</field>
+            <field>NamespacePrefix</field>
             <operator>EqualTo</operator>
             <value>
-                <elementReference>Get_Permission_set.Id</elementReference>
+                <stringValue>dbt</stringValue>
             </value>
         </filters>
-        <getFirstRecordOnly>false</getFirstRecordOnly>
-        <object>PermissionSetAssignment</object>
+        <getFirstRecordOnly>true</getFirstRecordOnly>
+        <object>PermissionSet</object>
         <storeOutputAutomatically>true</storeOutputAutomatically>
     </recordLookups>
     <recordLookups>
@@ -253,10 +517,27 @@
                 <stringValue>New</stringValue>
             </value>
         </filters>
+        <filters>
+            <field>Is_Demo__c</field>
+            <operator>EqualTo</operator>
+            <value>
+                <booleanValue>false</booleanValue>
+            </value>
+        </filters>
         <getFirstRecordOnly>false</getFirstRecordOnly>
         <object>Timesheet__c</object>
         <storeOutputAutomatically>true</storeOutputAutomatically>
     </recordLookups>
+    <recordUpdates>
+        <name>Update_Permission_Set_Assignments</name>
+        <label>Update Permission Set Assignments</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>Has_Assignments_To_Insert</targetReference>
+        </connector>
+        <inputReference>PSAs_ToUpdate</inputReference>
+    </recordUpdates>
     <start>
         <locationX>0</locationX>
         <locationY>0</locationY>
@@ -271,29 +552,8 @@
         <triggerType>Scheduled</triggerType>
     </start>
     <status>Active</status>
-    <transforms>
-        <name>assigned_ids</name>
-        <label>assigned ids</label>
-        <locationX>0</locationX>
-        <locationY>0</locationY>
-        <connector>
-            <targetReference>Loop_Pending_Timesheet_Records</targetReference>
-        </connector>
-        <dataType>String</dataType>
-        <isCollection>true</isCollection>
-        <scale>0</scale>
-        <storeOutputAutomatically>true</storeOutputAutomatically>
-        <transformValues>
-            <transformValueActions>
-                <transformType>Map</transformType>
-                <value>
-                    <elementReference>Get_Permission_set_assignment_records[$EachItem].AssigneeId</elementReference>
-                </value>
-            </transformValueActions>
-        </transformValues>
-    </transforms>
     <variables>
-        <name>PermissionSetAssignment_Single</name>
+        <name>currentItem_Filter_User_Assignment</name>
         <dataType>SObject</dataType>
         <isCollection>false</isCollection>
         <isInput>false</isInput>
@@ -301,11 +561,42 @@
         <objectType>PermissionSetAssignment</objectType>
     </variables>
     <variables>
-        <name>PermissionSetAssignments_All</name>
+        <name>PSA_ToInsert</name>
+        <dataType>SObject</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <objectType>PermissionSetAssignment</objectType>
+    </variables>
+    <variables>
+        <name>PSA_ToUpdate</name>
+        <dataType>SObject</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <objectType>PermissionSetAssignment</objectType>
+    </variables>
+    <variables>
+        <name>PSAs_ToInsert</name>
         <dataType>SObject</dataType>
         <isCollection>true</isCollection>
         <isInput>false</isInput>
-        <isOutput>true</isOutput>
+        <isOutput>false</isOutput>
         <objectType>PermissionSetAssignment</objectType>
+    </variables>
+    <variables>
+        <name>PSAs_ToUpdate</name>
+        <dataType>SObject</dataType>
+        <isCollection>true</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <objectType>PermissionSetAssignment</objectType>
+    </variables>
+    <variables>
+        <name>User_Ids</name>
+        <dataType>String</dataType>
+        <isCollection>true</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
     </variables>
 </Flow>
