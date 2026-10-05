@@ -1,5 +1,16 @@
 import { LightningElement, api } from 'lwc';
 
+// Pill colour per status value (request status, display status and timesheet status).
+const STATUS_BADGE = {
+    Submitted: 'badge-submitted',
+    'Waiting for timesheet': 'badge-submitted',
+    Approved: 'badge-approved',
+    'On timesheet': 'badge-approved',
+    Rejected: 'badge-rejected',
+    Error: 'badge-rejected',
+    'Approved, sync error': 'badge-rejected'
+};
+
 export default class PtoTable extends LightningElement {
     @api columns = [];
     @api rows = [];
@@ -7,6 +18,8 @@ export default class PtoTable extends LightningElement {
     @api sortedBy;
     @api sortedDirection = 'asc';
     @api emptyMessage;
+    @api selectable = false;
+    @api selectedKey;
 
     get hasRowActions() {
         return Array.isArray(this.rowActions) && this.rowActions.length > 0;
@@ -81,8 +94,14 @@ export default class PtoTable extends LightningElement {
             const hasInfo = Boolean(row.info);
             const hasMessage = hasError || hasInfo;
 
+            const isSelected = this.selectable && row.key === this.selectedKey;
             let rowClass = 'table-row';
-            if (isLocked) {
+            if (this.selectable) {
+                rowClass += ' row-selectable';
+            }
+            if (isSelected) {
+                rowClass += ' slds-is-selected row-selected';
+            } else if (isLocked) {
                 rowClass += ' row-locked';
             } else if (hasError) {
                 rowClass += ' row-error';
@@ -108,17 +127,7 @@ export default class PtoTable extends LightningElement {
                 let badgeClass = 'slds-badge';
                 if (type === 'status') {
                     const statusVal = String(value);
-                    if (statusVal === 'Submitted') {
-                        badgeClass = 'slds-badge badge-submitted';
-                    } else if (statusVal === 'Approved') {
-                        badgeClass = 'slds-badge badge-approved';
-                    } else if (statusVal === 'Rejected' || statusVal === 'Conversion error') {
-                        badgeClass = 'slds-badge badge-rejected';
-                    } else if (statusVal === 'Holiday') {
-                        badgeClass = 'slds-badge badge-holiday';
-                    } else {
-                        badgeClass = 'slds-badge';
-                    }
+                    badgeClass = 'slds-badge ' + (STATUS_BADGE[statusVal] || '');
                 }
 
                 return {
@@ -149,6 +158,8 @@ export default class PtoTable extends LightningElement {
                 messageKey: `${row.key}-msg`,
                 actionsKey: `${row.key}-actions`,
                 rowClass,
+                tabIndex: this.selectable ? '0' : undefined,
+                ariaSelected: this.selectable ? String(isSelected) : undefined,
                 messageRowClass,
                 hasMessage,
                 error: row.error,
@@ -187,6 +198,25 @@ export default class PtoTable extends LightningElement {
         const value = event.detail && event.detail.value !== undefined ? event.detail.value : event.target.value;
         this.dispatchEvent(new CustomEvent('cellchange', {
             detail: { rowKey, fieldName, value }
+        }));
+    }
+
+    handleRowClick(event) {
+        if (!this.selectable) {
+            return;
+        }
+        this.dispatchEvent(new CustomEvent('rowselect', {
+            detail: { rowKey: event.currentTarget.dataset.rowKey }
+        }));
+    }
+
+    handleRowKeydown(event) {
+        if (!this.selectable || (event.key !== 'Enter' && event.key !== ' ')) {
+            return;
+        }
+        event.preventDefault();
+        this.dispatchEvent(new CustomEvent('rowselect', {
+            detail: { rowKey: event.currentTarget.dataset.rowKey }
         }));
     }
 

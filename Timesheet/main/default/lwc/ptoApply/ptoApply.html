@@ -40,7 +40,7 @@
                 <lightning-input type="checkbox" label="Include Saturday and Sunday" checked={includeWeekends}
                     onchange={handleWeekends}></lightning-input>
                 <p class="slds-text-body_small slds-text-color_weak">
-                    Pick dates to fill one row per day, or add rows by hand. Grey rows are already on record.
+                    Pick dates to fill one row per day, or add rows by hand. Grey rows are already on a request or the timesheet.
                 </p>
             </div>
 
@@ -50,6 +50,9 @@
 
             <c-pto-table columns={columns} rows={tableRows} row-actions={rowActions}
                 empty-message="No days yet." oncellchange={handleCellChange} onrowaction={handleRowAction}></c-pto-table>
+
+            <lightning-textarea class="slds-m-top_small" label="Reason (one for the whole request)" value={reason}
+                max-length="2000" placeholder="e.g. Family trip" onchange={handleReason}></lightning-textarea>
 
             <div class="slds-grid slds-grid_align-spread slds-m-top_small">
                 <lightning-button label="Add row" icon-name="utility:add" onclick={handleAddRow}></lightning-button>
@@ -65,21 +68,28 @@
             <h3 class="slds-text-heading_small slds-m-bottom_small">Review before submitting</h3>
             <p lwc:if={applyingFor} class="slds-m-bottom_small">{applyingFor}</p>
             <div class="slds-grid slds-wrap slds-gutters_small slds-m-bottom_small">
-                <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3">
+                <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-4">
+                    <div class="pto-tile slds-box slds-box_x-small">
+                        <p class="pto-tile__label">Request</p>
+                        <p class="pto-tile__value">1 new</p>
+                        <p class="pto-tile__sub">{reasonSummary}</p>
+                    </div>
+                </div>
+                <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-4">
                     <div class="pto-tile slds-box slds-box_x-small">
                         <p class="pto-tile__label">Days</p>
                         <p class="pto-tile__value">{dayCount}</p>
                         <p class="pto-tile__sub">{dateSpan}</p>
                     </div>
                 </div>
-                <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3">
+                <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-4">
                     <div class="pto-tile slds-box slds-box_x-small">
                         <p class="pto-tile__label">Total hours</p>
                         <p class="pto-tile__value">{totalHoursLabel}</p>
                         <p class="pto-tile__sub">{categorySummary}</p>
                     </div>
                 </div>
-                <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3">
+                <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-4">
                     <div class="pto-tile slds-box slds-box_x-small">
                         <p class="pto-tile__label">Balance after</p>
                         <p class="pto-tile__value">{balanceAfterLabel}</p>
@@ -92,9 +102,8 @@
             <div lwc:if={noManager} class="pto-note pto-note_warning slds-m-bottom_x-small">
                 This employee has no manager, so the request will stay pending until HR approves it.
             </div>
-            <div lwc:if={resubmitCount} class="pto-note slds-m-bottom_x-small">{resubmitMessage}</div>
             <div class="pto-note pto-note_warning slds-m-bottom_small">
-                <strong>You won't be able to edit these after submitting.</strong> The manager approves or rejects each day.
+                <strong>You won't be able to edit this request after submitting.</strong> The manager approves or rejects the whole request.
             </div>
 
             <div class="slds-grid slds-grid_align-end">

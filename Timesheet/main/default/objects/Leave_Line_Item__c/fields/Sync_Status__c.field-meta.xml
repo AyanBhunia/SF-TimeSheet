@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
-    <fullName>Status__c</fullName>
-    <label>Status</label>
+    <fullName>Sync_Status__c</fullName>
+    <label>Timesheet Status</label>
     <required>false</required>
     <trackTrending>false</trackTrending>
     <type>Picklist</type>
@@ -10,19 +10,19 @@
         <valueSetDefinition>
             <sorted>false</sorted>
             <value>
-                <fullName>New</fullName>
-                <default>false</default>
-                <label>New</label>
-            </value>
-            <value>
-                <fullName>Submitted</fullName>
+                <fullName>Waiting for timesheet</fullName>
                 <default>true</default>
-                <label>Submitted</label>
+                <label>Waiting for timesheet</label>
             </value>
             <value>
-                <fullName>Approved</fullName>
+                <fullName>On timesheet</fullName>
                 <default>false</default>
-                <label>Approved</label>
+                <label>On timesheet</label>
+            </value>
+            <value>
+                <fullName>Error</fullName>
+                <default>false</default>
+                <label>Error</label>
             </value>
         </valueSetDefinition>
     </valueSet>

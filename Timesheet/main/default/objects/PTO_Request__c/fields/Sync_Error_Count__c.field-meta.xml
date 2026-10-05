@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Sync_Error_Count__c</fullName>
+    <externalId>false</externalId>
+    <label>Timesheet Errors</label>
+    <summaryFilterItems>
+        <field>Leave_Line_Item__c.Sync_Status__c</field>
+        <operation>equals</operation>
+        <value>Error</value>
+    </summaryFilterItems>
+    <summaryForeignKey>Leave_Line_Item__c.PTO_Request__c</summaryForeignKey>
+    <summaryOperation>count</summaryOperation>
+    <trackTrending>false</trackTrending>
+    <type>Summary</type>
+</CustomField>

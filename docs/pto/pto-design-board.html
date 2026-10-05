@@ -1,0 +1,514 @@
+<title>PTO Design Board</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: single working column. v2 mock of the PTO tab on top (tab strip + detail below; Past and Approve are side-by-side), then lifecycle, hotspots, decisions. */
+:root{
+  --bg:#f3f3f3; --panel:#ffffff; --line:#dddbda; --line-2:#c9c7c5; --fg:#181818; --muted:#5c5c5c;
+  --accent:#0176d3; --accent-weak:#e5f1fb; --ok:#2e844a; --ok-weak:#e3f3e8; --warn:#a96404; --warn-weak:#fdf2dc; --bad:#ba0517; --bad-weak:#fbe6e8;
+  --heat-0:#eef1f4; --heat-1:#c3dcf2; --heat-2:#7fb6e6; --heat-3:#2f86d1; --heat-4:#0b4f8f;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif; --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#16181b; --panel:#1f2226; --line:#33373d; --line-2:#454a52; --fg:#e8eaed; --muted:#a3a9b1;
+  --accent:#4ea3ec; --accent-weak:#16304a; --ok:#5cc07c; --ok-weak:#17311f; --warn:#e3a646; --warn-weak:#3a2b12; --bad:#ff6b77; --bad-weak:#3d171c;
+  --heat-0:#262a30; --heat-1:#1d3b58; --heat-2:#24609a; --heat-3:#3d8fd9; --heat-4:#9fd0ff; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#16181b; --panel:#1f2226; --line:#33373d; --line-2:#454a52; --fg:#e8eaed; --muted:#a3a9b1;
+  --accent:#4ea3ec; --accent-weak:#16304a; --ok:#5cc07c; --ok-weak:#17311f; --warn:#e3a646; --warn-weak:#3a2b12; --bad:#ff6b77; --bad-weak:#3d171c;
+  --heat-0:#262a30; --heat-1:#1d3b58; --heat-2:#24609a; --heat-3:#3d8fd9; --heat-4:#9fd0ff; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:14px;line-height:1.45;margin:0}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:20px 60px;display:grid;gap:18px}
+h1{font-size:20px;font-weight:600;margin:0;text-wrap:balance}
+h2{font-size:15px;font-weight:600;margin:0;text-wrap:balance}
+h3{font-size:13px;font-weight:600;margin:0}
+.eyebrow{font:500 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.muted{color:var(--muted)}
+code,.mono{font-family:var(--mono);font-size:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:4px;min-width:0}
+.card>header{padding:10px 14px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between}
+.card>.body{padding:14px;display:grid;gap:12px;min-width:0}
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.btn{font:500 13px var(--sans);border:1px solid var(--line-2);background:var(--panel);color:var(--accent);border-radius:4px;padding:5px 12px;cursor:pointer;white-space:nowrap}
+.btn:hover{background:var(--accent-weak)}
+.btn:disabled{color:var(--muted);cursor:default;background:var(--panel)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--panel)}
+.btn.danger{color:var(--bad)}
+.btn.icon{padding:2px 8px;color:var(--muted)}
+.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.tab:focus-visible,th button:focus-visible,tr.sel:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+input,select,textarea{font:13px var(--sans);color:var(--fg);background:var(--panel);border:1px solid var(--line-2);border-radius:4px;padding:5px 8px;width:100%}
+textarea{min-height:52px;resize:vertical}
+input[readonly]{background:var(--bg);color:var(--muted)}
+label.f{display:grid;gap:3px;font-size:12px;color:var(--muted);min-width:0}
+label.chk{display:inline-flex;gap:6px;align-items:center;font-size:13px}
+label.chk input{width:auto}
+.pill{display:inline-block;font:500 11px var(--mono);padding:1px 7px;border-radius:10px;border:1px solid currentColor;white-space:nowrap}
+.s-submitted,.s-waiting{color:var(--warn)} .s-approved,.s-ontimesheet{color:var(--ok)} .s-rejected,.s-error,.s-syncerror{color:var(--bad)}
+
+/* Tab strip on top, detail below */
+.tabs{display:flex;border-bottom:1px solid var(--line);overflow-x:auto;background:var(--bg)}
+.tab{border:0;border-right:1px solid var(--line);background:transparent;color:var(--fg);font:600 13px var(--sans);padding:10px 18px;cursor:pointer;display:flex;gap:8px;align-items:center;white-space:nowrap;border-bottom:3px solid transparent;margin-bottom:-1px}
+.tab .k{font:500 10px var(--mono);color:var(--muted)}
+.tab[aria-selected="true"]{background:var(--panel);color:var(--accent);border-bottom-color:var(--accent)}
+.tab-body{padding:14px;display:grid;gap:12px;align-content:start;min-height:420px;min-width:0}
+.grid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:4px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:6px 9px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.04em;color:var(--muted);background:var(--bg)}
+th button{all:unset;cursor:pointer;display:inline-flex;gap:4px;align-items:center}
+th button[aria-sort] .ar{color:var(--accent)}
+tbody tr:last-child td{border-bottom:0}
+tfoot td{border-top:1px solid var(--line);border-bottom:0;background:var(--bg)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+td input,td select{padding:3px 6px}
+tr.locked td{background:var(--bg);color:var(--muted)}
+tr.clash td{background:var(--warn-weak)}
+tr.sel{cursor:pointer}
+tr.sel:hover td{background:var(--bg)}
+tr.sel[aria-selected="true"] td{background:var(--accent-weak)}
+tr.sel[aria-selected="true"] td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+.err{color:var(--bad);font-size:12px}
+.info{color:var(--accent);font-size:12px}
+.warnbox{background:var(--warn-weak);color:var(--fg);border:1px solid var(--warn);border-radius:4px;padding:8px 10px;font-size:13px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.bars{display:grid;gap:6px}
+.bar{display:grid;grid-template-columns:110px 1fr 54px;gap:8px;align-items:center;font-size:12px}
+.bar .track{height:12px;background:var(--heat-0);border-radius:2px;overflow:hidden;display:flex}
+.bar .fill{display:block;height:100%;background:var(--accent)}
+.bar .fill.p{background:var(--heat-2)}
+.heat{display:grid;grid-template-columns:120px repeat(7,1fr);gap:3px;font-size:12px;align-items:center}
+.heat .c{height:26px;border-radius:2px;display:grid;place-items:center;font:11px var(--mono);font-variant-numeric:tabular-nums}
+.heat .h{font:500 10px var(--mono);color:var(--muted);text-align:center}
+.legend{display:flex;gap:4px;align-items:center;font:11px var(--mono);color:var(--muted)}
+.legend i{width:14px;height:10px;display:inline-block;border-radius:2px}
+.note{font-size:12px;color:var(--muted);border-left:3px solid var(--line-2);padding-left:8px;margin:0}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+
+/* Side-by-side: list 7/12, detail 5/12; stacks below 760px */
+.split{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:12px;align-items:start}
+@media (max-width:760px){.split{grid-template-columns:minmax(0,1fr)}}
+.pane{display:grid;gap:10px;min-width:0;align-content:start}
+.detail{border:1px solid var(--line);border-radius:4px;display:grid;min-width:0}
+.detail>.hd{padding:10px 12px;border-bottom:1px solid var(--line);display:grid;gap:6px;background:var(--bg)}
+.detail>.bd{padding:10px 12px;display:grid;gap:10px;min-width:0}
+.kv{display:grid;grid-template-columns:110px 1fr;gap:4px 10px;font-size:13px}
+.kv dt{color:var(--muted);font-size:12px}
+.kv dd{margin:0;white-space:pre-line;min-width:0;overflow-wrap:anywhere}
+.empty{padding:28px 12px;text-align:center;color:var(--muted);font-size:13px;border:1px dashed var(--line-2);border-radius:4px}
+
+.modal-bg{position:fixed;inset:0;background:color-mix(in srgb,var(--fg) 35%,transparent);display:grid;place-items:center;padding:16px;z-index:10}
+.modal{background:var(--panel);border:1px solid var(--line-2);border-radius:4px;width:min(440px,100%);display:grid}
+.modal>*{padding:12px 14px}
+.modal>header{border-bottom:1px solid var(--line)}
+.modal>footer{border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px}
+.toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--panel);padding:8px 14px;border-radius:4px;font-size:13px;z-index:11;max-width:calc(100% - 32px)}
+
+/* Lifecycle */
+.flow{display:flex;align-items:stretch;overflow-x:auto;padding-bottom:4px}
+.step{border:1px solid var(--line-2);border-radius:4px;padding:8px 10px;min-width:150px;background:var(--panel);display:grid;gap:4px;align-content:start}
+.arrow{display:grid;place-items:center;padding:0 6px;color:var(--muted);font:12px var(--mono);min-width:84px;text-align:center}
+.hot td{white-space:normal;vertical-align:top}
+.hot td:first-child{white-space:nowrap;font-weight:500}
+.dec{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:8px}
+.dec div{border:1px solid var(--line);border-radius:4px;padding:8px 10px;font-size:13px;display:grid;gap:2px}
+.dec b{font:500 11px var(--mono);color:var(--muted)}
+.dec div.v2{border-color:var(--accent)}
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <div>
+      <div class="eyebrow">SF-TimeSheet · feature/pto · v2 design</div>
+      <h1>PTO Design Board</h1>
+      <div class="muted">PTO Request + Leave Line Items. Managers decide on whole requests; Past and Approve are side-by-side.</div>
+    </div>
+    <span class="row"><span class="eyebrow">View as</span>
+      <select id="role" style="width:auto" aria-label="View as"><option value="user">Employee (Timesheet User)</option><option value="mgr" selected>Manager</option><option value="hr">HR Admin</option></select></span>
+  </div>
+
+  <!-- MOCK -->
+  <section class="card">
+    <header><h2>PTO tab · mock</h2><span class="muted" style="font-size:12px">Click through the tabs; Apply, Approve and Reject work on sample data.</span></header>
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <div class="tab-body" id="tabBody" role="tabpanel"></div>
+  </section>
+
+  <!-- LIFECYCLE -->
+  <section class="card">
+    <header><h2>Record lifecycle</h2><span class="muted" style="font-size:12px">PTO_Request__c + Leave_Line_Item__c → Timesheet_Line_Item__c</span></header>
+    <div class="body">
+      <div class="flow">
+        <div class="step"><span class="eyebrow">Apply</span><b>Review screen</b><span class="muted" style="font-size:12px">One request, days, hours, balance. "You can't edit after submitting."</span></div>
+        <div class="arrow">Submit</div>
+        <div class="step"><span class="pill s-submitted">Submitted</span><b>1 PTO Request</b><span class="muted" style="font-size:12px">Employee, approver, reason. N Leave Line Items: date, category, hours.</span></div>
+        <div class="arrow">Reject<br>+ reason</div>
+        <div class="step"><span class="pill s-rejected">Rejected</span><b>Kept as history</b><span class="muted" style="font-size:12px">Reason in Decision Notes. Line keys cleared, so applying again creates a new request.</span></div>
+      </div>
+      <div class="flow">
+        <div class="step"><span class="pill s-submitted">Submitted</span><b>Waiting on manager</b></div>
+        <div class="arrow">Approve<br>request</div>
+        <div class="step"><span class="pill s-approved">Approved</span><b>Each line: timesheet for that week?</b></div>
+        <div class="arrow">exists →<br>create now</div>
+        <div class="step"><span class="pill s-ontimesheet">On timesheet</span><b>Absence line item</b><span class="muted" style="font-size:12px">Linked from the leave line.</span></div>
+        <div class="arrow">missing →<br>wait</div>
+        <div class="step"><span class="pill s-waiting">Waiting for timesheet</span><b>Picked up on timesheet insert</b></div>
+        <div class="arrow">fails →</div>
+        <div class="step"><span class="pill s-error">Error</span><b>That day only</b><span class="muted" style="font-size:12px">Request stays Approved. HR can retry.</span></div>
+      </div>
+      <p class="note">Holidays: deferred, to be redesigned later. v1's holiday flow and loader are removed.</p>
+    </div>
+  </section>
+
+  <!-- HOTSPOTS -->
+  <section class="card">
+    <header><h2>Query and write hotspots</h2><span class="muted" style="font-size:12px">Per transaction, bulk-safe</span></header>
+    <div class="body"><div class="tbl-wrap"><table class="hot">
+      <thead><tr><th>Spot</th><th>Reads</th><th>Writes</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>Tab load</td><td>Current employee, balance, role flags, pending request count</td><td>—</td><td>One Apex call.</td></tr>
+        <tr><td>Overview</td><td>1 aggregate · own leave lines on Submitted + Approved requests by category. Manager: 1 · direct reports' lines for one week</td><td>—</td><td>Rejected requests excluded.</td></tr>
+        <tr><td>Apply · date change</td><td>1 · leave lines on Submitted/Approved requests in range · 1 · timesheet line items in range</td><td>—</td><td>Shown as locked rows with the request number.</td></tr>
+        <tr><td>Apply · Submit</td><td>Validator: category limits, same date + category, daily max incl. logged hours</td><td>1 insert request · 1 insert lines</td><td>Manager or HR may apply for someone else.</td></tr>
+        <tr><td>Past list</td><td>1 · own requests <code>ORDER BY Start_Date__c DESC LIMIT 26 OFFSET n</code></td><td>—</td><td>25 per page. Roll-ups give dates, days, hours.</td></tr>
+        <tr><td>Request detail</td><td>1 · request · 1 · its lines</td><td>—</td><td>Right-hand pane, loaded on selection.</td></tr>
+        <tr><td>Approve list</td><td>1 · Submitted requests where both manager links = me. HR: all</td><td>—</td><td>Sort is client-side.</td></tr>
+        <tr><td>Approve / Reject</td><td>1 · open workitems · conversion: lines, timesheets, timesheet items</td><td>1 update request · Approval.process if a workitem exists · insert/update timesheet items · update line sync status</td><td>Reject clears line keys.</td></tr>
+        <tr><td>Timesheet created</td><td>1 · approved lines not on a timesheet, for these employees and weeks</td><td>1 insert · 2 updates</td><td>Timesheet__c after insert.</td></tr>
+      </tbody></table></div>
+    </div>
+  </section>
+
+  <!-- DECISIONS -->
+  <section class="card">
+    <header><h2>Settled decisions</h2><span class="muted" style="font-size:12px">Blue border = new or changed in v2</span></header>
+    <div class="body"><div class="dec">
+      <div class="v2"><b>V2 · MODEL</b>PTO Request holds employee, approver, status, reason. Leave Line Items (master-detail) hold date, category, hours.</div>
+      <div class="v2"><b>V2 · APPROVAL</b>Approve or reject the whole request. Reject needs a reason, stored in Decision Notes.</div>
+      <div class="v2"><b>V2 · RESUBMIT</b>Always a new request. The rejected request stays as history; its dates are free again.</div>
+      <div class="v2"><b>V2 · SYNC ERROR</b>Only the failing day is flagged. The request stays Approved; HR can retry.</div>
+      <div class="v2"><b>V2 · NOTES</b>One reason per request. No per-day notes.</div>
+      <div class="v2"><b>V2 · UI</b>Past and Approve: request list left, selected request's days right. Stacks on narrow screens. Managers and HR pick an employee in Past (HR retries failed days there).</div>
+      <div class="v2"><b>V2 · APPROVAL SCREEN</b>A decision made in the standard approval screen is stamped too: who, when and the approver's comment.</div>
+      <div class="v2"><b>V2 · HOLIDAYS</b>Deferred. Flow and loader removed for now.</div>
+      <div><b>LIMITS</b>Max hours per category from custom metadata. Daily max includes logged hours.</div>
+      <div><b>DUPLICATES</b>Same date + category blocked; different category on the same day allowed.</div>
+      <div><b>ROLES</b>HR Admin: everything. Manager: team heatmap, apply for and approve direct reports. User: apply for self.</div>
+      <div><b>DIRECT REPORT</b>Both Employee__r.Manager__c and the employee's User.ManagerId must point to the manager.</div>
+      <div><b>LATE APPROVAL</b>No timesheet yet: lines wait and are converted when the timesheet is created.</div>
+      <div><b>APPROVAL PROCESS</b>Optional, kept outside the package. In-tab decisions close its workitem.</div>
+      <div><b>WEEKENDS / BALANCE</b>Weekends skipped by default. Over balance warns but allows.</div>
+      <div><b>CANCEL</b>Cancelling approved leave is out of scope.</div>
+    </div></div>
+  </section>
+</div>
+
+<div id="modalRoot"></div>
+<div id="toastRoot"></div>
+
+<script>
+const $=s=>document.querySelector(s);
+function esc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+let tt; function toast(m){$("#toastRoot").innerHTML=`<div class="toast" role="status">${esc(m)}</div>`;clearTimeout(tt);tt=setTimeout(()=>$("#toastRoot").innerHTML="",3200);}
+
+const CATS=["PTO-Planned","PTO-Un Planned","Sick Leave","Permission","On Duty"];
+const LIMITS={"PTO-Planned":8,"PTO-Un Planned":8,"Sick Leave":8,"Permission":4,"On Duty":24};
+const DOW=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const pad=n=>String(n).padStart(2,"0");
+const fmt=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const parse=s=>new Date(s+"T00:00");
+const addD=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
+const short=s=>{const d=parse(s);return `${d.getDate()} ${MON[d.getMonth()]}`};
+const BAL=112, DAY_MAX=10;
+const LOGGED={"2026-10-13":4};
+const REPORTS=["Priya Natarajan","Marcus Lee","Dana Okafor","Sam Reyes","Lena Fischer"];
+const EVERYONE=[...REPORTS,"Jordan Park","Chris Wu","Fatima Haddad"];
+const ME="Alex Morgan";
+let seq=130;
+const nextName=()=>`PTO-000${++seq}`;
+
+/* Request factory: lines from a date list */
+function req(name,emp,status,notes,cat,dur,dates,extra={}){
+  return {name,emp,status,notes,decision:extra.decision||"",submitted:extra.submitted||dates[0],approver:extra.approver??"Jordan Park",
+    lines:dates.map(d=>({date:d,cat,dur,sync:status==="Approved"?(extra.sync?.[d]||"On timesheet"):"",err:extra.err?.[d]||""}))};
+}
+function weekdays(from,to){const r=[];for(let d=parse(from);d<=parse(to);d=addD(d,1)) if(d.getDay()%6) r.push(fmt(d));return r;}
+const OWN=[
+  req("PTO-000128",ME,"Submitted","Long weekend","PTO-Planned",8,["2026-10-15","2026-10-16"],{submitted:"2026-10-01",approver:"Jordan Park"}),
+  req("PTO-000124",ME,"Rejected","Clinic visit","Sick Leave",8,["2026-10-14"],{submitted:"2026-09-30",decision:"Rejected by Jordan Park on 2026-10-01: please use PTO-Planned"}),
+  req("PTO-000119",ME,"Approved","Family trip","PTO-Planned",8,weekdays("2026-09-14","2026-09-18"),{submitted:"2026-09-02",decision:"Approved by Jordan Park on 2026-09-03",
+     sync:{"2026-09-18":"Error"},err:{"2026-09-18":"Day total 12 h is over the 10 h daily max"}}),
+  req("PTO-000117",ME,"Rejected","Family trip","PTO-Planned",8,weekdays("2026-09-21","2026-09-25"),{submitted:"2026-09-01",decision:"Rejected by Jordan Park on 2026-09-02: release week, please move"}),
+  req("PTO-000102",ME,"Approved","","Sick Leave",4,["2026-08-04"],{submitted:"2026-08-04",decision:"Approved by Jordan Park on 2026-08-04"}),
+  req("PTO-000087",ME,"Approved","","PTO-Un Planned",8,["2026-03-11"],{submitted:"2026-03-11",decision:"Approved by Jordan Park on 2026-03-12"}),
+];
+/* Older history so Past pages */
+(()=>{let d=parse("2026-02-20");const cats=["PTO-Planned","Sick Leave","PTO-Un Planned","Permission"];
+  for(let i=0;i<30;i++){const c=cats[i%4];const n=1+(i%3);const ds=[];let x=new Date(d);while(ds.length<n){if(x.getDay()%6)ds.push(fmt(x));x=addD(x,1);}
+    OWN.push(req(`PTO-0000${pad(80-i)}`,ME,"Approved","",c,c==="Permission"?2:8,ds,{decision:"Approved by Jordan Park"}));d=addD(d,-(11+(i*5)%17));}})();
+const PENDING=[
+  req("PTO-000129","Priya Natarajan","Submitted","Wedding","PTO-Planned",8,weekdays("2026-10-12","2026-10-16"),{submitted:"2026-10-02"}),
+  req("PTO-000127","Marcus Lee","Submitted","Dentist","Sick Leave",4,["2026-10-06"],{submitted:"2026-10-01"}),
+  req("PTO-000126","Dana Okafor","Submitted","School event","Permission",2,["2026-10-09"],{submitted:"2026-10-01"}),
+  req("PTO-000125","Sam Reyes","Submitted","Moving house","PTO-Planned",8,weekdays("2026-10-05","2026-10-09"),{submitted:"2026-09-30"}),
+  req("PTO-000123","Fatima Haddad","Submitted","","PTO-Un Planned",8,["2026-10-07"],{submitted:"2026-09-30",approver:""}),
+];
+const sum=r=>{const d=r.lines.map(l=>l.date).sort();return{from:d[0],to:d[d.length-1],days:r.lines.length,hours:r.lines.reduce((s,l)=>s+l.dur,0),errs:r.lines.filter(l=>l.sync==="Error").length}};
+const disp=r=>r.status==="Approved"&&sum(r).errs?"Approved, sync error":r.status;
+const cls=s=>"s-"+s.toLowerCase().replace(/[^a-z]/g,"");
+const sortOwn=()=>OWN.sort((a,b)=>sum(a).from<sum(b).from?1:-1);
+sortOwn();
+
+const blankRow=()=>({date:"",cat:"PTO-Planned",dur:8});
+const mock={
+  role:"mgr", tab:"approve", page:0, pastSel:null, apprSel:null, pastEmp:ME,
+  apply:{emp:ME+" (me)",start:"",end:"",cat:"PTO-Planned",dur:8,weekends:false,rows:[blankRow()],reason:"",review:false},
+  sort:{k:"from",dir:1},
+  team:[["Priya Natarajan",[0,8,8,0,0,0,0]],["Marcus Lee",[0,0,4,0,0,0,0]],["Dana Okafor",[0,0,0,0,2,0,0]],["Sam Reyes",[0,8,8,8,8,8,0]],["Lena Fischer",[0,0,0,0,0,0,0]]],
+};
+const canApprove=()=>mock.role!=="user";
+const visiblePending=()=>mock.role==="hr"?PENDING:PENDING.filter(r=>REPORTS.includes(r.emp));
+const empChoices=()=>mock.role==="mgr"?REPORTS:mock.role==="hr"?EVERYONE:[];
+
+/* ---------- Apply helpers ---------- */
+function fillFromRange(){
+  const a=mock.apply;
+  if(!a.start||!a.end) return;
+  const s=parse(a.start), e=parse(a.end);
+  if(e<s){toast("End date must be on or after the start date.");return;}
+  if((e-s)/864e5>62){toast("Pick a range of 62 days or fewer.");return;}
+  a.rows=[];
+  for(let d=new Date(s);d<=e;d=addD(d,1)){ if((d.getDay()===0||d.getDay()===6)&&!a.weekends) continue; a.rows.push({date:fmt(d),cat:a.cat,dur:a.dur}); }
+  if(!a.rows.length) a.rows=[blankRow()];
+}
+/* Existing leave lines on Submitted/Approved requests, own employee only in this mock */
+function existingIn(){
+  const a=mock.apply; if(!a.emp.startsWith(ME)) return [];
+  const dates=a.rows.map(r=>r.date).filter(Boolean); let lo=a.start, hi=a.end;
+  if(dates.length){const t=[...dates].sort(); lo=lo&&lo<t[0]?lo:t[0]; hi=hi&&hi>t[t.length-1]?hi:t[t.length-1];}
+  if(!lo||!hi) return [];
+  const out=[]; OWN.filter(r=>r.status!=="Rejected").forEach(r=>r.lines.forEach(l=>{ if(l.date>=lo&&l.date<=hi) out.push({...l,req:r.name,status:r.status}); }));
+  return out;
+}
+function rowIssue(r){
+  if(!r.date) return "Pick a date";
+  const lim=LIMITS[r.cat], d=+r.dur;
+  if(!(d>0)) return "Hours must be above 0";
+  if(d>lim) return `${r.cat} allows up to ${lim} h per day`;
+  const ex=existingIn().filter(x=>x.date===r.date);
+  const hit=ex.find(x=>x.cat===r.cat); if(hit) return `${r.cat} is already on ${hit.req} for this date`;
+  const same=mock.apply.rows.filter(x=>x.date===r.date);
+  if(same.filter(x=>x.cat===r.cat).length>1) return "Same date and category entered twice";
+  const day=ex.reduce((s,x)=>s+x.dur,0)+same.reduce((s,x)=>s+(+x.dur||0),0)+(LOGGED[r.date]||0);
+  if(day>DAY_MAX) return `Day total ${day} h is over the ${DAY_MAX} h daily max${LOGGED[r.date]?` (${LOGGED[r.date]} h already logged)`:""}`;
+  return "";
+}
+
+/* ---------- Shared pieces ---------- */
+function tile(l,v,s){return `<div class="card" style="padding:10px 12px;display:grid;gap:2px"><span class="eyebrow">${l}</span><span style="font-size:20px;font-weight:600;font-variant-numeric:tabular-nums">${v}</span><span class="muted" style="font-size:11px">${esc(s)}</span></div>`}
+function detail(r,mode){
+  if(!r) return `<div class="empty">Select a request to see its days.</div>`;
+  const s=sum(r), anyErr=r.lines.some(l=>l.err), d=disp(r);
+  const canRetry=mode==="past"&&mock.role==="hr"&&s.errs;
+  return `<div class="detail">
+   <div class="hd">
+    <div class="row" style="justify-content:space-between"><span class="row"><b class="mono" style="font-size:13px">${r.name}</b><span class="pill ${cls(d)}">${d}</span></span>
+     ${mode==="approve"?`<span class="row"><button class="btn primary" data-dec="approve">Approve</button><button class="btn danger" data-dec="reject">Reject</button></span>`:""}
+     ${canRetry?`<button class="btn" data-act="retry">Retry timesheet sync</button>`:""}</div>
+    <div>${esc(r.emp)} · ${short(s.from)}${s.to!==s.from?` – ${short(s.to)}`:""} ${parse(s.to).getFullYear()} · ${s.days} day${s.days===1?"":"s"} · ${s.hours} h</div>
+   </div>
+   <div class="bd">
+    <dl class="kv">
+     <dt>Approver</dt><dd>${r.approver?esc(r.approver):'<span class="err">No manager, waiting for HR</span>'}</dd>
+     <dt>Reason</dt><dd>${r.notes?esc(r.notes):'<span class="muted">—</span>'}</dd>
+     ${r.decision?`<dt>Decision</dt><dd>${esc(r.decision)}</dd>`:""}
+     <dt>Submitted</dt><dd class="mono">${r.submitted}</dd>
+    </dl>
+    <div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Category</th><th class="num">Hours</th>${r.status==="Approved"?"<th>Timesheet</th>":""}${anyErr?"<th>Error</th>":""}</tr></thead><tbody>
+     ${r.lines.map(l=>`<tr><td class="mono">${l.date} <span class="muted">${DOW[parse(l.date).getDay()]}</span></td><td>${l.cat}</td><td class="num">${l.dur.toFixed(1)}</td>
+       ${r.status==="Approved"?`<td><span class="pill ${cls(l.sync)}">${l.sync}</span></td>`:""}${anyErr?`<td class="err" style="white-space:normal;min-width:160px">${esc(l.err)}</td>`:""}</tr>`).join("")}
+    </tbody></table></div>
+    ${r.status==="Rejected"?`<p class="note">Rejected requests stay here as history. Apply again to create a new request for these dates.</p>`:""}
+   </div></div>`;
+}
+
+const TABS=[["overview","Overview"],["apply","Apply"],["past","Past"],["approve","Approve"]];
+function render(){
+  if(mock.tab==="approve"&&!canApprove()) mock.tab="overview";
+  $("#tabs").innerHTML=TABS.filter(([k])=>k!=="approve"||canApprove()).map(([k,l],i)=>
+    `<button class="tab" role="tab" data-tab="${k}" aria-selected="${mock.tab===k}"><span class="k">0${i+1}</span>${l}${k==="approve"?` <span class="k">(${visiblePending().length})</span>`:""}</button>`).join("");
+  $("#tabBody").innerHTML=PANEL[mock.tab]();
+}
+const PANEL={
+ overview(){
+  const live=OWN.filter(r=>r.status!=="Rejected").flatMap(r=>r.lines.map(l=>({...l,status:r.status}))).filter(l=>l.date>="2026-01-01");
+  const tot={}; live.forEach(l=>{tot[l.cat]=tot[l.cat]||{a:0,p:0}; tot[l.cat][l.status==="Approved"?"a":"p"]+=l.dur;});
+  const taken=live.filter(l=>l.status==="Approved").reduce((s,l)=>s+l.dur,0);
+  const pendReqs=OWN.filter(r=>r.status==="Submitted"), pend=pendReqs.reduce((s,r)=>s+sum(r).hours,0);
+  const max=Math.max(8,...Object.values(tot).map(t=>t.a+t.p));
+  let h=`<div class="grid4">
+    ${tile("Available",(BAL-pend).toFixed(1)+" h","Balance minus pending")}
+    ${tile("Taken 2026",taken.toFixed(1)+" h","Approved leave")}
+    ${tile("Pending",pend.toFixed(1)+" h",`In ${pendReqs.length} request${pendReqs.length===1?"":"s"}`)}
+    ${tile("Next leave","Oct 15","PTO-Planned · 2 days")}</div>
+   <div class="row" style="justify-content:space-between"><h3>Hours by category · 2026</h3><span class="legend"><i style="background:var(--accent)"></i>Approved <i style="background:var(--heat-2);margin-left:6px"></i>Submitted</span></div>
+   <div class="bars">${Object.entries(tot).sort((a,b)=>(b[1].a+b[1].p)-(a[1].a+a[1].p)).map(([c,t])=>`<div class="bar"><span>${c}</span><span class="track"><span class="fill" style="width:${t.a/max*100}%"></span><span class="fill p" style="width:${t.p/max*100}%"></span></span><span class="mono" style="text-align:right">${(t.a+t.p).toFixed(1)} h</span></div>`).join("")}</div>
+   <p class="note">Sums Leave Line Items whose request is Submitted or Approved. Rejected requests are excluded.</p>`;
+  if(mock.role!=="user"){
+   const lvl=v=>v===0?0:v<=2?1:v<=4?2:v<8?3:4;
+   h+=`<div class="row" style="justify-content:space-between"><h3>${mock.role==="hr"?"All employees":"Direct reports"} · week of Oct 4, 2026</h3>
+    <span class="legend">0 h<i style="background:var(--heat-0)"></i><i style="background:var(--heat-1)"></i><i style="background:var(--heat-2)"></i><i style="background:var(--heat-3)"></i><i style="background:var(--heat-4)"></i>8 h</span></div>
+   <div style="overflow-x:auto"><div class="heat" style="min-width:420px"><span></span>${DOW.map(d=>`<span class="h">${d}</span>`).join("")}
+    ${mock.team.map(([n,ds])=>`<span>${n}</span>${ds.map(v=>`<span class="c" style="background:var(--heat-${lvl(v)});color:${lvl(v)>=3?"var(--panel)":"var(--fg)"}">${v||""}</span>`).join("")}`).join("")}
+   </div></div>`;
+  }
+  return h;
+ },
+ apply(){
+  const a=mock.apply;
+  if(a.review) return review();
+  const ex=existingIn(), emps=empChoices();
+  const total=a.rows.reduce((s,r)=>s+(+r.dur||0),0);
+  const merged=[...ex.map(r=>({...r,locked:true})),...a.rows.map((r,i)=>({...r,i}))].sort((x,y)=>(x.date||"9999")<(y.date||"9999")?-1:1);
+  return `<div class="grid4">
+    ${emps.length?`<label class="f" for="ap-emp">Employee<select id="ap-emp">${[ME+" (me)",...emps].map(n=>`<option ${n===a.emp?"selected":""}>${n}</option>`).join("")}</select></label>`:`<label class="f" for="ap-emp">Employee<input id="ap-emp" readonly value="${ME}"></label>`}
+    <label class="f" for="ap-start">Start date<input id="ap-start" type="date" value="${a.start}"></label>
+    <label class="f" for="ap-end">End date<input id="ap-end" type="date" value="${a.end}"></label>
+    <label class="f" for="ap-cat">Absence category<select id="ap-cat">${CATS.map(c=>`<option ${c===a.cat?"selected":""}>${c}</option>`).join("")}</select></label>
+    <label class="f" for="ap-dur">Hours per day (max ${LIMITS[a.cat]})<input id="ap-dur" type="number" min="0" max="${LIMITS[a.cat]}" step="0.5" value="${a.dur}"></label></div>
+   <div class="row" style="justify-content:space-between"><label class="chk" for="ap-we"><input id="ap-we" type="checkbox" ${a.weekends?"checked":""}>Include Saturday and Sunday</label>
+     <span class="muted" style="font-size:12px">Try Oct 12–16: the 13th has 4 h logged, the 15th–16th are on PTO-000128.</span></div>
+   <div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Day</th><th>Absence category</th><th class="num">Hours</th><th></th></tr></thead><tbody>
+   ${merged.map(r=>{
+     if(r.locked) return `<tr class="locked"><td class="mono">${r.date}</td><td>${DOW[parse(r.date).getDay()]}</td><td>${r.cat}</td><td class="num">${r.dur.toFixed(1)}</td><td><span class="info">On ${r.req}, ${r.status}</span></td></tr>`;
+     const issue=rowIssue(r);
+     return `<tr class="${issue&&r.date?"clash":""}"><td><input type="date" data-i="${r.i}" data-f="date" value="${r.date}" aria-label="Date">${issue&&r.date?`<div class="err">${esc(issue)}</div>`:""}</td><td>${r.date?DOW[parse(r.date).getDay()]:"—"}</td>
+     <td><select data-i="${r.i}" data-f="cat" aria-label="Category">${CATS.map(c=>`<option ${c===r.cat?"selected":""}>${c}</option>`).join("")}</select></td>
+     <td class="num"><input data-i="${r.i}" data-f="dur" type="number" min="0" max="${LIMITS[r.cat]}" step="0.5" value="${r.dur}" style="width:70px;text-align:right" aria-label="Hours"></td>
+     <td><button class="btn icon" data-del="${r.i}" aria-label="Remove row">✕</button></td></tr>`}).join("")}
+   </tbody><tfoot><tr><td colspan="3"><button class="btn" data-act="add">Add row</button></td><td class="num mono">${total.toFixed(1)}</td><td class="muted">Balance after: ${(BAL-total).toFixed(1)} h</td></tr></tfoot></table></div>
+   <label class="f" for="ap-reason">Reason (one for the whole request)<textarea id="ap-reason" maxlength="2000" placeholder="e.g. Family trip">${esc(a.reason)}</textarea></label>
+   ${a.emp.startsWith(ME)?"":`<p class="note">Applying for ${esc(a.emp)}. The request is owned by them and still goes to approval.</p>`}
+   <div class="row" style="justify-content:flex-end"><button class="btn" data-act="clear">Clear</button><button class="btn primary" data-act="next">Review</button></div>`;
+ },
+ past(){
+  const emps=empChoices(); if(!emps.length) mock.pastEmp=ME;
+  const all=mock.pastEmp===ME?OWN:PENDING.filter(r=>r.emp===mock.pastEmp);
+  const n=mock.page, rows=all.slice(n*25,n*25+25), more=all.length>n*25+25;
+  if(!rows.find(r=>r.name===mock.pastSel)) mock.pastSel=rows[0]?.name||null;
+  const sel=all.find(r=>r.name===mock.pastSel);
+  return `${emps.length?`<label class="f" for="past-emp" style="max-width:260px">Employee<select id="past-emp">${[ME,...emps].map(e=>`<option value="${e}" ${e===mock.pastEmp?"selected":""}>${e===ME?`Me (${ME})`:e}</option>`).join("")}</select></label>`:""}
+   <div class="split">
+   <div class="pane">
+    <div class="row" style="justify-content:space-between"><span class="muted" style="font-size:12px">Showing ${n*25+1} to ${n*25+rows.length}</span>
+     <span class="row"><button class="btn" data-pg="-1" ${n?"":"disabled"}>Previous</button><span class="mono">Page ${n+1}</span><button class="btn" data-pg="1" ${more?"":"disabled"}>Next</button></span></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Request</th><th>From</th><th>To</th><th class="num">Days</th><th class="num">Hours</th><th>Status</th></tr></thead><tbody>
+    ${rows.map(r=>{const s=sum(r),d=disp(r);return `<tr class="sel" tabindex="0" data-sel="past" data-name="${r.name}" aria-selected="${r.name===mock.pastSel}"><td class="mono">${r.name}</td><td class="mono">${s.from}</td><td class="mono">${s.to}</td><td class="num">${s.days}</td><td class="num">${s.hours.toFixed(1)}</td><td><span class="pill ${cls(d)}">${d}</span></td></tr>`}).join("")}
+    </tbody></table></div>
+   </div>
+   <div class="pane">${detail(sel,"past")}</div></div>
+   <p class="note">Newest first, 25 requests per page. Click a request to see its days. PTO-000119 shows a sync error${mock.role==="hr"?"; as HR you can retry it":" (HR can retry it)"}.</p>`;
+ },
+ approve(){
+  const list=visiblePending();
+  if(!list.length) return `<div class="empty">No leave requests are waiting for your approval.</div>`;
+  const {k,dir}=mock.sort;
+  const val=(r,key)=>key==="emp"?r.emp:key==="name"?r.name:key==="submitted"?r.submitted:sum(r)[key];
+  const rows=[...list].sort((x,y)=>(val(x,k)>val(y,k)?1:val(x,k)<val(y,k)?-1:0)*dir);
+  if(!rows.find(r=>r.name===mock.apprSel)) mock.apprSel=rows[0].name;
+  const th=(key,l,c="")=>`<th class="${c}"><button data-sort="${key}" ${k===key?`aria-sort="${dir>0?"ascending":"descending"}"`:""}>${l}<span class="ar">${k===key?(dir>0?"▲":"▼"):""}</span></button></th>`;
+  return `<div class="split">
+   <div class="pane"><div class="tbl-wrap"><table><thead><tr>${th("name","Request")}${th("emp","Employee")}${th("from","From")}${th("to","To")}${th("days","Days","num")}${th("hours","Hours","num")}${th("submitted","Submitted")}</tr></thead><tbody>
+    ${rows.map(r=>{const s=sum(r);return `<tr class="sel" tabindex="0" data-sel="appr" data-name="${r.name}" aria-selected="${r.name===mock.apprSel}"><td class="mono">${r.name}</td><td>${esc(r.emp)}</td><td class="mono">${s.from}</td><td class="mono">${s.to}</td><td class="num">${s.days}</td><td class="num">${s.hours.toFixed(1)}</td><td class="mono">${r.submitted}</td></tr>`}).join("")}
+   </tbody></table></div></div>
+   <div class="pane">${detail(rows.find(r=>r.name===mock.apprSel),"approve")}</div></div>
+   <p class="note">${mock.role==="hr"?"HR Admin view: every pending request, including Fatima's, who has no manager.":"Your direct reports only."} One row per request; click a header to sort. Approve or reject the whole request on the right.</p>`;
+ },
+};
+function review(){
+  const a=mock.apply, rows=a.rows.filter(r=>r.date);
+  const total=rows.reduce((s,r)=>s+(+r.dur||0),0), by={};
+  rows.forEach(r=>by[r.cat]=(by[r.cat]||0)+(+r.dur||0));
+  const dates=rows.map(r=>r.date).sort();
+  const noMgr=a.emp==="Fatima Haddad";
+  return `<h3>Review before submitting</h3>
+   <div class="summary">
+    ${tile("Request","1 new",a.reason?`Reason: ${a.reason}`:"No reason given")}
+    ${tile("Days",String(rows.length),dates.length?`${dates[0]} → ${dates[dates.length-1]}`:"")}
+    ${tile("Total hours",total.toFixed(1)+" h",Object.entries(by).map(([c,v])=>`${c} ${v}`).join(" · "))}
+    ${tile("Balance after",(BAL-total).toFixed(1)+" h",`Now ${BAL.toFixed(1)} h`)}</div>
+   ${BAL-total<0?`<div class="warnbox">This goes over the balance by ${(total-BAL).toFixed(1)} h. You can still submit.</div>`:""}
+   ${noMgr?`<div class="warnbox">This employee has no manager, so the request will stay pending until HR approves it.</div>`:""}
+   <div class="warnbox"><b>You won't be able to edit this request after submitting.</b> The manager approves or rejects the whole request.</div>
+   <div class="row" style="justify-content:flex-end"><button class="btn" data-act="back">Back</button><button class="btn primary" data-act="submit">Submit request</button></div>`;
+}
+
+$("#tabs").addEventListener("click",e=>{const t=e.target.closest("[data-tab]"); if(t){mock.tab=t.dataset.tab; render();}});
+function selectRow(tr){ if(tr.dataset.sel==="past") mock.pastSel=tr.dataset.name; else mock.apprSel=tr.dataset.name; render();
+  requestAnimationFrame(()=>$(`tr[data-name="${tr.dataset.name}"]`)?.focus()); }
+$("#tabBody").addEventListener("keydown",e=>{const tr=e.target.closest("tr.sel"); if(tr&&(e.key==="Enter"||e.key===" ")){e.preventDefault();selectRow(tr);}});
+$("#tabBody").addEventListener("click",e=>{
+  const a=mock.apply, g=s=>e.target.closest(s);
+  const tr=g("tr.sel"); if(tr){selectRow(tr);return;}
+  const pg=g("[data-pg]"); if(pg){mock.page+= +pg.dataset.pg; mock.pastSel=null; render(); return;}
+  const so=g("[data-sort]"); if(so){const k=so.dataset.sort; mock.sort=mock.sort.k===k?{k,dir:-mock.sort.dir}:{k,dir:1}; render(); return;}
+  const del=g("[data-del]"); if(del){a.rows.splice(+del.dataset.del,1); if(!a.rows.length)a.rows=[blankRow()]; render(); return;}
+  const dec=g("[data-dec]"); if(dec){confirmModal(dec.dataset.dec==="reject");return;}
+  const act=g("[data-act]")?.dataset.act; if(!act) return;
+  if(act==="retry"){const r=OWN.find(x=>x.name===mock.pastSel); r.lines.forEach(l=>{if(l.sync==="Error"){l.sync="On timesheet";l.err="";}}); toast(`${r.name}: all days are on the timesheet now.`); render();}
+  if(act==="add"){a.rows.push(blankRow()); render();}
+  if(act==="clear"){Object.assign(a,{start:"",end:"",rows:[blankRow()],reason:""}); render();}
+  if(act==="back"){a.review=false; render();}
+  if(act==="next"){
+    const filled=a.rows.filter(r=>r.date);
+    if(!filled.length){toast("Add at least one day with a date.");return;}
+    a.rows=filled;
+    for(const r of filled){const iss=rowIssue(r); if(iss){render();toast(`${r.date}: ${iss}`);return;}}
+    a.review=true; render();
+  }
+  if(act==="submit"){
+    const emp=a.emp.replace(" (me)",""), name=nextName();
+    const r={name,emp,status:"Submitted",notes:a.reason,decision:"",submitted:"2026-10-05",approver:emp==="Fatima Haddad"?"":"Jordan Park",lines:a.rows.map(x=>({date:x.date,cat:x.cat,dur:+x.dur,sync:"",err:""}))};
+    if(emp===ME){OWN.push(r); sortOwn();} else PENDING.push(r);
+    toast(`${name} submitted, ${r.lines.length} day${r.lines.length===1?"":"s"}`);
+    Object.assign(a,{start:"",end:"",rows:[blankRow()],reason:"",review:false}); render();
+  }
+});
+$("#tabBody").addEventListener("input",e=>{ if(e.target.id==="ap-reason") mock.apply.reason=e.target.value; });
+$("#tabBody").addEventListener("change",e=>{
+  const a=mock.apply, t=e.target;
+  if(t.id==="ap-emp"){a.emp=t.value; render(); return;}
+  if(t.id==="past-emp"){mock.pastEmp=t.value; mock.page=0; mock.pastSel=null; render(); return;}
+  if(t.id==="ap-start"||t.id==="ap-end"){a[t.id==="ap-start"?"start":"end"]=t.value; if(a.start&&!a.end)a.end=a.start; fillFromRange(); render();}
+  else if(t.id==="ap-we"){a.weekends=t.checked; fillFromRange(); render();}
+  else if(t.id==="ap-cat"){a.cat=t.value; a.dur=Math.min(a.dur,LIMITS[a.cat]); a.rows.forEach(r=>{r.cat=a.cat;r.dur=Math.min(+r.dur,LIMITS[a.cat])}); render();}
+  else if(t.id==="ap-dur"){a.dur=+t.value; a.rows.forEach(r=>r.dur=a.dur); render();}
+  else if(t.dataset.i){a.rows[+t.dataset.i][t.dataset.f]=t.value; render();}
+});
+$("#role").addEventListener("change",e=>{mock.role=e.target.value; render();});
+function confirmModal(reject){
+  const list=visiblePending(), idx=list.findIndex(x=>x.name===mock.apprSel), r=list[idx], s=sum(r);
+  const summary=`${r.name} · ${r.emp} · ${short(s.from)}${s.to!==s.from?` – ${short(s.to)}`:""} · ${s.days} day${s.days===1?"":"s"} · ${s.hours} h`;
+  $("#modalRoot").innerHTML=`<div class="modal-bg"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mh">
+   <header><h2 id="mh">${reject?"Reject":"Approve"} request</h2></header>
+   <div style="display:grid;gap:8px"><div>${esc(summary)}</div>
+   ${reject?`<label class="f" for="rj-reason">Reason (shown to the employee)<textarea id="rj-reason" placeholder="e.g. Release week, please move by one week"></textarea></label><div class="err" id="rj-err" hidden>Enter a reason before rejecting.</div>`
+   :`<div class="muted">Approves all ${s.days} day${s.days===1?"":"s"}. Days whose week has a timesheet are added to it now; the rest wait for the timesheet.</div>`}</div>
+   <footer><button class="btn" data-m="cancel">Cancel</button><button class="btn primary" data-m="ok">${reject?"Reject":"Approve"}</button></footer></div></div>`;
+  $("#modalRoot").querySelector(reject?"#rj-reason":"[data-m=ok]").focus();
+  $("#modalRoot").onclick=e=>{
+    const m=e.target.closest("[data-m]")?.dataset.m;
+    if(m==="cancel"){$("#modalRoot").innerHTML="";return;}
+    if(m==="ok"){
+      if(reject&&!$("#rj-reason").value.trim()){$("#rj-err").hidden=false;return;}
+      PENDING.splice(PENDING.indexOf(r),1);
+      const rest=visiblePending(); mock.apprSel=rest[Math.min(idx,rest.length-1)]?.name||null;
+      $("#modalRoot").innerHTML="";
+      toast(reject?`${r.name} rejected. ${r.emp.split(" ")[0]} sees the reason in Past.`:`${r.name} approved, ${s.days} day${s.days===1?"":"s"}.`); render();
+    }
+  };
+}
+document.addEventListener("keydown",e=>{if(e.key==="Escape")$("#modalRoot").innerHTML="";});
+render();
+</script>

@@ -4,7 +4,7 @@
     <deleteConstraint>SetNull</deleteConstraint>
     <label>Approver</label>
     <referenceTo>User</referenceTo>
-    <relationshipName>Leave_Approvals</relationshipName>
+    <relationshipName>PTO_Approvals</relationshipName>
     <required>false</required>
     <trackTrending>false</trackTrending>
     <type>Lookup</type>

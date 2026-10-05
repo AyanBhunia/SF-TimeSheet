@@ -18,6 +18,7 @@ export default class PtoApply extends LightningElement {
     category;
     hoursPerDay;
     includeWeekends = false;
+    reason = '';
     rows = [];
     records = { leaves: [], lineItems: [] };
     loadedEmployee;
@@ -112,8 +113,7 @@ export default class PtoApply extends LightningElement {
                 width: '12rem'
             },
             { fieldName: 'hours', label: 'Hours', type: 'number', editable: true, align: 'right', width: '7rem' },
-            { fieldName: 'notes', label: 'Notes', type: 'text', editable: true },
-            { fieldName: 'status', label: 'Status', type: 'status', width: '8rem' }
+            { fieldName: 'status', label: 'Status', type: 'status', width: '10rem' }
         ];
     }
 
@@ -134,10 +134,8 @@ export default class PtoApply extends LightningElement {
                 day: dayName(r.date),
                 category: r.category,
                 hours: r.hours,
-                notes: r.notes,
                 status: '',
-                error: result.error,
-                info: result.info
+                error: result.error
             };
         });
         return [...locked, ...editable].sort((a, b) => {
@@ -161,8 +159,8 @@ export default class PtoApply extends LightningElement {
                 day: dayName(l.date),
                 category: l.category,
                 hours: l.hours,
-                notes: firstLine(l.notes),
-                status: l.type === 'Holiday' ? 'Holiday' : l.status
+                status: l.status,
+                info: `On ${l.requestName}`
             });
         });
         this.records.lineItems
@@ -174,8 +172,8 @@ export default class PtoApply extends LightningElement {
                     day: dayName(li.date),
                     category: li.category,
                     hours: li.hours,
-                    notes: 'Already on the timesheet',
-                    status: 'On timesheet'
+                    status: 'On timesheet',
+                    info: 'Already on the timesheet'
                 });
             });
         return rows;
@@ -186,9 +184,8 @@ export default class PtoApply extends LightningElement {
      */
     checkRows() {
         const result = {};
-        const leaves = this.records.leaves;
         const items = this.records.lineItems;
-        const activeLeave = leaves.filter((l) => ACTIVE.includes(l.status));
+        const activeLeave = this.records.leaves.filter((l) => ACTIVE.includes(l.status));
         const counts = {};
         const newHoursByDay = {};
         this.rows.forEach((r) => {
@@ -203,9 +200,8 @@ export default class PtoApply extends LightningElement {
 
         this.rows.forEach((r) => {
             let error = this.serverErrors[r.key] || '';
-            let info = '';
             const hours = Number(r.hours);
-            const blank = !r.date && !r.notes;
+            const blank = !r.date;
             if (!error) {
                 if (!r.date) {
                     error = this.showMissing && !blank ? 'Pick a date.' : '';
@@ -221,7 +217,7 @@ export default class PtoApply extends LightningElement {
                     const sameLeave = activeLeave.find((l) => l.date === r.date && l.category === r.category);
                     const dayItems = items.filter((li) => li.date === r.date);
                     if (sameLeave) {
-                        error = `${r.category} on ${r.date} is already ${
+                        error = `${r.category} on ${r.date} is already on ${sameLeave.requestName}, ${
                             sameLeave.status === 'Approved' ? 'approved' : 'waiting for approval'
                         }.`;
                     } else if (dayItems.some((li) => li.type === 'Absence' && li.category === r.category)) {
@@ -248,15 +244,7 @@ export default class PtoApply extends LightningElement {
                     }
                 }
             }
-            if (!error && r.date && r.category) {
-                const rejected = leaves.find(
-                    (l) => l.status === 'New' && l.date === r.date && l.category === r.category
-                );
-                if (rejected) {
-                    info = 'Resubmits the rejected request for this date.';
-                }
-            }
-            result[r.key] = { error, info };
+            result[r.key] = { error };
         });
         return result;
     }
@@ -264,7 +252,7 @@ export default class PtoApply extends LightningElement {
     // ------------------------------------------------------------------ review summary
 
     get submitRows() {
-        return this.rows.filter((r) => r.date || r.notes);
+        return this.rows.filter((r) => r.date);
     }
 
     get totalHours() {
@@ -319,15 +307,8 @@ export default class PtoApply extends LightningElement {
         return this.loadedEmployee && !this.loadedEmployee.hasManager;
     }
 
-    get resubmitCount() {
-        const rejected = this.records.leaves.filter((l) => l.status === 'New');
-        return this.submitRows.filter((r) => rejected.some((l) => l.date === r.date && l.category === r.category))
-            .length;
-    }
-
-    get resubmitMessage() {
-        const n = this.resubmitCount;
-        return `${n} of these ${n === 1 ? 'resubmits a rejected request' : 'resubmit rejected requests'}. Those records are updated instead of creating new ones.`;
+    get reasonSummary() {
+        return this.reason && this.reason.trim() ? `Reason: ${firstLine(this.reason.trim())}` : 'No reason given';
     }
 
     get applyingFor() {
@@ -339,8 +320,7 @@ export default class PtoApply extends LightningElement {
     }
 
     get submitLabel() {
-        const n = this.dayCount;
-        return `Submit ${n} day${n === 1 ? '' : 's'}`;
+        return 'Submit request';
     }
 
     // ------------------------------------------------------------------ handlers
@@ -382,6 +362,10 @@ export default class PtoApply extends LightningElement {
         this.hoursPerDay = event.target.value;
         this.rows = this.rows.map((r) => ({ ...r, hours: this.hoursPerDay }));
         this.serverErrors = {};
+    }
+
+    handleReason(event) {
+        this.reason = event.target.value || '';
     }
 
     handleWeekends(event) {
@@ -426,6 +410,7 @@ export default class PtoApply extends LightningElement {
     handleClear() {
         this.startDate = '';
         this.endDate = '';
+        this.reason = '';
         this.rangeError = undefined;
         this.rows = [this.blankRow()];
         this.records = { leaves: [], lineItems: [] };
@@ -468,12 +453,15 @@ export default class PtoApply extends LightningElement {
         const payload = rows.map((r) => ({
             date: r.date,
             category: r.category,
-            hours: Number(r.hours),
-            notes: r.notes || ''
+            hours: Number(r.hours)
         }));
         this.isSubmitting = true;
         try {
-            const response = await submitLeave({ employeeId: this.employeeId, rowsJson: JSON.stringify(payload) });
+            const response = await submitLeave({
+                employeeId: this.employeeId,
+                rowsJson: JSON.stringify(payload),
+                notes: this.reason || ''
+            });
             if (!response.success) {
                 const errors = {};
                 (response.rowErrors || []).forEach((message, index) => {
@@ -487,14 +475,8 @@ export default class PtoApply extends LightningElement {
                 this.toast('Not submitted', first || 'Fix the highlighted rows and try again.', 'error');
                 return;
             }
-            const parts = [];
-            if (response.submittedCount) {
-                parts.push(`${response.submittedCount} new`);
-            }
-            if (response.resubmittedCount) {
-                parts.push(`${response.resubmittedCount} resubmitted`);
-            }
-            this.toast('Submitted for approval', `${rows.length} day${rows.length === 1 ? '' : 's'} (${parts.join(', ')}).`, 'success');
+            const days = response.dayCount;
+            this.toast('Submitted for approval', `${response.requestName} submitted, ${days} day${days === 1 ? '' : 's'}.`, 'success');
             (response.warnings || []).forEach((w) => this.toast('Note', w, 'warning'));
             this.handleClear();
             this.step = 'edit';
@@ -531,7 +513,7 @@ export default class PtoApply extends LightningElement {
             if (!this.includeWeekends && (weekday === 0 || weekday === 6)) {
                 continue;
             }
-            rows.push({ key: newKey(), date, category: this.category, hours: this.hoursPerDay, notes: '' });
+            rows.push({ key: newKey(), date, category: this.category, hours: this.hoursPerDay });
         }
         this.rows = rows.length ? rows : [this.blankRow()];
         this.loadRecords();
@@ -589,7 +571,7 @@ export default class PtoApply extends LightningElement {
     }
 
     blankRow() {
-        return { key: newKey(), date: '', category: this.category, hours: this.hoursPerDay, notes: '' };
+        return { key: newKey(), date: '', category: this.category, hours: this.hoursPerDay };
     }
 
     maxFor(category) {

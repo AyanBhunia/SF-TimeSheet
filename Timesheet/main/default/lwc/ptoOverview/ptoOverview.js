@@ -150,6 +150,11 @@ export default class PtoOverview extends LightningElement {
         return val !== null && val !== undefined ? `${this.formatNumber(val)} h` : '0 h';
     }
 
+    get pendingCaption() {
+        const n = this.overview?.pendingRequests || 0;
+        return n ? `In ${n} request${n === 1 ? '' : 's'}` : 'Nothing waiting for approval';
+    }
+
     get nextLeaveDateDisplay() {
         return this.overview?.nextLeaveDate || 'None';
     }

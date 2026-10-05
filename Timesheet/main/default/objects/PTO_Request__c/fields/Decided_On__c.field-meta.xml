@@ -1,10 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
-    <fullName>Notes__c</fullName>
-    <label>Notes</label>
-    <length>2000</length>
+    <fullName>Decided_On__c</fullName>
+    <label>Decided On</label>
     <required>false</required>
     <trackTrending>false</trackTrending>
-    <type>LongTextArea</type>
-    <visibleLines>4</visibleLines>
+    <type>DateTime</type>
 </CustomField>

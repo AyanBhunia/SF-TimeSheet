@@ -1,41 +1,40 @@
 /**
- * @description Shared rule set for leave days. Used by the Leave_and_Holiday__c trigger, the PTO tab
+ * @description Shared rule set for leave days. Used by the Leave_Line_Item__c trigger, the PTO tab
  *              and the Timesheet_Line_Item__c trigger, so a leave day and an absence line item are
- *              checked by the same rules.
+ *              checked by the same rules. Leave counts while its PTO Request is Submitted or Approved;
+ *              a Rejected request no longer holds its days.
  *              Runs without sharing on purpose: a manager applying for a direct report must see that
  *              employee's existing leave and line items to validate the request. It only reads.
  */
 public without sharing class LeaveValidator {
 
-    public static final String STATUS_NEW = 'New';
     public static final String STATUS_SUBMITTED = 'Submitted';
     public static final String STATUS_APPROVED = 'Approved';
-    public static final String TYPE_LEAVE = 'Leave';
-    public static final String TYPE_HOLIDAY = 'Holiday';
+    public static final String STATUS_REJECTED = 'Rejected';
     public static final String CATEGORY_HOLIDAY = 'Holiday';
     public static final String LINE_TYPE_ABSENCE = 'Absence';
+    public static final String SYNC_WAITING = 'Waiting for timesheet';
+    public static final String SYNC_DONE = 'On timesheet';
+    public static final String SYNC_ERROR = 'Error';
     public static final Decimal DEFAULT_CATEGORY_MAX = 8;
     public static final Decimal DEFAULT_DAILY_MAX = 24;
 
     private static Timesheet_Default_Value__mdt cachedSettings;
 
     /**
-     * @description One leave day to check. leaveId is set when the row is an existing leave record
-     *              being updated; its own matching absence line item is then not treated as a duplicate.
+     * @description One leave day to check.
      */
     public class Row {
         public Id employeeId;
         public Date day;
         public String category;
         public Decimal hours;
-        public Id leaveId;
 
-        public Row(Id employeeId, Date day, String category, Decimal hours, Id leaveId) {
+        public Row(Id employeeId, Date day, String category, Decimal hours) {
             this.employeeId = employeeId;
             this.day = day;
             this.category = category;
             this.hours = hours;
-            this.leaveId = leaveId;
         }
     }
 
@@ -72,7 +71,7 @@ public without sharing class LeaveValidator {
     }
 
     /**
-     * @description Value for Unique_Key__c: one leave record per employee, date and category.
+     * @description Value for Leave_Line_Item__c.Unique_Key__c: one live leave day per employee, date and category.
      */
     public static String key(Id employeeId, Date day, String category) {
         if (employeeId == null || day == null || String.isBlank(category)) {
@@ -94,7 +93,7 @@ public without sharing class LeaveValidator {
 
     /**
      * @description Checks every row and returns one message per row, in the same order ('' = valid).
-     *              Two queries for any number of rows.
+     *              The rows are new days that aren't saved yet. Two queries for any number of rows.
      */
     public static List<String> validate(List<Row> rows) {
         List<String> errors = new List<String>();
@@ -103,15 +102,11 @@ public without sharing class LeaveValidator {
         }
 
         Set<Id> employeeIds = new Set<Id>();
-        Set<Id> batchLeaveIds = new Set<Id>();
         Date minDate;
         Date maxDate;
         Map<String, Decimal> newHoursByDay = new Map<String, Decimal>();
         Map<String, Integer> countByKey = new Map<String, Integer>();
         for (Row r : rows) {
-            if (r.leaveId != null) {
-                batchLeaveIds.add(r.leaveId);
-            }
             if (r.employeeId == null || r.day == null) {
                 continue;
             }
@@ -127,20 +122,20 @@ public without sharing class LeaveValidator {
             }
         }
 
-        Map<String, List<Leave_and_Holiday__c>> leaveByDay = new Map<String, List<Leave_and_Holiday__c>>();
+        Map<String, List<Leave_Line_Item__c>> leaveByDay = new Map<String, List<Leave_Line_Item__c>>();
         Map<String, List<Timesheet_Line_Item__c>> itemsByDay = new Map<String, List<Timesheet_Line_Item__c>>();
         if (!employeeIds.isEmpty()) {
-            for (Leave_and_Holiday__c l : [
-                SELECT Id, Employee__c, Date__c, Absence_Category__c, Duration__c, Status__c
-                FROM Leave_and_Holiday__c
-                WHERE Employee__c IN :employeeIds
+            for (Leave_Line_Item__c l : [
+                SELECT Id, Date__c, Absence_Category__c, Duration__c,
+                    PTO_Request__r.Name, PTO_Request__r.Employee__c, PTO_Request__r.Status__c
+                FROM Leave_Line_Item__c
+                WHERE PTO_Request__r.Employee__c IN :employeeIds
                 AND Date__c >= :minDate AND Date__c <= :maxDate
-                AND Status__c IN (:STATUS_SUBMITTED, :STATUS_APPROVED)
-                AND Id NOT IN :batchLeaveIds
+                AND PTO_Request__r.Status__c IN (:STATUS_SUBMITTED, :STATUS_APPROVED)
             ]) {
-                String dk = dayKey(l.Employee__c, l.Date__c);
+                String dk = dayKey(l.PTO_Request__r.Employee__c, l.Date__c);
                 if (!leaveByDay.containsKey(dk)) {
-                    leaveByDay.put(dk, new List<Leave_and_Holiday__c>());
+                    leaveByDay.put(dk, new List<Leave_Line_Item__c>());
                 }
                 leaveByDay.get(dk).add(l);
             }
@@ -168,7 +163,7 @@ public without sharing class LeaveValidator {
     private static String checkRow(
         Row r,
         Map<String, Integer> countByKey,
-        Map<String, List<Leave_and_Holiday__c>> leaveByDay,
+        Map<String, List<Leave_Line_Item__c>> leaveByDay,
         Map<String, List<Timesheet_Line_Item__c>> itemsByDay,
         Map<String, Decimal> newHoursByDay,
         Decimal dayLimit
@@ -194,33 +189,30 @@ public without sharing class LeaveValidator {
         }
 
         String dk = dayKey(r.employeeId, r.day);
-        List<Leave_and_Holiday__c> dayLeave = leaveByDay.containsKey(dk) ? leaveByDay.get(dk) : new List<Leave_and_Holiday__c>();
+        List<Leave_Line_Item__c> dayLeave = leaveByDay.containsKey(dk) ? leaveByDay.get(dk) : new List<Leave_Line_Item__c>();
         List<Timesheet_Line_Item__c> dayItems = itemsByDay.containsKey(dk) ? itemsByDay.get(dk) : new List<Timesheet_Line_Item__c>();
 
-        for (Leave_and_Holiday__c l : dayLeave) {
+        for (Leave_Line_Item__c l : dayLeave) {
             if (l.Absence_Category__c == r.category) {
-                String state = l.Status__c == STATUS_APPROVED ? 'approved' : 'waiting for approval';
-                return r.category + ' on ' + String.valueOf(r.day) + ' is already ' + state + '.';
+                String state = l.PTO_Request__r.Status__c == STATUS_APPROVED ? 'approved' : 'waiting for approval';
+                return r.category + ' on ' + String.valueOf(r.day) + ' is already on ' + l.PTO_Request__r.Name
+                    + ', ' + state + '.';
             }
         }
 
-        // An existing leave record owns the matching absence line item it was converted into.
         Set<String> absenceCategories = new Set<String>();
         Decimal total = 0;
         for (Timesheet_Line_Item__c li : dayItems) {
-            Boolean ownItem = r.leaveId != null && li.Type__c == LINE_TYPE_ABSENCE && li.Absence_Category__c == r.category;
             if (li.Type__c == LINE_TYPE_ABSENCE) {
                 absenceCategories.add(li.Absence_Category__c);
-                if (li.Absence_Category__c == r.category && !ownItem) {
+                if (li.Absence_Category__c == r.category) {
                     return r.category + ' on ' + String.valueOf(r.day) + ' is already on the timesheet.';
                 }
             }
-            if (!ownItem) {
-                total += li.Duration__c == null ? 0 : li.Duration__c;
-            }
+            total += li.Duration__c == null ? 0 : li.Duration__c;
         }
-        for (Leave_and_Holiday__c l : dayLeave) {
-            // Leave already converted is counted through its line item.
+        for (Leave_Line_Item__c l : dayLeave) {
+            // Leave already on the timesheet is counted through its line item.
             if (!absenceCategories.contains(l.Absence_Category__c)) {
                 total += l.Duration__c == null ? 0 : l.Duration__c;
             }
@@ -254,20 +246,21 @@ public without sharing class LeaveValidator {
         if (absence.isEmpty()) {
             return;
         }
-        Set<String> pendingKeys = new Set<String>();
-        for (Leave_and_Holiday__c l : [
-            SELECT Employee__c, Date__c, Absence_Category__c
-            FROM Leave_and_Holiday__c
-            WHERE Employee__c IN :employeeIds
+        Map<String, String> pendingByKey = new Map<String, String>();
+        for (Leave_Line_Item__c l : [
+            SELECT Date__c, Absence_Category__c, PTO_Request__r.Name, PTO_Request__r.Employee__c
+            FROM Leave_Line_Item__c
+            WHERE PTO_Request__r.Employee__c IN :employeeIds
             AND Date__c >= :minDate AND Date__c <= :maxDate
-            AND Status__c = :STATUS_SUBMITTED
+            AND PTO_Request__r.Status__c = :STATUS_SUBMITTED
         ]) {
-            pendingKeys.add(key(l.Employee__c, l.Date__c, l.Absence_Category__c));
+            pendingByKey.put(key(l.PTO_Request__r.Employee__c, l.Date__c, l.Absence_Category__c), l.PTO_Request__r.Name);
         }
         for (Timesheet_Line_Item__c li : absence) {
-            if (pendingKeys.contains(key(li.Employee__c, li.Date__c, li.Absence_Category__c))) {
+            String requestName = pendingByKey.get(key(li.Employee__c, li.Date__c, li.Absence_Category__c));
+            if (requestName != null) {
                 li.addError('A ' + li.Absence_Category__c + ' leave request for ' + String.valueOf(li.Date__c)
-                    + ' is waiting for approval. Approve or reject it in the PTO tab first.');
+                    + ' (' + requestName + ') is waiting for approval. Approve or reject it in the PTO tab first.');
             }
         }
     }

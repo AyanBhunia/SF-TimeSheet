@@ -12,7 +12,7 @@ export default class PtoConfirmModal extends LightningModal {
     }
 
     get modalHeader() {
-        return this.isApprove ? 'Approve leave' : 'Reject leave';
+        return this.isApprove ? 'Approve request' : 'Reject request';
     }
 
     handleReasonChange(event) {

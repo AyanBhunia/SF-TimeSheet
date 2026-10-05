@@ -15,15 +15,32 @@
             </lightning-button-icon>
         </div>
 
-        <c-pto-table
-            columns={columns}
-            rows={tableRows}
-            row-actions={rowActions}
-            sorted-by={sortedBy}
-            sorted-direction={sortedDirection}
-            empty-message={emptyMessage}
-            onsort={handleSort}
-            onrowaction={handleRowAction}>
-        </c-pto-table>
+        <template lwc:if={isEmpty}>
+            <div class="approve-empty">{emptyMessage}</div>
+        </template>
+        <template lwc:else>
+            <div class="slds-grid slds-wrap slds-gutters_small">
+                <div class="slds-col slds-size_1-of-1 slds-medium-size_7-of-12 slds-m-bottom_small">
+                    <c-pto-table
+                        columns={columns}
+                        rows={tableRows}
+                        selectable
+                        selected-key={selectedId}
+                        sorted-by={sortedBy}
+                        sorted-direction={sortedDirection}
+                        empty-message={emptyMessage}
+                        onsort={handleSort}
+                        onrowselect={handleSelect}>
+                    </c-pto-table>
+                </div>
+                <div class="slds-col slds-size_1-of-1 slds-medium-size_5-of-12 slds-m-bottom_small">
+                    <c-pto-request-detail
+                        request-id={selectedId}
+                        mode="approve"
+                        ondecided={handleDecided}>
+                    </c-pto-request-detail>
+                </div>
+            </div>
+        </template>
     </div>
 </template>

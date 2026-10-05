@@ -1,7 +1,7 @@
 /**
  * @description Reads for the PTO tab that must see records the running user doesn't own (Employee__c
- *              and Leave_and_Holiday__c are private). Only PtoController calls this class, and it checks
- *              that the running user may see the employee or record before every call.
+ *              and PTO_Request__c are private). Only PtoController calls this class, and it checks
+ *              that the running user may see the employee or request before every call.
  */
 public without sharing class PtoData {
 
@@ -57,17 +57,16 @@ public without sharing class PtoData {
     }
 
     /**
-     * @description Submitted (not yet approved) leave hours per employee, holidays excluded.
+     * @description Hours of leave days on Submitted (not yet approved) requests, per employee.
      */
     public static Map<Id, Decimal> pendingLeaveHours(Set<Id> employeeIds) {
         Map<Id, Decimal> result = new Map<Id, Decimal>();
         for (AggregateResult ar : [
-            SELECT Employee__c employeeId, SUM(Duration__c) hours
-            FROM Leave_and_Holiday__c
-            WHERE Employee__c IN :employeeIds
-            AND Status__c = :LeaveValidator.STATUS_SUBMITTED
-            AND Type__c = :LeaveValidator.TYPE_LEAVE
-            GROUP BY Employee__c
+            SELECT PTO_Request__r.Employee__c employeeId, SUM(Duration__c) hours
+            FROM Leave_Line_Item__c
+            WHERE PTO_Request__r.Employee__c IN :employeeIds
+            AND PTO_Request__r.Status__c = :LeaveValidator.STATUS_SUBMITTED
+            GROUP BY PTO_Request__r.Employee__c
         ]) {
             Decimal hours = (Decimal) ar.get('hours');
             result.put((Id) ar.get('employeeId'), hours == null ? 0 : hours);
@@ -75,12 +74,17 @@ public without sharing class PtoData {
         return result;
     }
 
-    public static List<Leave_and_Holiday__c> leaveInRange(Id employeeId, Date startDate, Date endDate) {
+    /**
+     * @description Leave days in a date range whose request is Submitted or Approved.
+     */
+    public static List<Leave_Line_Item__c> leaveInRange(Id employeeId, Date startDate, Date endDate) {
         return [
-            SELECT Id, Employee__c, Employee__r.Name, Date__c, Type__c, Absence_Category__c, Duration__c,
-                Status__c, Notes__c
-            FROM Leave_and_Holiday__c
-            WHERE Employee__c = :employeeId AND Date__c >= :startDate AND Date__c <= :endDate
+            SELECT Id, Date__c, Absence_Category__c, Duration__c, Sync_Status__c,
+                PTO_Request__c, PTO_Request__r.Name, PTO_Request__r.Status__c
+            FROM Leave_Line_Item__c
+            WHERE PTO_Request__r.Employee__c = :employeeId
+            AND Date__c >= :startDate AND Date__c <= :endDate
+            AND PTO_Request__r.Status__c IN (:LeaveValidator.STATUS_SUBMITTED, :LeaveValidator.STATUS_APPROVED)
             ORDER BY Date__c, Absence_Category__c
             LIMIT :MAX_ROWS
         ];
@@ -96,38 +100,71 @@ public without sharing class PtoData {
         ];
     }
 
-    public static List<Leave_and_Holiday__c> pastLeave(Id employeeId, Integer rowLimit, Integer offsetRows) {
+    /**
+     * @description The employee's requests, newest first (by first day, then by when they were made).
+     */
+    public static List<PTO_Request__c> requestsForEmployee(Id employeeId, Integer rowLimit, Integer offsetRows) {
         return [
-            SELECT Id, Employee__c, Employee__r.Name, Date__c, Type__c, Absence_Category__c, Duration__c,
-                Status__c, Notes__c
-            FROM Leave_and_Holiday__c
+            SELECT Id, Name, Employee__c, Employee__r.Name, Status__c, Notes__c, Decision_Notes__c, Approver__c,
+                Approver__r.Name, Decided_By__r.Name, Decided_On__c, Start_Date__c, End_Date__c, Day_Count__c,
+                Total_Hours__c, Sync_Error_Count__c, CreatedDate
+            FROM PTO_Request__c
             WHERE Employee__c = :employeeId
-            ORDER BY Date__c DESC, Absence_Category__c
+            ORDER BY Start_Date__c DESC NULLS LAST, CreatedDate DESC
             LIMIT :rowLimit
             OFFSET :offsetRows
         ];
     }
 
-    public static List<AggregateResult> yearTotals(Id employeeId, Integer year) {
+    public static PTO_Request__c requestById(Id requestId) {
+        List<PTO_Request__c> rows = [
+            SELECT Id, Name, Employee__c, Employee__r.Name, Employee__r.Manager__c, Employee__r.User__c,
+                Employee__r.User__r.ManagerId, Status__c, Notes__c, Decision_Notes__c, Approver__c, Approver__r.Name,
+                Decided_By__r.Name, Decided_On__c, Start_Date__c, End_Date__c, Day_Count__c, Total_Hours__c,
+                Sync_Error_Count__c, CreatedDate
+            FROM PTO_Request__c
+            WHERE Id = :requestId
+            LIMIT 1
+        ];
+        return rows.isEmpty() ? null : rows[0];
+    }
+
+    public static List<Leave_Line_Item__c> requestLines(Id requestId) {
         return [
-            SELECT Absence_Category__c category, Status__c status, SUM(Duration__c) hours
-            FROM Leave_and_Holiday__c
-            WHERE Employee__c = :employeeId
-            AND CALENDAR_YEAR(Date__c) = :year
-            AND Status__c IN (:LeaveValidator.STATUS_SUBMITTED, :LeaveValidator.STATUS_APPROVED)
-            GROUP BY Absence_Category__c, Status__c
+            SELECT Id, Date__c, Absence_Category__c, Duration__c, Sync_Status__c, Sync_Error__c
+            FROM Leave_Line_Item__c
+            WHERE PTO_Request__c = :requestId
+            ORDER BY Date__c, Absence_Category__c
+            LIMIT :MAX_ROWS
         ];
     }
 
-    public static List<Leave_and_Holiday__c> upcomingLeave(Id employeeId) {
+    public static List<AggregateResult> yearTotals(Id employeeId, Integer year) {
+        return [
+            SELECT Absence_Category__c category, PTO_Request__r.Status__c status, SUM(Duration__c) hours
+            FROM Leave_Line_Item__c
+            WHERE PTO_Request__r.Employee__c = :employeeId
+            AND CALENDAR_YEAR(Date__c) = :year
+            AND PTO_Request__r.Status__c IN (:LeaveValidator.STATUS_SUBMITTED, :LeaveValidator.STATUS_APPROVED)
+            GROUP BY Absence_Category__c, PTO_Request__r.Status__c
+        ];
+    }
+
+    public static Integer pendingRequestCount(Id employeeId) {
+        return [
+            SELECT COUNT() FROM PTO_Request__c
+            WHERE Employee__c = :employeeId AND Status__c = :LeaveValidator.STATUS_SUBMITTED
+        ];
+    }
+
+    public static List<Leave_Line_Item__c> upcomingLeave(Id employeeId) {
         Date today = Date.today();
         return [
             SELECT Id, Date__c
-            FROM Leave_and_Holiday__c
-            WHERE Employee__c = :employeeId
+            FROM Leave_Line_Item__c
+            WHERE PTO_Request__r.Employee__c = :employeeId
             AND Date__c >= :today
-            AND Type__c = :LeaveValidator.TYPE_LEAVE
-            AND Status__c IN (:LeaveValidator.STATUS_SUBMITTED, :LeaveValidator.STATUS_APPROVED)
+            AND PTO_Request__r.Status__c IN (:LeaveValidator.STATUS_SUBMITTED, :LeaveValidator.STATUS_APPROVED)
             ORDER BY Date__c
             LIMIT 60
         ];
@@ -135,51 +172,53 @@ public without sharing class PtoData {
 
     public static List<AggregateResult> weekTotals(Set<Id> employeeIds, Date startDate, Date endDate) {
         return [
-            SELECT Employee__c employeeId, Date__c day, SUM(Duration__c) hours
-            FROM Leave_and_Holiday__c
-            WHERE Employee__c IN :employeeIds
+            SELECT PTO_Request__r.Employee__c employeeId, Date__c day, SUM(Duration__c) hours
+            FROM Leave_Line_Item__c
+            WHERE PTO_Request__r.Employee__c IN :employeeIds
             AND Date__c >= :startDate AND Date__c <= :endDate
-            AND Status__c IN (:LeaveValidator.STATUS_SUBMITTED, :LeaveValidator.STATUS_APPROVED)
-            GROUP BY Employee__c, Date__c
+            AND PTO_Request__r.Status__c IN (:LeaveValidator.STATUS_SUBMITTED, :LeaveValidator.STATUS_APPROVED)
+            GROUP BY PTO_Request__r.Employee__c, Date__c
         ];
     }
 
     /**
-     * @description Leave waiting for approval. HR sees everyone's; a manager sees direct reports' only.
+     * @description Requests waiting for approval. HR sees everyone's; a manager sees direct reports' only.
      *              Nobody sees their own.
      */
-    public static List<Leave_and_Holiday__c> pendingApprovals(Boolean allEmployees) {
+    public static List<PTO_Request__c> pendingRequests(Boolean allEmployees) {
         Id me = UserInfo.getUserId();
         if (allEmployees) {
             return [
-                SELECT Id, Employee__c, Employee__r.Name, Date__c, Type__c, Absence_Category__c, Duration__c,
-                    Status__c, Notes__c
-                FROM Leave_and_Holiday__c
+                SELECT Id, Name, Employee__c, Employee__r.Name, Status__c, Notes__c, Decision_Notes__c, Approver__c,
+                    Approver__r.Name, Decided_By__r.Name, Decided_On__c, Start_Date__c, End_Date__c, Day_Count__c,
+                    Total_Hours__c, Sync_Error_Count__c, CreatedDate
+                FROM PTO_Request__c
                 WHERE Status__c = :LeaveValidator.STATUS_SUBMITTED
                 AND (Employee__r.User__c = null OR Employee__r.User__c != :me)
-                ORDER BY Date__c, Employee__r.Name
+                ORDER BY Start_Date__c, Employee__r.Name
                 LIMIT :MAX_ROWS
             ];
         }
         return [
-            SELECT Id, Employee__c, Employee__r.Name, Date__c, Type__c, Absence_Category__c, Duration__c,
-                Status__c, Notes__c
-            FROM Leave_and_Holiday__c
+            SELECT Id, Name, Employee__c, Employee__r.Name, Status__c, Notes__c, Decision_Notes__c, Approver__c,
+                Approver__r.Name, Decided_By__r.Name, Decided_On__c, Start_Date__c, End_Date__c, Day_Count__c,
+                Total_Hours__c, Sync_Error_Count__c, CreatedDate
+            FROM PTO_Request__c
             WHERE Status__c = :LeaveValidator.STATUS_SUBMITTED
             AND Employee__r.Manager__c = :me
             AND Employee__r.User__r.ManagerId = :me
             AND Employee__r.User__c != :me
-            ORDER BY Date__c, Employee__r.Name
+            ORDER BY Start_Date__c, Employee__r.Name
             LIMIT :MAX_ROWS
         ];
     }
 
-    public static List<Leave_and_Holiday__c> leaveForDecision(Set<Id> leaveIds) {
+    public static List<PTO_Request__c> requestsForDecision(Set<Id> requestIds) {
         return [
-            SELECT Id, Employee__c, Employee__r.Name, Employee__r.Manager__c, Employee__r.User__c,
-                Employee__r.User__r.ManagerId, Date__c, Type__c, Absence_Category__c, Duration__c, Status__c, Notes__c
-            FROM Leave_and_Holiday__c
-            WHERE Id IN :leaveIds
+            SELECT Id, Name, Employee__c, Employee__r.Name, Employee__r.Manager__c, Employee__r.User__c,
+                Employee__r.User__r.ManagerId, Status__c
+            FROM PTO_Request__c
+            WHERE Id IN :requestIds
         ];
     }
 }

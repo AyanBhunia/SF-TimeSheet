@@ -44,7 +44,24 @@
     color: #ffffff;
 }
 
-.badge-holiday {
-    background-color: #e0e5ee;
-    color: #181818;
+.row-selectable {
+    cursor: pointer;
+}
+
+.row-selectable:hover > td {
+    background-color: #f3f3f3;
+}
+
+.row-selected > td,
+.row-selected:hover > td {
+    background-color: #e5f1fb;
+}
+
+.row-selected > td:first-child {
+    box-shadow: inset 3px 0 0 #0176d3;
+}
+
+.row-selectable:focus-visible {
+    outline: 2px solid #0176d3;
+    outline-offset: -2px;
 }

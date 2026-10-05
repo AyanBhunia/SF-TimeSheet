@@ -12,11 +12,11 @@
         <reevaluateOnChange>false</reevaluateOnChange>
     </fieldUpdates>
     <fieldUpdates>
-        <fullName>PTO_Set_New</fullName>
-        <description>Leave approval: rejection sets Status back to New.</description>
+        <fullName>PTO_Set_Rejected</fullName>
+        <description>Leave approval: rejection sets Status to Rejected.</description>
         <field>Status__c</field>
-        <literalValue>New</literalValue>
-        <name>PTO Set New</name>
+        <literalValue>Rejected</literalValue>
+        <name>PTO Set Rejected</name>
         <notifyAssignee>false</notifyAssignee>
         <operation>Literal</operation>
         <protected>false</protected>

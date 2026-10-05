@@ -1,32 +1,30 @@
 import { LightningElement, api, track } from 'lwc';
 import getPendingApprovals from '@salesforce/apex/PtoController.getPendingApprovals';
-import approveLeave from '@salesforce/apex/PtoController.approveLeave';
-import rejectLeave from '@salesforce/apex/PtoController.rejectLeave';
-import PtoConfirmModal from 'c/ptoConfirmModal';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 
 const COLUMNS = [
+    { fieldName: 'name', label: 'Request', type: 'text', sortable: true, width: '7.5rem' },
     { fieldName: 'employeeName', label: 'Employee', type: 'text', sortable: true },
-    { fieldName: 'date', label: 'Date', type: 'date', sortable: true },
-    { fieldName: 'category', label: 'Category', type: 'text', sortable: true },
-    { fieldName: 'hours', label: 'Hours', type: 'number', align: 'right', sortable: true },
-    { fieldName: 'notes', label: 'Notes', type: 'text', sortable: true }
+    { fieldName: 'startDate', label: 'From', type: 'text', sortable: true, width: '6.75rem' },
+    { fieldName: 'endDate', label: 'To', type: 'text', sortable: true, width: '6.75rem' },
+    { fieldName: 'dayCount', label: 'Days', type: 'number', align: 'right', sortable: true, width: '4.25rem' },
+    { fieldName: 'totalHours', label: 'Hours', type: 'number', align: 'right', sortable: true, width: '4.75rem' },
+    { fieldName: 'submittedOn', label: 'Submitted', type: 'text', sortable: true, width: '7rem' }
 ];
 
-const ROW_ACTIONS = [
-    { name: 'approve', label: 'Approve', variant: 'success' },
-    { name: 'reject', label: 'Reject', variant: 'destructive' }
-];
-
+/**
+ * Requests waiting for this approver, side by side: the list on the left (sortable), the selected
+ * request's details and days on the right, where it is approved or rejected as a whole.
+ */
 export default class PtoApprove extends LightningElement {
     @track records = [];
     @track isLoading = false;
-    @track sortedBy = 'date';
+    @track sortedBy = 'startDate';
     @track sortedDirection = 'asc';
+    selectedId;
 
     columns = COLUMNS;
-    rowActions = ROW_ACTIONS;
-    emptyMessage = 'No leave is waiting for your approval.';
+    emptyMessage = 'No leave requests are waiting for your approval.';
 
     connectedCallback() {
         this.loadPending();
@@ -37,34 +35,43 @@ export default class PtoApprove extends LightningElement {
         return this.loadPending();
     }
 
-    async loadPending() {
+    async loadPending(nextIndex) {
         this.isLoading = true;
         try {
             const result = await getPendingApprovals();
-            this.records = Array.isArray(result) ? result.map((r) => ({ ...r, date: r.leaveDate })) : [];
+            this.records = Array.isArray(result) ? result : [];
             this.sortData(this.sortedBy, this.sortedDirection);
+            if (!this.records.some((r) => r.id === this.selectedId)) {
+                const index = nextIndex === undefined ? 0 : Math.min(nextIndex, this.records.length - 1);
+                this.selectedId = this.records.length ? this.records[index].id : undefined;
+            }
         } catch (error) {
             this.records = [];
+            this.selectedId = undefined;
             const message = error && error.body && error.body.message
                 ? error.body.message
                 : 'Pending leave could not load.';
-            this.showToast('Approvals', message, 'error');
+            this.dispatchEvent(new ShowToastEvent({ title: 'Approvals', message, variant: 'error' }));
         } finally {
             this.isLoading = false;
         }
     }
 
     get tableRows() {
-        return this.records.map(r => ({
+        return this.records.map((r) => ({
             key: r.id,
-            id: r.id,
-            employeeId: r.employeeId,
+            name: r.name,
             employeeName: r.employeeName,
-            date: r.date,
-            category: r.category,
-            hours: r.hours,
-            notes: r.notes
+            startDate: r.startDate,
+            endDate: r.endDate,
+            dayCount: r.dayCount,
+            totalHours: formatHours(r.totalHours),
+            submittedOn: r.submittedOn
         }));
+    }
+
+    get isEmpty() {
+        return !this.isLoading && this.records.length === 0;
     }
 
     handleSort(event) {
@@ -98,80 +105,20 @@ export default class PtoApprove extends LightningElement {
         });
     }
 
-    async handleRowAction(event) {
-        const { rowKey, action } = event.detail;
-        const row = this.records.find(r => r.id === rowKey);
-        if (!row) {
-            return;
-        }
-
-        const employeeName = row.employeeName || '';
-        const leaveDate = row.date || '';
-        const category = row.category || '';
-        const hours = row.hours !== undefined && row.hours !== null ? row.hours : 0;
-        const summary = `${employeeName} · ${leaveDate} · ${category} · ${hours} h`;
-
-        this.lastRow = row;
-        const result = await PtoConfirmModal.open({
-            size: 'small',
-            mode: action,
-            summary
-        });
-
-        if (result && result.confirmed) {
-            if (action === 'approve') {
-                await this.executeApprove(row.id);
-            } else if (action === 'reject') {
-                await this.executeReject(row.id, result.reason);
-            }
-        }
+    handleSelect(event) {
+        this.selectedId = event.detail.rowKey;
     }
 
-    async executeApprove(leaveId) {
-        this.isLoading = true;
-        try {
-            const res = await approveLeave({ leaveIds: [leaveId] });
-            if (res && res.errors && res.errors.length > 0) {
-                this.showToast('Not all approved', res.errors.join('; '), 'warning');
-            } else {
-                this.showToast('Approved', summaryOf(this.lastRow), 'success');
-            }
-            this.dispatchEvent(new CustomEvent('changed', { bubbles: false }));
-            await this.loadPending();
-        } catch (error) {
-            const message = error && error.body && error.body.message
-                ? error.body.message
-                : 'The leave could not be approved.';
-            this.showToast('Not approved', message, 'error');
-            this.isLoading = false;
-        }
-    }
-
-    async executeReject(leaveId, reason) {
-        this.isLoading = true;
-        try {
-            const res = await rejectLeave({ leaveIds: [leaveId], reason });
-            if (res && res.errors && res.errors.length > 0) {
-                this.showToast('Not all rejected', res.errors.join('; '), 'warning');
-            } else {
-                this.showToast('Rejected', summaryOf(this.lastRow) + '. The reason was added to the notes.', 'success');
-            }
-            this.dispatchEvent(new CustomEvent('changed', { bubbles: false }));
-            await this.loadPending();
-        } catch (error) {
-            const message = error && error.body && error.body.message
-                ? error.body.message
-                : 'The leave could not be rejected.';
-            this.showToast('Not rejected', message, 'error');
-            this.isLoading = false;
-        }
-    }
-
-    showToast(title, message, variant) {
-        this.dispatchEvent(new ShowToastEvent({ title, message, variant }));
+    async handleDecided() {
+        // Select the request that takes the decided one's place in the list.
+        const index = this.records.findIndex((r) => r.id === this.selectedId);
+        this.selectedId = undefined;
+        await this.loadPending(index < 0 ? 0 : index);
+        this.dispatchEvent(new CustomEvent('changed', { bubbles: false }));
     }
 }
 
-function summaryOf(row) {
-    return row ? `${row.employeeName}, ${row.category} on ${row.date}` : '';
+function formatHours(value) {
+    const n = Number(value) || 0;
+    return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/0$/, '');
 }

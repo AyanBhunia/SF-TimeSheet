@@ -3,8 +3,8 @@
  *              Roles come from custom permissions: PTO_Approve_Team (managers) and PTO_Admin_All (HR).
  *              A direct report is an active employee whose Manager__c is the running user AND whose
  *              user's ManagerId is the running user. Every method checks that the running user may act
- *              for the employee or record before reading or writing it; the reads themselves run through
- *              the without sharing PtoData class because Employee__c and leave records are private to their owner.
+ *              for the employee or request before reading or writing it; the reads themselves run through
+ *              the without sharing PtoData class because Employee__c and PTO_Request__c are private to their owner.
  */
 public with sharing class PtoController {
 
@@ -14,6 +14,7 @@ public with sharing class PtoController {
     public static final Integer MAX_OFFSET = 2000;
     public static final Integer MAX_RANGE_DAYS = 62;
     public static final Integer MAX_TEAM = 200;
+    public static final String SYNC_ERROR_LABEL = 'Approved, sync error';
     private static final Date REFERENCE_MONDAY = Date.newInstance(1900, 1, 1);
 
     // ---------------------------------------------------------------- response types
@@ -45,20 +46,17 @@ public with sharing class PtoController {
         @AuraEnabled public Integer pendingCount;
     }
 
-    public class LeaveRow {
+    public class DayLeave {
         @AuraEnabled public Id id;
-        @AuraEnabled public Id employeeId;
-        @AuraEnabled public String employeeName;
         @AuraEnabled public String leaveDate;
-        @AuraEnabled public String type;
         @AuraEnabled public String category;
         @AuraEnabled public Decimal hours;
         @AuraEnabled public String status;
-        @AuraEnabled public String displayStatus;
-        @AuraEnabled public String notes;
+        @AuraEnabled public Id requestId;
+        @AuraEnabled public String requestName;
     }
 
-    public class LineRow {
+    public class DayItem {
         @AuraEnabled public Id id;
         @AuraEnabled public String leaveDate;
         @AuraEnabled public String type;
@@ -68,20 +66,56 @@ public with sharing class PtoController {
 
     public class DayRecords {
         @AuraEnabled public EmployeeInfo employee;
-        @AuraEnabled public List<LeaveRow> leaves;
-        @AuraEnabled public List<LineRow> lineItems;
+        @AuraEnabled public List<DayLeave> leaves;
+        @AuraEnabled public List<DayItem> lineItems;
     }
 
     public class SubmitResponse {
         @AuraEnabled public Boolean success;
         @AuraEnabled public List<String> rowErrors;
         @AuraEnabled public List<String> warnings;
-        @AuraEnabled public Integer submittedCount;
-        @AuraEnabled public Integer resubmittedCount;
+        @AuraEnabled public Id requestId;
+        @AuraEnabled public String requestName;
+        @AuraEnabled public Integer dayCount;
+    }
+
+    public class RequestRow {
+        @AuraEnabled public Id id;
+        @AuraEnabled public String name;
+        @AuraEnabled public Id employeeId;
+        @AuraEnabled public String employeeName;
+        @AuraEnabled public String startDate;
+        @AuraEnabled public String endDate;
+        @AuraEnabled public Integer dayCount;
+        @AuraEnabled public Decimal totalHours;
+        @AuraEnabled public String status;
+        @AuraEnabled public String displayStatus;
+        @AuraEnabled public String notes;
+        @AuraEnabled public String decisionNotes;
+        @AuraEnabled public Boolean hasManager;
+        @AuraEnabled public String approverName;
+        @AuraEnabled public String decidedByName;
+        @AuraEnabled public String decidedOn;
+        @AuraEnabled public String submittedOn;
+        @AuraEnabled public Integer syncErrorCount;
+    }
+
+    public class LineRow {
+        @AuraEnabled public Id id;
+        @AuraEnabled public String leaveDate;
+        @AuraEnabled public String category;
+        @AuraEnabled public Decimal hours;
+        @AuraEnabled public String syncStatus;
+        @AuraEnabled public String syncError;
+    }
+
+    public class RequestDetail {
+        @AuraEnabled public RequestRow request;
+        @AuraEnabled public List<LineRow> lines;
     }
 
     public class PastPage {
-        @AuraEnabled public List<LeaveRow> rows;
+        @AuraEnabled public List<RequestRow> rows;
         @AuraEnabled public Boolean hasMore;
         @AuraEnabled public Integer offset;
     }
@@ -96,6 +130,7 @@ public with sharing class PtoController {
         @AuraEnabled public Decimal available;
         @AuraEnabled public Decimal takenHours;
         @AuraEnabled public Decimal pendingHours;
+        @AuraEnabled public Integer pendingRequests;
         @AuraEnabled public String nextLeaveDate;
         @AuraEnabled public Integer nextLeaveCount;
         @AuraEnabled public List<CategoryTotal> byCategory;
@@ -116,6 +151,7 @@ public with sharing class PtoController {
     public class ActionResult {
         @AuraEnabled public Integer processed;
         @AuraEnabled public List<String> errors;
+        @AuraEnabled public List<String> syncErrors;
     }
 
     // ---------------------------------------------------------------- endpoints
@@ -140,7 +176,7 @@ public with sharing class PtoController {
             c.categories = categories();
             c.dailyMax = LeaveValidator.dailyMax();
             c.today = String.valueOf(Date.today());
-            c.pendingCount = c.canApprove ? PtoData.pendingApprovals(a.isHrAdmin).size() : 0;
+            c.pendingCount = c.canApprove ? PtoData.pendingRequests(a.isHrAdmin).size() : 0;
             return c;
         } catch (Exception e) {
             throw fail(e);
@@ -160,13 +196,21 @@ public with sharing class PtoController {
             }
             DayRecords result = new DayRecords();
             result.employee = toInfo(emp, PtoData.pendingLeaveHours(new Set<Id>{ emp.Id }));
-            result.leaves = new List<LeaveRow>();
-            for (Leave_and_Holiday__c l : PtoData.leaveInRange(emp.Id, startDate, endDate)) {
-                result.leaves.add(toRow(l));
+            result.leaves = new List<DayLeave>();
+            for (Leave_Line_Item__c l : PtoData.leaveInRange(emp.Id, startDate, endDate)) {
+                DayLeave d = new DayLeave();
+                d.id = l.Id;
+                d.leaveDate = String.valueOf(l.Date__c);
+                d.category = l.Absence_Category__c;
+                d.hours = l.Duration__c;
+                d.status = l.PTO_Request__r.Status__c;
+                d.requestId = l.PTO_Request__c;
+                d.requestName = l.PTO_Request__r.Name;
+                result.leaves.add(d);
             }
-            result.lineItems = new List<LineRow>();
+            result.lineItems = new List<DayItem>();
             for (Timesheet_Line_Item__c li : PtoData.lineItemsInRange(emp.Id, startDate, endDate)) {
-                LineRow r = new LineRow();
+                DayItem r = new DayItem();
                 r.id = li.Id;
                 r.leaveDate = String.valueOf(li.Date__c);
                 r.type = li.Type__c;
@@ -181,7 +225,7 @@ public with sharing class PtoController {
     }
 
     @AuraEnabled
-    public static SubmitResponse submitLeave(Id employeeId, String rowsJson) {
+    public static SubmitResponse submitLeave(Id employeeId, String rowsJson, String notes) {
         try {
             Access a = new Access();
             Employee__c emp = a.requireEmployee(employeeId);
@@ -190,38 +234,31 @@ public with sharing class PtoController {
             if (input.isEmpty()) {
                 throw new PtoException('Add at least one day.');
             }
+            if (notes != null && notes.trim().length() > PtoRequestService.NOTES_MAX) {
+                throw new PtoException('Keep the reason under 2,000 characters.');
+            }
             Set<String> allowed = new Set<String>();
             for (CategoryOption o : categories()) {
                 allowed.add(o.value);
             }
 
-            List<Leave_and_Holiday__c> records = new List<Leave_and_Holiday__c>();
+            List<Leave_Line_Item__c> lines = new List<Leave_Line_Item__c>();
             List<LeaveValidator.Row> rows = new List<LeaveValidator.Row>();
             List<String> rowErrors = new List<String>();
             Boolean hasError = false;
-            Decimal newHours = 0;
             for (Object o : input) {
                 Map<String, Object> m = (Map<String, Object>) o;
                 Date day = parseDate(m.get('date'));
                 String category = m.get('category') == null ? null : String.valueOf(m.get('category'));
                 Decimal hours = parseDecimal(m.get('hours'));
-                String notes = m.get('notes') == null ? null : String.valueOf(m.get('notes')).trim();
                 String error = '';
                 if (String.isNotBlank(category) && !allowed.contains(category)) {
                     error = category + ' can\'t be requested here.';
-                } else if (notes != null && notes.length() > 1000) {
-                    error = 'Keep the note under 1,000 characters.';
                 }
                 rowErrors.add(error);
                 hasError = hasError || String.isNotBlank(error);
-                records.add(new Leave_and_Holiday__c(
-                    Date__c = day,
-                    Absence_Category__c = category,
-                    Duration__c = hours,
-                    Notes__c = String.isBlank(notes) ? null : notes
-                ));
-                rows.add(new LeaveValidator.Row(emp.Id, day, category, hours, null));
-                newHours += hours == null ? 0 : hours;
+                lines.add(new Leave_Line_Item__c(Date__c = day, Absence_Category__c = category, Duration__c = hours));
+                rows.add(new LeaveValidator.Row(emp.Id, day, category, hours));
             }
 
             List<String> checks = LeaveValidator.validate(rows);
@@ -235,8 +272,7 @@ public with sharing class PtoController {
             SubmitResponse response = new SubmitResponse();
             response.rowErrors = rowErrors;
             response.warnings = new List<String>();
-            response.submittedCount = 0;
-            response.resubmittedCount = 0;
+            response.dayCount = 0;
             if (hasError) {
                 response.success = false;
                 return response;
@@ -244,9 +280,10 @@ public with sharing class PtoController {
 
             Savepoint sp = Database.setSavepoint();
             try {
-                LeaveService.SubmitResult result = LeaveService.submit(emp, records);
-                response.submittedCount = result.submitted;
-                response.resubmittedCount = result.resubmitted;
+                PtoRequestService.SubmitResult result = PtoRequestService.submit(emp, lines, notes);
+                response.requestId = result.request.Id;
+                response.requestName = result.request.Name;
+                response.dayCount = result.dayCount;
             } catch (DmlException dmlError) {
                 Database.rollback(sp);
                 response.success = false;
@@ -259,6 +296,11 @@ public with sharing class PtoController {
                 if (dmlError.getNumDml() == 0) {
                     response.warnings.add(dmlError.getMessage());
                 }
+                return response;
+            } catch (PtoRequestService.PtoException serviceError) {
+                Database.rollback(sp);
+                response.success = false;
+                response.warnings.add(serviceError.getMessage());
                 return response;
             }
 
@@ -282,15 +324,45 @@ public with sharing class PtoController {
             Access a = new Access();
             Employee__c emp = a.requireEmployee(employeeId);
             Integer offset = offsetRows == null || offsetRows < 0 ? 0 : Math.min(offsetRows, MAX_OFFSET);
-            List<Leave_and_Holiday__c> records = PtoData.pastLeave(emp.Id, PAGE_SIZE + 1, offset);
+            List<PTO_Request__c> records = PtoData.requestsForEmployee(emp.Id, PAGE_SIZE + 1, offset);
             PastPage page = new PastPage();
             page.offset = offset;
             page.hasMore = records.size() > PAGE_SIZE && offset + PAGE_SIZE < MAX_OFFSET;
-            page.rows = new List<LeaveRow>();
+            page.rows = new List<RequestRow>();
             for (Integer i = 0; i < Math.min(records.size(), PAGE_SIZE); i++) {
-                page.rows.add(toRow(records[i]));
+                page.rows.add(toRequestRow(records[i]));
             }
             return page;
+        } catch (Exception e) {
+            throw fail(e);
+        }
+    }
+
+    @AuraEnabled
+    public static RequestDetail getRequestLines(Id requestId) {
+        try {
+            Access a = new Access();
+            PTO_Request__c request = requestId == null ? null : PtoData.requestById(requestId);
+            if (request == null) {
+                throw new PtoException('That leave request doesn\'t exist.');
+            }
+            if (!a.canSee(request)) {
+                throw new PtoException('You can only see leave requests of yourself and your direct reports.');
+            }
+            RequestDetail detail = new RequestDetail();
+            detail.request = toRequestRow(request);
+            detail.lines = new List<LineRow>();
+            for (Leave_Line_Item__c l : PtoData.requestLines(request.Id)) {
+                LineRow r = new LineRow();
+                r.id = l.Id;
+                r.leaveDate = String.valueOf(l.Date__c);
+                r.category = l.Absence_Category__c;
+                r.hours = l.Duration__c;
+                r.syncStatus = l.Sync_Status__c;
+                r.syncError = l.Sync_Error__c;
+                detail.lines.add(r);
+            }
+            return detail;
         } catch (Exception e) {
             throw fail(e);
         }
@@ -338,14 +410,15 @@ public with sharing class PtoController {
                 }
             }
             o.available = availableHours(emp, PtoData.pendingLeaveHours(new Set<Id>{ emp.Id }));
+            o.pendingRequests = PtoData.pendingRequestCount(emp.Id);
 
-            List<Leave_and_Holiday__c> upcoming = PtoData.upcomingLeave(emp.Id);
+            List<Leave_Line_Item__c> upcoming = PtoData.upcomingLeave(emp.Id);
             o.nextLeaveCount = 0;
             if (!upcoming.isEmpty()) {
                 Date previous = upcoming[0].Date__c;
                 o.nextLeaveDate = String.valueOf(previous);
                 Set<Date> days = new Set<Date>();
-                for (Leave_and_Holiday__c l : upcoming) {
+                for (Leave_Line_Item__c l : upcoming) {
                     // Count the first run of leave days; a gap of more than 3 days (a weekend fits) ends it.
                     if (previous.daysBetween(l.Date__c) > 3) {
                         break;
@@ -404,15 +477,15 @@ public with sharing class PtoController {
     }
 
     @AuraEnabled
-    public static List<LeaveRow> getPendingApprovals() {
+    public static List<RequestRow> getPendingApprovals() {
         try {
             Access a = new Access();
             if (!a.isManager && !a.isHrAdmin) {
                 throw new PtoException('Only managers and HR can approve leave.');
             }
-            List<LeaveRow> rows = new List<LeaveRow>();
-            for (Leave_and_Holiday__c l : PtoData.pendingApprovals(a.isHrAdmin)) {
-                rows.add(toRow(l));
+            List<RequestRow> rows = new List<RequestRow>();
+            for (PTO_Request__c r : PtoData.pendingRequests(a.isHrAdmin)) {
+                rows.add(toRequestRow(r));
             }
             return rows;
         } catch (Exception e) {
@@ -421,21 +494,53 @@ public with sharing class PtoController {
     }
 
     @AuraEnabled
-    public static ActionResult approveLeave(List<Id> leaveIds) {
+    public static ActionResult approveRequests(List<Id> requestIds) {
         try {
-            return decide(leaveIds, true, null);
+            return decide(requestIds, true, null);
         } catch (Exception e) {
             throw fail(e);
         }
     }
 
     @AuraEnabled
-    public static ActionResult rejectLeave(List<Id> leaveIds, String reason) {
+    public static ActionResult rejectRequests(List<Id> requestIds, String reason) {
         try {
             if (String.isBlank(reason)) {
                 throw new PtoException('Enter a reason before rejecting.');
             }
-            return decide(leaveIds, false, reason);
+            return decide(requestIds, false, reason);
+        } catch (Exception e) {
+            throw fail(e);
+        }
+    }
+
+    @AuraEnabled
+    public static ActionResult retrySync(Id requestId) {
+        try {
+            Access a = new Access();
+            if (!a.isHrAdmin) {
+                throw new PtoException('Only HR can retry adding a request to the timesheet.');
+            }
+            PTO_Request__c request = requestId == null ? null : PtoData.requestById(requestId);
+            if (request == null) {
+                throw new PtoException('That leave request doesn\'t exist.');
+            }
+            if (request.Status__c != LeaveValidator.STATUS_APPROVED) {
+                throw new PtoException(request.Name + ' isn\'t approved, so it has nothing to add to the timesheet.');
+            }
+            LeaveToLineItem.convertRequests(new Set<Id>{ request.Id });
+            ActionResult result = new ActionResult();
+            result.errors = new List<String>();
+            result.syncErrors = new List<String>();
+            result.processed = 0;
+            for (Leave_Line_Item__c l : PtoData.requestLines(request.Id)) {
+                if (l.Sync_Status__c == LeaveValidator.SYNC_ERROR) {
+                    result.syncErrors.add(l.Absence_Category__c + ' on ' + String.valueOf(l.Date__c) + ': ' + l.Sync_Error__c);
+                } else if (l.Sync_Status__c == LeaveValidator.SYNC_DONE) {
+                    result.processed++;
+                }
+            }
+            return result;
         } catch (Exception e) {
             throw fail(e);
         }
@@ -443,34 +548,38 @@ public with sharing class PtoController {
 
     // ---------------------------------------------------------------- internals
 
-    private static ActionResult decide(List<Id> leaveIds, Boolean approve, String reason) {
+    private static ActionResult decide(List<Id> requestIds, Boolean approve, String reason) {
         Access a = new Access();
         if (!a.isManager && !a.isHrAdmin) {
             throw new PtoException('Only managers and HR can approve or reject leave.');
         }
         ActionResult result = new ActionResult();
         result.errors = new List<String>();
+        result.syncErrors = new List<String>();
         result.processed = 0;
-        if (leaveIds == null || leaveIds.isEmpty()) {
+        if (requestIds == null || requestIds.isEmpty()) {
             return result;
         }
-        List<Leave_and_Holiday__c> allowed = new List<Leave_and_Holiday__c>();
-        for (Leave_and_Holiday__c l : PtoData.leaveForDecision(new Set<Id>(leaveIds))) {
-            String label = l.Employee__r.Name + ', ' + l.Absence_Category__c + ' on ' + String.valueOf(l.Date__c);
-            if (l.Status__c != LeaveValidator.STATUS_SUBMITTED) {
+        List<PTO_Request__c> allowed = new List<PTO_Request__c>();
+        for (PTO_Request__c r : PtoData.requestsForDecision(new Set<Id>(requestIds))) {
+            String label = r.Name + ' (' + r.Employee__r.Name + ')';
+            if (r.Status__c != LeaveValidator.STATUS_SUBMITTED) {
                 result.errors.add(label + ' is no longer waiting for approval.');
-            } else if (!a.canDecide(l)) {
+            } else if (!a.canDecide(r)) {
                 result.errors.add('You can\'t approve or reject ' + label + '.');
             } else {
-                allowed.add(l);
+                allowed.add(r);
             }
         }
         if (allowed.isEmpty()) {
             return result;
         }
-        List<String> errors = approve ? LeaveService.approve(allowed) : LeaveService.reject(allowed, reason);
-        result.errors.addAll(errors);
-        result.processed = allowed.size() - errors.size();
+        PtoRequestService.DecisionResult decision = approve
+            ? PtoRequestService.approve(allowed)
+            : PtoRequestService.reject(allowed, reason);
+        result.processed = decision.processed;
+        result.errors.addAll(decision.errors);
+        result.syncErrors.addAll(decision.syncErrors);
         return result;
     }
 
@@ -509,11 +618,18 @@ public with sharing class PtoController {
             throw new PtoException('You can only manage leave for yourself and your direct reports.');
         }
 
-        Boolean canDecide(Leave_and_Holiday__c l) {
-            if (l.Employee__r.User__c == UserInfo.getUserId()) {
+        Boolean canSee(PTO_Request__c r) {
+            if (employee != null && r.Employee__c == employee.Id) {
+                return true;
+            }
+            return isHrAdmin || (isManager && isDirectReport(r.Employee__r));
+        }
+
+        Boolean canDecide(PTO_Request__c r) {
+            if (r.Employee__r.User__c == UserInfo.getUserId()) {
                 return false;
             }
-            return isHrAdmin || (isManager && isDirectReport(l.Employee__r));
+            return isHrAdmin || (isManager && isDirectReport(r.Employee__r));
         }
     }
 
@@ -539,7 +655,7 @@ public with sharing class PtoController {
 
     private static List<CategoryOption> categories() {
         List<CategoryOption> options = new List<CategoryOption>();
-        for (Schema.PicklistEntry p : Leave_and_Holiday__c.Absence_Category__c.getDescribe().getPicklistValues()) {
+        for (Schema.PicklistEntry p : Leave_Line_Item__c.Absence_Category__c.getDescribe().getPicklistValues()) {
             if (!p.isActive() || p.getValue() == LeaveValidator.CATEGORY_HOLIDAY) {
                 continue;
             }
@@ -554,7 +670,7 @@ public with sharing class PtoController {
 
     private static List<String> picklistValues() {
         List<String> values = new List<String>();
-        for (Schema.PicklistEntry p : Leave_and_Holiday__c.Absence_Category__c.getDescribe().getPicklistValues()) {
+        for (Schema.PicklistEntry p : Leave_Line_Item__c.Absence_Category__c.getDescribe().getPicklistValues()) {
             values.add(p.getValue());
         }
         return values;
@@ -572,7 +688,7 @@ public with sharing class PtoController {
     }
 
     /**
-     * @description Leave balance minus leave that is submitted but not approved yet (holidays excluded).
+     * @description Leave balance minus leave that is submitted but not approved yet.
      */
     private static Decimal availableHours(Employee__c e, Map<Id, Decimal> pending) {
         Decimal balance = e.Total_Absence_Hours_Available__c == null ? 0 : e.Total_Absence_Hours_Available__c;
@@ -580,23 +696,27 @@ public with sharing class PtoController {
         return balance - waiting;
     }
 
-    private static LeaveRow toRow(Leave_and_Holiday__c l) {
-        LeaveRow r = new LeaveRow();
-        r.id = l.Id;
-        r.employeeId = l.Employee__c;
-        r.employeeName = l.Employee__r == null ? null : l.Employee__r.Name;
-        r.leaveDate = String.valueOf(l.Date__c);
-        r.type = l.Type__c;
-        r.category = l.Absence_Category__c;
-        r.hours = l.Duration__c;
-        r.status = l.Status__c;
-        r.notes = l.Notes__c;
-        if (l.Status__c == LeaveValidator.STATUS_NEW) {
-            r.displayStatus = LeaveService.isConversionError(l.Notes__c) ? 'Conversion error' : 'Rejected';
-        } else {
-            r.displayStatus = l.Status__c;
-        }
-        return r;
+    private static RequestRow toRequestRow(PTO_Request__c r) {
+        RequestRow row = new RequestRow();
+        row.id = r.Id;
+        row.name = r.Name;
+        row.employeeId = r.Employee__c;
+        row.employeeName = r.Employee__r == null ? null : r.Employee__r.Name;
+        row.startDate = r.Start_Date__c == null ? null : String.valueOf(r.Start_Date__c);
+        row.endDate = r.End_Date__c == null ? null : String.valueOf(r.End_Date__c);
+        row.dayCount = r.Day_Count__c == null ? 0 : r.Day_Count__c.intValue();
+        row.totalHours = r.Total_Hours__c == null ? 0 : r.Total_Hours__c;
+        row.status = r.Status__c;
+        row.syncErrorCount = r.Sync_Error_Count__c == null ? 0 : r.Sync_Error_Count__c.intValue();
+        row.displayStatus = r.Status__c == LeaveValidator.STATUS_APPROVED && row.syncErrorCount > 0 ? SYNC_ERROR_LABEL : r.Status__c;
+        row.notes = r.Notes__c;
+        row.decisionNotes = r.Decision_Notes__c;
+        row.hasManager = r.Approver__c != null;
+        row.approverName = r.Approver__r == null ? null : r.Approver__r.Name;
+        row.decidedByName = r.Decided_By__r == null ? null : r.Decided_By__r.Name;
+        row.decidedOn = r.Decided_On__c == null ? null : r.Decided_On__c.format('yyyy-MM-dd');
+        row.submittedOn = r.CreatedDate == null ? null : r.CreatedDate.format('yyyy-MM-dd');
+        return row;
     }
 
     private static Date mondayOf(Date d) {

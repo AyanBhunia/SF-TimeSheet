@@ -52,7 +52,7 @@
                     </template>
                     <template lwc:if={isPast}>
                         <template lwc:if={hasEmployee}>
-                            <c-pto-past employee-id={employeeId}></c-pto-past>
+                            <c-pto-past employee-id={employeeId} context={context} can-retry={isHrAdmin}></c-pto-past>
                         </template>
                         <template lwc:else>
                             <p class="slds-text-color_weak">{noEmployeeMessage}</p>

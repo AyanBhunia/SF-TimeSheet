@@ -5,20 +5,28 @@ import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 const PAGE_SIZE = 25;
 
 const COLUMNS = [
-    { fieldName: 'date', label: 'Date', type: 'date' },
-    { fieldName: 'type', label: 'Type', type: 'text' },
-    { fieldName: 'category', label: 'Category', type: 'text' },
-    { fieldName: 'hours', label: 'Hours', type: 'number', align: 'right' },
-    { fieldName: 'displayStatus', label: 'Status', type: 'status' },
-    { fieldName: 'notes', label: 'Notes', type: 'text' }
+    { fieldName: 'name', label: 'Request', type: 'text', width: '7.5rem' },
+    { fieldName: 'startDate', label: 'From', type: 'text', width: '6.75rem' },
+    { fieldName: 'endDate', label: 'To', type: 'text', width: '6.75rem' },
+    { fieldName: 'dayCount', label: 'Days', type: 'number', align: 'right', width: '3.75rem' },
+    { fieldName: 'totalHours', label: 'Hours', type: 'number', align: 'right', width: '4.25rem' },
+    { fieldName: 'displayStatus', label: 'Status', type: 'status' }
 ];
 
+/**
+ * Past requests, side by side: the employee's requests on the left (25 per page), the selected
+ * request's details and days on the right.
+ */
 export default class PtoPast extends LightningElement {
+    @api canRetry = false;
+    @api context;
+
     @track records = [];
     @track isLoading = false;
     @track pageNumber = 1;
     @track offset = 0;
     @track hasMore = false;
+    selectedId;
 
     columns = COLUMNS;
     _employeeId;
@@ -33,6 +41,7 @@ export default class PtoPast extends LightningElement {
         if (isChanged && this.isConnected) {
             this.pageNumber = 1;
             this.offset = 0;
+            this.selectedId = undefined;
             this.loadData();
         }
     }
@@ -57,9 +66,13 @@ export default class PtoPast extends LightningElement {
             });
             this.records = page && Array.isArray(page.rows) ? page.rows : [];
             this.hasMore = Boolean(page && page.hasMore);
+            if (!this.records.some((r) => r.id === this.selectedId)) {
+                this.selectedId = this.records.length ? this.records[0].id : undefined;
+            }
         } catch (error) {
             this.records = [];
             this.hasMore = false;
+            this.selectedId = undefined;
             const message = error && error.body && error.body.message
                 ? error.body.message
                 : 'Past leave could not load.';
@@ -73,16 +86,40 @@ export default class PtoPast extends LightningElement {
         }
     }
 
+    get canPickEmployee() {
+        return (this.context?.employees || []).length > 0;
+    }
+
+    get employeeOptions() {
+        const options = [];
+        const self = this.context?.employee;
+        if (self) {
+            options.push({ label: `Me (${self.name})`, value: self.id });
+        }
+        (this.context?.employees || []).forEach((e) => options.push({ label: e.name, value: e.id }));
+        return options;
+    }
+
+    handleEmployee(event) {
+        if (event.detail.value === this._employeeId) {
+            return;
+        }
+        this._employeeId = event.detail.value;
+        this.pageNumber = 1;
+        this.offset = 0;
+        this.selectedId = undefined;
+        this.loadData();
+    }
+
     get tableRows() {
-        return this.records.map(r => ({
+        return this.records.map((r) => ({
             key: r.id,
-            id: r.id,
-            date: r.leaveDate,
-            type: r.type,
-            category: r.category,
-            hours: r.hours,
-            displayStatus: r.displayStatus,
-            notes: r.notes
+            name: r.name,
+            startDate: r.startDate,
+            endDate: r.endDate,
+            dayCount: r.dayCount,
+            totalHours: formatHours(r.totalHours),
+            displayStatus: r.displayStatus
         }));
     }
 
@@ -100,11 +137,20 @@ export default class PtoPast extends LightningElement {
 
     get showingText() {
         if (!this.records || this.records.length === 0) {
-            return 'No records';
+            return 'No requests';
         }
         const start = this.offset + 1;
         const end = this.offset + this.records.length;
         return `Showing ${start} to ${end}`;
+    }
+
+    handleSelect(event) {
+        this.selectedId = event.detail.rowKey;
+    }
+
+    handleDecided() {
+        // A retry changes the request's status label; reload the page and keep the selection.
+        this.loadData();
     }
 
     handlePrevious() {
@@ -122,4 +168,9 @@ export default class PtoPast extends LightningElement {
             this.loadData();
         }
     }
+}
+
+function formatHours(value) {
+    const n = Number(value) || 0;
+    return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/0$/, '');
 }

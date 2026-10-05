@@ -68,6 +68,10 @@ export default class PtoApp extends LightningElement {
         return !!this.context?.employee;
     }
 
+    get isHrAdmin() {
+        return !!this.context?.isHrAdmin;
+    }
+
     get employeeId() {
         return this.context?.employee?.id;
     }

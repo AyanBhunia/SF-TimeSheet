@@ -35,7 +35,8 @@
                 </template>
                 <template lwc:else>
                     <template for:each={viewRows} for:item="row">
-                        <tr key={row.key} class={row.rowClass}>
+                        <tr key={row.key} class={row.rowClass} tabindex={row.tabIndex} aria-selected={row.ariaSelected}
+                            data-row-key={row.key} onclick={handleRowClick} onkeydown={handleRowKeydown}>
                             <template for:each={row.cells} for:item="cell">
                                 <td key={cell.key} class={cell.cellClass}>
                                     <template lwc:if={cell.isEditable}>

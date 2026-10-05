@@ -11,9 +11,10 @@
     <approvalPageFields>
         <field>Name</field>
         <field>Employee__c</field>
-        <field>Date__c</field>
-        <field>Absence_Category__c</field>
-        <field>Duration__c</field>
+        <field>Start_Date__c</field>
+        <field>End_Date__c</field>
+        <field>Day_Count__c</field>
+        <field>Total_Hours__c</field>
         <field>Notes__c</field>
     </approvalPageFields>
     <approvalStep>
@@ -28,10 +29,10 @@
         <label>Manager</label>
         <name>Manager</name>
     </approvalStep>
-    <description>One leave day per request, approved by the employee's manager (Approver__c). The PTO tab approves and rejects these too.</description>
+    <description>One PTO request (all its days), approved by the employee's manager (Approver__c). The PTO tab approves and rejects these too.</description>
     <entryCriteria>
         <criteriaItems>
-            <field>Leave_and_Holiday__c.Status__c</field>
+            <field>PTO_Request__c.Status__c</field>
             <operation>equals</operation>
             <value>Submitted</value>
         </criteriaItems>
@@ -45,7 +46,7 @@
     <finalApprovalRecordLock>false</finalApprovalRecordLock>
     <finalRejectionActions>
         <action>
-            <name>PTO_Set_New</name>
+            <name>PTO_Set_Rejected</name>
             <type>FieldUpdate</type>
         </action>
     </finalRejectionActions>
