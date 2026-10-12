@@ -2,6 +2,21 @@
     overflow-x: auto;
 }
 
+/* Where the table fits, nothing needs to scroll: let a row's date picker open over the content around the table
+   instead of being cut off by the wrapper, and keep it above other fields' icons. Narrow screens keep the scroll. */
+@media (min-width: 48em) {
+    .table-wrapper {
+        overflow: visible;
+        position: relative;
+        z-index: 1;
+    }
+
+    .table-wrapper table,
+    .table-wrapper td {
+        overflow: visible;
+    }
+}
+
 .row-locked {
     background-color: #f3f3f3;
 }

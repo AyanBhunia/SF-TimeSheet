@@ -160,7 +160,7 @@ public without sharing class PtoData {
     public static List<Leave_Line_Item__c> upcomingLeave(Id employeeId) {
         Date today = Date.today();
         return [
-            SELECT Id, Date__c
+            SELECT Id, Date__c, PTO_Request__r.Status__c
             FROM Leave_Line_Item__c
             WHERE PTO_Request__r.Employee__c = :employeeId
             AND Date__c >= :today
@@ -170,14 +170,17 @@ public without sharing class PtoData {
         ];
     }
 
-    public static List<AggregateResult> weekTotals(Set<Id> employeeIds, Date startDate, Date endDate) {
+    /**
+     * @description Approved leave hours of a year per employee and day of the week (1 = Sunday .. 7 = Saturday).
+     */
+    public static List<AggregateResult> approvedWeekdayTotals(Set<Id> employeeIds, Integer year) {
         return [
-            SELECT PTO_Request__r.Employee__c employeeId, Date__c day, SUM(Duration__c) hours
+            SELECT PTO_Request__r.Employee__c employeeId, DAY_IN_WEEK(Date__c) weekday, SUM(Duration__c) hours
             FROM Leave_Line_Item__c
             WHERE PTO_Request__r.Employee__c IN :employeeIds
-            AND Date__c >= :startDate AND Date__c <= :endDate
-            AND PTO_Request__r.Status__c IN (:LeaveValidator.STATUS_SUBMITTED, :LeaveValidator.STATUS_APPROVED)
-            GROUP BY PTO_Request__r.Employee__c, Date__c
+            AND CALENDAR_YEAR(Date__c) = :year
+            AND PTO_Request__r.Status__c = :LeaveValidator.STATUS_APPROVED
+            GROUP BY PTO_Request__r.Employee__c, DAY_IN_WEEK(Date__c)
         ];
     }
 

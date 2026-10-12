@@ -145,9 +145,9 @@ LineRow    = { id, leaveDate, category, hours, syncStatus, syncError }
   byCategory: [ { category, approved, submitted } ] }
 ```
 Sums leave lines whose request is Submitted or Approved, within the year.
-7. `getTeamWeek(Date weekStart)` (manager: direct reports; HR: all active employees, max 200) returns
+7. `getTeamYear(Integer year)` (manager: direct reports; HR: all active employees, max 200) returns the year's approved leave hours per weekday
 ```
-{ weekStart, days: [7 x 'YYYY-MM-DD'], rows: [ { employeeId, name, hours: [7 numbers] } ] }
+{ year, rows: [ { employeeId, name, hours: [7 numbers, Mon..Sun], total } ] }
 ```
 8. `getPendingApprovals()` returns `[ RequestRow ]`, Submitted only, sorted by `Start_Date__c` ascending. Nobody sees their own request here.
 9. `approveRequests(List<Id> requestIds)` and `rejectRequests(List<Id> requestIds, String reason)` return `{ processed, errors: [ message ], syncErrors: [ message ] }`. `syncErrors` lists lines of approved requests that couldn't go onto their timesheet (the request is still approved).
@@ -215,7 +215,7 @@ API:
     - Pending (h), caption "In N requests"
     - Next leave (date + days)
 - Bar chart (Chart.js from static resource `jsChart`, horizontal bars, stacked Approved + Submitted) of hours by category for the current year.
-- Managers and HR: heatmap of the team week using Chart.js matrix (static resource `jsChartMatrix`, load after `jsChart`). Rows = employees, columns = Mon..Sun, cell colour by hours (0, ≤2, ≤4, <8, ≥8). Previous / Next week buttons. Uses `getTeamWeek(weekStart)`, starting with Monday of the current week.
+- Managers and HR: heatmap of the team's approved leave for the current year using Chart.js matrix (static resource `jsChartMatrix`, load after `jsChart`). Rows = employees, labelled with their year total; columns = Mon..Sun; cell = approved hours on that weekday over the year, shaded in five steps relative to the busiest cell shown. Uses `getTeamYear(year)`.
 - `@api refresh()` reloads.
 
 ### `ptoApply`

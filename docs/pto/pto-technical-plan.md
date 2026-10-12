@@ -182,7 +182,7 @@ Removed: `Leave_and_Holiday__c`, `LeaveAndHolidayTrigger`, `HolidayLoader`, `PTO
 | `getPast(employeeId, offsetRows)` | The employee's requests, `ORDER BY Start_Date__c DESC, CreatedDate DESC LIMIT 26 OFFSET :offsetRows` |
 | `getRequestLines(requestId)` | One request's header and line items, for the right-hand pane. Own, direct report's, or HR |
 | `getOverview(employeeId, year)` | `SUM(Duration__c)` of leave lines grouped by category and request status, Submitted + Approved only. Available = `Total_Absence_Hours_Available__c` minus Submitted hours |
-| `getTeamWeek(weekStart)` | Direct reports (or everyone for HR) × 7 days for the heatmap, from leave lines on Submitted/Approved requests |
+| `getTeamYear(year)` | Direct reports (or everyone for HR) × 7 weekdays for the heatmap: the year's approved leave hours per weekday, plus the year total |
 | `getPendingApprovals()` | Submitted requests where both manager links = me; HR: all Submitted. Never your own |
 | `approveRequests(ids)` / `rejectRequests(ids, reason)` | Role and ownership check per request, then `PtoRequestService` |
 | `retrySync(requestId)` | HR only. `LeaveToLineItem.retry` |

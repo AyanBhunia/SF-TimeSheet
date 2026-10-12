@@ -1,5 +1,6 @@
 import { LightningElement, api, track } from 'lwc';
 import getPast from '@salesforce/apex/PtoController.getPast';
+import getRequestLines from '@salesforce/apex/PtoController.getRequestLines';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 
 const PAGE_SIZE = 25;
@@ -20,6 +21,22 @@ const COLUMNS = [
 export default class PtoPast extends LightningElement {
     @api canRetry = false;
     @api context;
+    // Request to select on the first load (from an email link), even when it isn't on this page.
+    @api
+    get linkedRequestId() {
+        return this._linkedRequestId;
+    }
+    set linkedRequestId(value) {
+        const isChanged = this._linkedRequestId !== value;
+        this._linkedRequestId = value;
+        if (isChanged && value) {
+            this.isLinkApplied = false;
+            if (this.isConnected) {
+                this.loadData();
+            }
+        }
+    }
+    _linkedRequestId;
 
     @track records = [];
     @track isLoading = false;
@@ -27,6 +44,7 @@ export default class PtoPast extends LightningElement {
     @track offset = 0;
     @track hasMore = false;
     selectedId;
+    isLinkApplied = false;
 
     columns = COLUMNS;
     _employeeId;
@@ -66,7 +84,10 @@ export default class PtoPast extends LightningElement {
             });
             this.records = page && Array.isArray(page.rows) ? page.rows : [];
             this.hasMore = Boolean(page && page.hasMore);
-            if (!this.records.some((r) => r.id === this.selectedId)) {
+            const linkedId = await this.resolveLinkedRequest();
+            if (linkedId) {
+                this.selectedId = linkedId;
+            } else if (!this.records.some((r) => r.id === this.selectedId)) {
                 this.selectedId = this.records.length ? this.records[0].id : undefined;
             }
         } catch (error) {
@@ -83,6 +104,25 @@ export default class PtoPast extends LightningElement {
             }));
         } finally {
             this.isLoading = false;
+        }
+    }
+
+    // The linked request's Id if this user can see it, otherwise undefined (deleted, no access, wrong Id), so the
+    // tab opens as usual. Applied once per link.
+    async resolveLinkedRequest() {
+        if (!this.linkedRequestId || this.isLinkApplied) {
+            return undefined;
+        }
+        this.isLinkApplied = true;
+        const listed = this.records.find((r) => sameId(r.id, this.linkedRequestId));
+        if (listed) {
+            return listed.id;
+        }
+        try {
+            const detail = await getRequestLines({ requestId: this.linkedRequestId });
+            return detail?.request?.id;
+        } catch (e) {
+            return undefined;
         }
     }
 
@@ -173,4 +213,8 @@ export default class PtoPast extends LightningElement {
 function formatHours(value) {
     const n = Number(value) || 0;
     return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/0$/, '');
+}
+
+function sameId(a, b) {
+    return !!a && !!b && a.substring(0, 15) === b.substring(0, 15);
 }

@@ -24,7 +24,8 @@ export default class PtoApply extends LightningElement {
     loadedEmployee;
     serverErrors = {};
     showMissing = false;
-    step = 'edit';
+    // setup: pick employee, dates and category; edit: the days (setup fields greyed out); review: confirm.
+    step = 'setup';
     isLoading = false;
     isSubmitting = false;
     rangeError;
@@ -88,8 +89,22 @@ export default class PtoApply extends LightningElement {
         return Number(this._context?.dailyMax) || 24;
     }
 
+    get isSetup() {
+        return this.step === 'setup';
+    }
+
     get isEdit() {
         return this.step === 'edit';
+    }
+
+    get isSetupOrEdit() {
+        return this.isSetup || this.isEdit;
+    }
+
+    get hint() {
+        return this.isSetup
+            ? 'Pick a start and end date to get one row per day, or skip the dates and add days yourself after Next.'
+            : 'Grey rows are already on a request or the timesheet. Use Back to change the selections above.';
     }
 
     get isReview() {
@@ -416,6 +431,26 @@ export default class PtoApply extends LightningElement {
         this.records = { leaves: [], lineItems: [] };
         this.serverErrors = {};
         this.showMissing = false;
+        this.step = 'setup';
+    }
+
+    handleNext() {
+        if (!this.employeeId) {
+            this.toast('Pick an employee', 'Choose who the leave is for.', 'error');
+            return;
+        }
+        if (this.rangeError) {
+            this.toast('Check the dates', this.rangeError, 'error');
+            return;
+        }
+        if (!this.rows.length) {
+            this.rows = [this.blankRow()];
+        }
+        this.step = 'edit';
+    }
+
+    handleBackToSetup() {
+        this.step = 'setup';
     }
 
     async handleReview() {
@@ -479,7 +514,6 @@ export default class PtoApply extends LightningElement {
             this.toast('Submitted for approval', `${response.requestName} submitted, ${days} day${days === 1 ? '' : 's'}.`, 'success');
             (response.warnings || []).forEach((w) => this.toast('Note', w, 'warning'));
             this.handleClear();
-            this.step = 'edit';
             this.dispatchEvent(new CustomEvent('changed'));
         } catch (e) {
             this.toast('Not submitted', reduceError(e), 'error');

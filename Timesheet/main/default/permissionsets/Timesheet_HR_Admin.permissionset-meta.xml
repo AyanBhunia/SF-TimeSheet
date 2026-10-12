@@ -216,6 +216,11 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>false</editable>
+        <field>PTO_Request__c.PTO_Tab_Link__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
         <field>PTO_Request__c.Start_Date__c</field>
         <readable>true</readable>
     </fieldPermissions>

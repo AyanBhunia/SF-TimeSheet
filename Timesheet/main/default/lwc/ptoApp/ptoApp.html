@@ -52,14 +52,15 @@
                     </template>
                     <template lwc:if={isPast}>
                         <template lwc:if={hasEmployee}>
-                            <c-pto-past employee-id={employeeId} context={context} can-retry={isHrAdmin}></c-pto-past>
+                            <c-pto-past employee-id={employeeId} context={context} can-retry={isHrAdmin}
+                                linked-request-id={linkedRequestId}></c-pto-past>
                         </template>
                         <template lwc:else>
                             <p class="slds-text-color_weak">{noEmployeeMessage}</p>
                         </template>
                     </template>
                     <template lwc:if={isApprove}>
-                        <c-pto-approve onchanged={handleChanged}></c-pto-approve>
+                        <c-pto-approve linked-request-id={linkedRequestId} onchanged={handleChanged}></c-pto-approve>
                     </template>
                 </div>
             </div>

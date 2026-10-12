@@ -8,8 +8,12 @@ public without sharing class PtoRequestService {
 
     public static final Integer NOTES_MAX = 2000;
 
-    // True while approve/reject runs, which writes the decision fields itself.
+    // True while approve/reject writes the decision fields itself.
     private static Boolean deciding = false;
+
+    // PTO tab comments by request Id, read by stampDecision while Approval.process closes the step. The decision
+    // is stamped in that same save, so the approval process's email alerts already show it.
+    private static Map<Id, String> tabComments = new Map<Id, String>();
 
     public class PtoException extends Exception {}
 
@@ -75,10 +79,12 @@ public without sharing class PtoRequestService {
     private static void stampDecision(List<PTO_Request__c> records) {
         Set<Id> ids = new Set<Id>();
         for (PTO_Request__c r : records) {
-            ids.add(r.Id);
+            if (!tabComments.containsKey(r.Id)) {
+                ids.add(r.Id);
+            }
         }
-        Map<Id, String> commentById = new Map<Id, String>();
-        for (ProcessInstanceStep s : [
+        Map<Id, String> commentById = new Map<Id, String>(tabComments);
+        for (ProcessInstanceStep s : ids.isEmpty() ? new List<ProcessInstanceStep>() : [
             SELECT ProcessInstance.TargetObjectId, Comments
             FROM ProcessInstanceStep
             WHERE ProcessInstance.TargetObjectId IN :ids AND StepStatus IN ('Approved', 'Rejected')
@@ -101,10 +107,56 @@ public without sharing class PtoRequestService {
     }
 
     /**
+     * @description After insert: the approver gets read access to the request.
+     */
+    public static void afterRequestInsert(List<PTO_Request__c> records) {
+        shareWithApprovers(records, null);
+    }
+
+    /**
+     * @description Requests are private to their owner, so the approver is given read access (sharing reason
+     *              Approver__c). Without it Salesforce's own approval screens (approval page, Items to Approve)
+     *              refuse the approver. A changed approver loses the share and the new one gets it. Leave lines
+     *              follow the request. A share that can't be made (approver is the owner, or inactive) is skipped.
+     */
+    private static void shareWithApprovers(List<PTO_Request__c> records, Map<Id, PTO_Request__c> oldMap) {
+        List<PTO_Request__Share> shares = new List<PTO_Request__Share>();
+        Set<Id> changed = new Set<Id>();
+        for (PTO_Request__c r : records) {
+            PTO_Request__c old = oldMap == null ? null : oldMap.get(r.Id);
+            if (old != null && old.Approver__c == r.Approver__c) {
+                continue;
+            }
+            if (old != null && old.Approver__c != null) {
+                changed.add(r.Id);
+            }
+            if (r.Approver__c != null && r.Approver__c != r.OwnerId) {
+                shares.add(new PTO_Request__Share(
+                    ParentId = r.Id,
+                    UserOrGroupId = r.Approver__c,
+                    AccessLevel = 'Read',
+                    RowCause = Schema.PTO_Request__Share.RowCause.Approver__c
+                ));
+            }
+        }
+        if (!changed.isEmpty()) {
+            delete [
+                SELECT Id FROM PTO_Request__Share
+                WHERE ParentId IN :changed AND RowCause = :Schema.PTO_Request__Share.RowCause.Approver__c
+            ];
+        }
+        if (!shares.isEmpty()) {
+            Database.insert(shares, false);
+        }
+    }
+
+    /**
      * @description After update: an approved request is written to its timesheets; a rejected request
-     *              lets go of its days (keys cleared) so a new request can use the same dates.
+     *              lets go of its days (keys cleared) so a new request can use the same dates. The owner gets a
+     *              bell notification either way, wherever the decision was made.
      */
     public static void afterRequestUpdate(List<PTO_Request__c> records, Map<Id, PTO_Request__c> oldMap) {
+        shareWithApprovers(records, oldMap);
         Set<Id> approved = new Set<Id>();
         Set<Id> rejected = new Set<Id>();
         for (PTO_Request__c r : records) {
@@ -130,6 +182,9 @@ public without sharing class PtoRequestService {
         if (!approved.isEmpty()) {
             LeaveToLineItem.convertRequests(approved);
         }
+        Set<Id> decided = new Set<Id>(approved);
+        decided.addAll(rejected);
+        PtoNotifier.decided(decided);
     }
 
     // ---------------------------------------------------------------- line trigger
@@ -244,6 +299,7 @@ public without sharing class PtoRequestService {
         result.request = [SELECT Id, Name, Approver__c, OwnerId, Notes__c FROM PTO_Request__c WHERE Id = :request.Id];
         result.dayCount = lines.size();
         submitForApproval(result.request);
+        PtoNotifier.submitted(new Set<Id>{ request.Id });
         return result;
     }
 
@@ -272,18 +328,24 @@ public without sharing class PtoRequestService {
         if (requests == null || requests.isEmpty()) {
             return result;
         }
+        Map<Id, PTO_Request__c> byId = new Map<Id, PTO_Request__c>(requests);
+        Set<Id> closedByProcess = closeWorkitems(byId, approve, reason, result);
         deciding = true;
         try {
-            return decide(requests, approve, reason, result);
+            return writeDecisions(byId, closedByProcess, approve, reason, result);
         } finally {
             deciding = false;
         }
     }
 
-    private static DecisionResult decide(List<PTO_Request__c> requests, Boolean approve, String reason, DecisionResult result) {
-        Map<Id, PTO_Request__c> byId = new Map<Id, PTO_Request__c>(requests);
+    /**
+     * @description Approves or rejects the open Approval Process step of each request that has one. The process's
+     *              field update sets the status and the request trigger stamps the decision, both before the
+     *              process's email alerts go out. Returns the requests whose step closed; failures are removed
+     *              from byId and reported.
+     */
+    private static Set<Id> closeWorkitems(Map<Id, PTO_Request__c> byId, Boolean approve, String reason, DecisionResult result) {
         Map<Id, Id> workitemByRecord = openWorkitems(byId.keySet());
-
         List<Approval.ProcessWorkitemRequest> processRequests = new List<Approval.ProcessWorkitemRequest>();
         List<Id> processRecordIds = new List<Id>();
         for (Id recordId : workitemByRecord.keySet()) {
@@ -293,20 +355,34 @@ public without sharing class PtoRequestService {
             req.setComments(approve ? 'Approved in the PTO tab.' : reason);
             processRequests.add(req);
             processRecordIds.add(recordId);
+            tabComments.put(recordId, approve ? null : reason);
         }
-        if (!processRequests.isEmpty()) {
-            List<Approval.ProcessResult> results = Approval.process(processRequests, false);
-            for (Integer i = 0; i < results.size(); i++) {
-                if (!results[i].isSuccess()) {
-                    result.errors.add(byId.get(processRecordIds[i]).Name + ': ' + results[i].getErrors()[0].getMessage());
-                    byId.remove(processRecordIds[i]);
-                }
+        Set<Id> closed = new Set<Id>();
+        if (processRequests.isEmpty()) {
+            return closed;
+        }
+        List<Approval.ProcessResult> results;
+        try {
+            results = Approval.process(processRequests, false);
+        } finally {
+            tabComments.clear();
+        }
+        for (Integer i = 0; i < results.size(); i++) {
+            if (results[i].isSuccess()) {
+                closed.add(processRecordIds[i]);
+            } else {
+                result.errors.add(byId.get(processRecordIds[i]).Name + ': ' + results[i].getErrors()[0].getMessage());
+                byId.remove(processRecordIds[i]);
             }
         }
+        return closed;
+    }
 
-        // Re-read after the Approval Process step: its field update may already have set the status (and the
-        // trigger may already have written the days to the timesheet), so only requests still Submitted get
-        // the status change here. Every decided request gets who, when and why.
+    private static DecisionResult writeDecisions(Map<Id, PTO_Request__c> byId, Set<Id> closedByProcess, Boolean approve,
+            String reason, DecisionResult result) {
+        // Re-read after the Approval Process step: its field update has usually set the status already (and the
+        // trigger has stamped the decision and written the days to the timesheet). Only requests still Submitted,
+        // or with no Approval Process step, are updated here.
         String target = approve ? LeaveValidator.STATUS_APPROVED : LeaveValidator.STATUS_REJECTED;
         String line = (approve ? 'Approved by ' : 'Rejected by ') + UserInfo.getName() + ' on ' + String.valueOf(Date.today())
             + (approve ? '' : ': ' + reason);
@@ -315,6 +391,10 @@ public without sharing class PtoRequestService {
             if (r.Status__c != LeaveValidator.STATUS_SUBMITTED && r.Status__c != target) {
                 result.errors.add(r.Name + ' is no longer waiting for approval.');
                 byId.remove(r.Id);
+                continue;
+            }
+            if (closedByProcess.contains(r.Id) && r.Status__c == target) {
+                result.processed++;
                 continue;
             }
             PTO_Request__c u = new PTO_Request__c(

@@ -38,7 +38,9 @@
                 <div class="slds-box slds-box_small slds-theme_shade tile-box">
                     <div class="slds-text-title_caps slds-text-color_weak slds-truncate" title="Next leave">Next leave</div>
                     <div class="slds-text-heading_medium slds-m-top_xx-small slds-truncate">{nextLeaveDateDisplay}</div>
-                    <div class="slds-text-body_small slds-text-color_weak slds-truncate">{nextLeaveCountDisplay}</div>
+                    <div class="slds-text-body_small slds-text-color_weak slds-truncate">
+                        {nextLeaveCountDisplay}<template lwc:if={nextLeaveStage}> · <span class={nextLeaveStageClass}>{nextLeaveStage}</span></template>
+                    </div>
                 </div>
             </div>
         </div>
@@ -62,21 +64,16 @@
             </div>
         </article>
 
-        <!-- Team Week Heatmap (Managers & HR only) -->
+        <!-- Team leave heatmap (Managers & HR only): approved hours of the year per employee and weekday -->
         <template lwc:if={isManagerOrHr}>
             <article class="slds-card slds-card_boundary">
-                <div class="slds-card__header slds-grid slds-grid_vertical-align-center">
+                <div class="slds-card__header slds-grid">
                     <header class="slds-media slds-media_center slds-has-flexi-truncate">
                         <div class="slds-media__body">
-                            <h3 class="slds-card__header-title slds-truncate">Team leave, {weekRangeLabel}</h3>
+                            <h3 class="slds-card__header-title slds-truncate">Team leave, {currentYear}</h3>
+                            <p class="slds-text-body_small slds-text-color_weak">Approved hours this year by day of the week. The year's total is next to each name.</p>
                         </div>
                     </header>
-                    <div class="slds-no-flex">
-                        <div class="slds-button-group" role="group">
-                            <lightning-button label="Previous week" icon-name="utility:chevronleft" onclick={handlePrevWeek}></lightning-button>
-                            <lightning-button label="Next week" icon-name="utility:chevronright" icon-position="right" onclick={handleNextWeek}></lightning-button>
-                        </div>
-                    </div>
                 </div>
                 <div class="slds-card__body slds-card__body_inner">
                     <div class="chart-container team-chart-container" style={teamChartContainerStyle}>

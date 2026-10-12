@@ -23,3 +23,15 @@
 .team-chart-container {
     min-height: 160px;
 }
+
+.stage {
+    font-weight: 600;
+}
+
+.stage_approved {
+    color: #2e844a;
+}
+
+.stage_pending {
+    color: #a96404;
+}

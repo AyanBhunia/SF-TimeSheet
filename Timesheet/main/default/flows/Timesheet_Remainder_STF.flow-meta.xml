@@ -17,7 +17,7 @@
         <inputParameters>
             <name>emailSubject</name>
             <value>
-                <stringValue>Timesheet Remainder</stringValue>
+                <stringValue>Timesheet Reminder</stringValue>
             </value>
         </inputParameters>
         <inputParameters>
@@ -93,7 +93,7 @@
         <isViewedAsPlainText>true</isViewedAsPlainText>
         <text>Hi {!$Record.Employee__r.Name},
 
-This is remainder to submit timesheet for this week.
+This is Reminder to submit timesheet for this week.
 
 {!TimesheetLink}
 

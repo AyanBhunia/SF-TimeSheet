@@ -2,6 +2,12 @@
     position: relative;
 }
 
+/* Keeps the selection fields' icons (SLDS z-index 2) in their own layer, so a row's date picker opening upward
+   from the days table covers them. */
+.pto-setup {
+    isolation: isolate;
+}
+
 .pto-tile__label {
     font-size: 0.75rem;
     text-transform: uppercase;

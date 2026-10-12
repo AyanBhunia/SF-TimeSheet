@@ -3,26 +3,13 @@ import { loadScript } from 'lightning/platformResourceLoader';
 import ChartJS from '@salesforce/resourceUrl/jsChart';
 import jsChartMatrix from '@salesforce/resourceUrl/jsChartMatrix';
 import getOverview from '@salesforce/apex/PtoController.getOverview';
-import getTeamWeek from '@salesforce/apex/PtoController.getTeamWeek';
+import getTeamYear from '@salesforce/apex/PtoController.getTeamYear';
 
-function getMonday(date) {
-    const d = new Date(date);
-    const day = d.getDay();
-    const diff = (day + 6) % 7;
-    d.setDate(d.getDate() - diff);
-    return formatDate(d);
-}
-
-function formatDate(d) {
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-}
+const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export default class PtoOverview extends LightningElement {
     @track overview;
-    @track teamWeek;
+    @track teamYear;
     @track error;
     isLoading = false;
 
@@ -30,7 +17,6 @@ export default class PtoOverview extends LightningElement {
     _employeeId;
     connected = false;
 
-    currentWeekStart;
     scriptsLoaded = false;
     isChartJsInitialized = false;
     needsChartRender = false;
@@ -68,7 +54,6 @@ export default class PtoOverview extends LightningElement {
 
     connectedCallback() {
         this.connected = true;
-        this.initWeekStart();
         this.loadData();
     }
 
@@ -102,18 +87,6 @@ export default class PtoOverview extends LightningElement {
         if (this.scriptsLoaded && this.needsChartRender) {
             this.needsChartRender = false;
             this.renderCharts();
-        }
-    }
-
-    initWeekStart() {
-        if (!this.currentWeekStart) {
-            const todayStr = this.context?.today;
-            if (todayStr) {
-                const [y, m, d] = todayStr.split('-').map(Number);
-                this.currentWeekStart = getMonday(new Date(y, m - 1, d));
-            } else {
-                this.currentWeekStart = getMonday(new Date());
-            }
         }
     }
 
@@ -167,6 +140,23 @@ export default class PtoOverview extends LightningElement {
         return count === 1 ? '1 day' : `${count} days`;
     }
 
+    // Approved, Pending approval, or "N pending approval" when only some days of the next leave are approved.
+    get nextLeaveStage() {
+        const count = this.overview?.nextLeaveCount;
+        if (!this.overview?.nextLeaveDate || !count) {
+            return '';
+        }
+        const pending = this.overview?.nextLeavePendingCount || 0;
+        if (!pending) {
+            return 'Approved';
+        }
+        return pending >= count ? 'Pending approval' : `${pending} pending approval`;
+    }
+
+    get nextLeaveStageClass() {
+        return this.nextLeaveStage === 'Approved' ? 'stage stage_approved' : 'stage stage_pending';
+    }
+
     get hasCategoryData() {
         return (this.overview?.byCategory || []).length > 0;
     }
@@ -176,7 +166,7 @@ export default class PtoOverview extends LightningElement {
     }
 
     get hasTeamData() {
-        return (this.teamWeek?.rows || []).length > 0;
+        return (this.teamYear?.rows || []).length > 0;
     }
 
     get noTeamData() {
@@ -190,16 +180,9 @@ export default class PtoOverview extends LightningElement {
     }
 
     get teamChartContainerStyle() {
-        const count = (this.teamWeek?.rows || []).length;
+        const count = (this.teamYear?.rows || []).length;
         const height = Math.max(160, count * 36 + 60);
         return `position: relative; height: ${height}px; width: 100%;`;
-    }
-
-    get weekRangeLabel() {
-        if (this.teamWeek?.days && this.teamWeek.days.length === 7) {
-            return `${this.teamWeek.days[0]} to ${this.teamWeek.days[6]}`;
-        }
-        return this.currentWeekStart || '';
     }
 
     formatNumber(value) {
@@ -220,7 +203,7 @@ export default class PtoOverview extends LightningElement {
             });
 
             if (this.isManagerOrHr) {
-                await this.fetchTeamWeek();
+                await this.fetchTeamYear();
             }
         } catch (e) {
             this.error = e?.body?.message || e?.message || 'Error loading PTO overview.';
@@ -230,37 +213,12 @@ export default class PtoOverview extends LightningElement {
         }
     }
 
-    async fetchTeamWeek() {
+    async fetchTeamYear() {
         try {
-            this.teamWeek = await getTeamWeek({
-                weekStart: this.currentWeekStart
-            });
-            if (this.teamWeek?.weekStart) {
-                this.currentWeekStart = this.teamWeek.weekStart;
-            }
+            this.teamYear = await getTeamYear({ year: this.currentYear });
         } catch (e) {
-            console.error('Error loading team week:', e);
+            console.error('Error loading team leave:', e);
         }
-    }
-
-    async handlePrevWeek() {
-        this.initWeekStart();
-        const [y, m, d] = this.currentWeekStart.split('-').map(Number);
-        const dt = new Date(y, m - 1, d);
-        dt.setDate(dt.getDate() - 7);
-        this.currentWeekStart = formatDate(dt);
-        await this.fetchTeamWeek();
-        this.needsChartRender = true;
-    }
-
-    async handleNextWeek() {
-        this.initWeekStart();
-        const [y, m, d] = this.currentWeekStart.split('-').map(Number);
-        const dt = new Date(y, m - 1, d);
-        dt.setDate(dt.getDate() + 7);
-        this.currentWeekStart = formatDate(dt);
-        await this.fetchTeamWeek();
-        this.needsChartRender = true;
     }
 
     renderCharts() {
@@ -381,31 +339,33 @@ export default class PtoOverview extends LightningElement {
             this.teamChart = null;
         }
 
-        const rows = this.teamWeek?.rows || [];
+        const rows = this.teamYear?.rows || [];
         const numEmployees = rows.length;
         if (numEmployees === 0) {
             return;
         }
 
-        const employeeNames = rows.map((r) => r.name);
+        const format = (v) => this.formatNumber(v);
+        const year = this.currentYear;
+        const employeeLabels = rows.map((r) => `${r.name} · ${format(r.total)} h`);
         const matrixData = [];
+        let maxHours = 0;
         rows.forEach((row, rowIndex) => {
-            const yVal = rowIndex + 1;
-            const hoursList = row.hours || [0, 0, 0, 0, 0, 0, 0];
-            for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
-                const xVal = dayIndex + 1;
-                const hours = hoursList[dayIndex] != null ? Number(hoursList[dayIndex]) : 0;
-                const dateStr = this.teamWeek?.days?.[dayIndex] || '';
-                matrixData.push({
-                    x: xVal,
-                    y: yVal,
-                    v: hours,
-                    employeeName: row.name,
-                    date: dateStr,
-                    dayName: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][dayIndex]
-                });
+            for (let day = 0; day < 7; day++) {
+                const hours = Number((row.hours || [])[day]) || 0;
+                maxHours = Math.max(maxHours, hours);
+                matrixData.push({ x: day + 1, y: rowIndex + 1, v: hours, employeeName: row.name, day: DAYS[day] });
             }
         });
+
+        // Five shades, scaled to the busiest cell in the chart.
+        const FILL = ['#eef1f4', '#c3dcf2', '#7fb6e6', '#2f86d1', '#0b4f8f'];
+        const BORDER = ['#dddbda', '#a9cbe9', '#5f9fd9', '#1f6fb5', '#083b6b'];
+        const level = (v) => (!v || !maxHours ? 0 : Math.min(4, Math.ceil((v / maxHours) * 4)));
+        const cellValue = (context) => {
+            const item = context.dataset.data[context.dataIndex];
+            return item ? Number(item.v) : 0;
+        };
 
         const drawHoursPlugin = {
             id: 'matrixHoursText',
@@ -415,69 +375,37 @@ export default class PtoOverview extends LightningElement {
                 if (!meta || !meta.data) {
                     return;
                 }
-
                 c.save();
                 c.font = 'bold 11px sans-serif';
                 c.textAlign = 'center';
                 c.textBaseline = 'middle';
-
                 meta.data.forEach((element, index) => {
-                    const dataPoint = chart.data.datasets[0].data[index];
-                    if (!dataPoint) {
+                    const point = chart.data.datasets[0].data[index];
+                    if (!point || !point.v) {
                         return;
                     }
-                    const hours = dataPoint.v;
-                    if (!hours) {
-                        return;
-                    }
-                    const text = String(hours);
-                    c.fillStyle = Number(hours) > 4 ? '#ffffff' : '#181818';
-
-                    let center;
-                    if (typeof element.getCenterPoint === 'function') {
-                        center = element.getCenterPoint();
-                    } else {
-                        const w = element.width || 0;
-                        const h = element.height || 0;
-                        center = { x: element.x + w / 2, y: element.y + h / 2 };
-                    }
+                    c.fillStyle = level(point.v) >= 3 ? '#ffffff' : '#181818';
+                    const center = typeof element.getCenterPoint === 'function'
+                        ? element.getCenterPoint()
+                        : { x: element.x + (element.width || 0) / 2, y: element.y + (element.height || 0) / 2 };
                     if (center && !isNaN(center.x) && !isNaN(center.y)) {
-                        c.fillText(text, center.x, center.y);
+                        c.fillText(format(point.v), center.x, center.y);
                     }
                 });
-
                 c.restore();
             }
         };
 
         const ChartLib = window.Chart;
-        const ctx = canvas.getContext('2d');
-
-        this.teamChart = new ChartLib(ctx, {
+        this.teamChart = new ChartLib(canvas.getContext('2d'), {
             type: 'matrix',
             data: {
                 datasets: [
                     {
-                        label: 'Team Week',
+                        label: 'Team leave',
                         data: matrixData,
-                        backgroundColor: (context) => {
-                            const item = context.dataset.data[context.dataIndex];
-                            const val = item ? Number(item.v) : 0;
-                            if (val === 0) return '#eef1f4';
-                            if (val <= 2) return '#c3dcf2';
-                            if (val <= 4) return '#7fb6e6';
-                            if (val < 8) return '#2f86d1';
-                            return '#0b4f8f';
-                        },
-                        borderColor: (context) => {
-                            const item = context.dataset.data[context.dataIndex];
-                            const val = item ? Number(item.v) : 0;
-                            if (val === 0) return '#dddbda';
-                            if (val <= 2) return '#a9cbe9';
-                            if (val <= 4) return '#5f9fd9';
-                            if (val < 8) return '#1f6fb5';
-                            return '#083b6b';
-                        },
+                        backgroundColor: (context) => FILL[level(cellValue(context))],
+                        borderColor: (context) => BORDER[level(cellValue(context))],
                         borderWidth: 1,
                         width: (context) => {
                             const area = context.chart.chartArea;
@@ -503,11 +431,7 @@ export default class PtoOverview extends LightningElement {
                             title: () => '',
                             label: (context) => {
                                 const item = context.dataset.data[context.dataIndex];
-                                return [
-                                    `Employee: ${item.employeeName}`,
-                                    `Day: ${item.dayName} (${item.date})`,
-                                    `Hours: ${item.v}`
-                                ];
+                                return [item.employeeName, `${item.day}s in ${year}: ${format(item.v)} h approved`];
                             }
                         }
                     }
@@ -520,16 +444,12 @@ export default class PtoOverview extends LightningElement {
                         min: 0.5,
                         max: 7.5,
                         afterBuildTicks: (axis) => {
-                            axis.ticks = [1, 2, 3, 4, 5, 6, 7].map((v) => ({ value: v }));
+                            axis.ticks = DAYS.map((d, i) => ({ value: i + 1 }));
                         },
                         ticks: {
                             stepSize: 1,
                             autoSkip: false,
-                            callback: (value) => {
-                                const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-                                const idx = Math.round(value) - 1;
-                                return days[idx] || '';
-                            },
+                            callback: (value) => DAYS[Math.round(value) - 1] || '',
                             font: { size: 11, weight: 'bold' }
                         },
                         grid: { display: false, drawBorder: false }
@@ -542,15 +462,12 @@ export default class PtoOverview extends LightningElement {
                         min: 0.5,
                         max: numEmployees + 0.5,
                         afterBuildTicks: (axis) => {
-                            axis.ticks = employeeNames.map((n, i) => ({ value: i + 1 }));
+                            axis.ticks = employeeLabels.map((n, i) => ({ value: i + 1 }));
                         },
                         ticks: {
                             stepSize: 1,
                             autoSkip: false,
-                            callback: (value) => {
-                                const idx = Math.round(value) - 1;
-                                return employeeNames[idx] || '';
-                            },
+                            callback: (value) => employeeLabels[Math.round(value) - 1] || '',
                             font: { size: 11 }
                         },
                         grid: { display: false, drawBorder: false }

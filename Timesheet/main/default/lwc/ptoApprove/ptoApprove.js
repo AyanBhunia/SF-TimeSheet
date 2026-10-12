@@ -17,6 +17,24 @@ const COLUMNS = [
  * request's details and days on the right, where it is approved or rejected as a whole.
  */
 export default class PtoApprove extends LightningElement {
+    // Request to select on the first load (from an email link).
+    @api
+    get linkedRequestId() {
+        return this._linkedRequestId;
+    }
+    set linkedRequestId(value) {
+        const isChanged = this._linkedRequestId !== value;
+        this._linkedRequestId = value;
+        if (isChanged && value) {
+            this.isLinkApplied = false;
+            if (this.isConnected) {
+                this.loadPending();
+            }
+        }
+    }
+    _linkedRequestId;
+    isLinkApplied = false;
+
     @track records = [];
     @track isLoading = false;
     @track sortedBy = 'startDate';
@@ -41,6 +59,14 @@ export default class PtoApprove extends LightningElement {
             const result = await getPendingApprovals();
             this.records = Array.isArray(result) ? result : [];
             this.sortData(this.sortedBy, this.sortedDirection);
+            if (this.linkedRequestId && !this.isLinkApplied) {
+                // A request that isn't waiting for this approver (decided, deleted, wrong Id) is ignored.
+                this.isLinkApplied = true;
+                const linked = this.records.find((r) => sameId(r.id, this.linkedRequestId));
+                if (linked) {
+                    this.selectedId = linked.id;
+                }
+            }
             if (!this.records.some((r) => r.id === this.selectedId)) {
                 const index = nextIndex === undefined ? 0 : Math.min(nextIndex, this.records.length - 1);
                 this.selectedId = this.records.length ? this.records[index].id : undefined;
@@ -121,4 +147,8 @@ export default class PtoApprove extends LightningElement {
 function formatHours(value) {
     const n = Number(value) || 0;
     return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/0$/, '');
+}
+
+function sameId(a, b) {
+    return !!a && !!b && a.substring(0, 15) === b.substring(0, 15);
 }

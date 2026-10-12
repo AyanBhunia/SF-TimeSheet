@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomNotificationType xmlns="http://soap.sforce.com/2006/04/metadata">
+    <customNotifTypeName>PTO Request Update</customNotifTypeName>
+    <description>Bell notifications for PTO requests: to the approver when a request is submitted, to the employee when it is approved or rejected. Sent by the Timesheet app whether or not the Leave Approval process is deployed.</description>
+    <desktop>true</desktop>
+    <masterLabel>PTO Request Update</masterLabel>
+    <mobile>true</mobile>
+    <slack>false</slack>
+</CustomNotificationType>

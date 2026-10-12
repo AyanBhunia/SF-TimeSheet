@@ -1,12 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Package xmlns="http://soap.sforce.com/2006/04/metadata">
     <types>
-        <members>PTO_Request__c.Leave_Approval</members>
+        <members>dbt__PTO_Request__c.Leave_Approval</members>
         <name>ApprovalProcess</name>
     </types>
     <types>
-        <members>PTO_Request__c.PTO_Set_Approved</members>
-        <members>PTO_Request__c.PTO_Set_Rejected</members>
+        <members>dbt__PTO_Request__c.PTO_Request_Approved</members>
+        <members>dbt__PTO_Request__c.PTO_Request_Rejected</members>
+        <members>dbt__PTO_Request__c.PTO_Request_Submitted</members>
+        <name>WorkflowAlert</name>
+    </types>
+    <types>
+        <members>dbt__PTO_Request__c.PTO_Set_Approved</members>
+        <members>dbt__PTO_Request__c.PTO_Set_Rejected</members>
         <name>WorkflowFieldUpdate</name>
     </types>
     <version>64.0</version>

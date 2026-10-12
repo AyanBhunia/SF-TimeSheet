@@ -15,7 +15,6 @@ public with sharing class PtoController {
     public static final Integer MAX_RANGE_DAYS = 62;
     public static final Integer MAX_TEAM = 200;
     public static final String SYNC_ERROR_LABEL = 'Approved, sync error';
-    private static final Date REFERENCE_MONDAY = Date.newInstance(1900, 1, 1);
 
     // ---------------------------------------------------------------- response types
 
@@ -133,6 +132,8 @@ public with sharing class PtoController {
         @AuraEnabled public Integer pendingRequests;
         @AuraEnabled public String nextLeaveDate;
         @AuraEnabled public Integer nextLeaveCount;
+        // Days of the next leave whose request is still waiting for approval (0 = all approved).
+        @AuraEnabled public Integer nextLeavePendingCount;
         @AuraEnabled public List<CategoryTotal> byCategory;
     }
 
@@ -140,11 +141,11 @@ public with sharing class PtoController {
         @AuraEnabled public Id employeeId;
         @AuraEnabled public String name;
         @AuraEnabled public List<Decimal> hours;
+        @AuraEnabled public Decimal total;
     }
 
-    public class TeamWeek {
-        @AuraEnabled public String weekStart;
-        @AuraEnabled public List<String> days;
+    public class TeamYear {
+        @AuraEnabled public Integer year;
         @AuraEnabled public List<TeamRow> rows;
     }
 
@@ -414,19 +415,25 @@ public with sharing class PtoController {
 
             List<Leave_Line_Item__c> upcoming = PtoData.upcomingLeave(emp.Id);
             o.nextLeaveCount = 0;
+            o.nextLeavePendingCount = 0;
             if (!upcoming.isEmpty()) {
                 Date previous = upcoming[0].Date__c;
                 o.nextLeaveDate = String.valueOf(previous);
                 Set<Date> days = new Set<Date>();
+                Set<Date> pendingDays = new Set<Date>();
                 for (Leave_Line_Item__c l : upcoming) {
                     // Count the first run of leave days; a gap of more than 3 days (a weekend fits) ends it.
                     if (previous.daysBetween(l.Date__c) > 3) {
                         break;
                     }
                     days.add(l.Date__c);
+                    if (l.PTO_Request__r.Status__c == LeaveValidator.STATUS_SUBMITTED) {
+                        pendingDays.add(l.Date__c);
+                    }
                     previous = l.Date__c;
                 }
                 o.nextLeaveCount = days.size();
+                o.nextLeavePendingCount = pendingDays.size();
             }
             return o;
         } catch (Exception e) {
@@ -434,43 +441,43 @@ public with sharing class PtoController {
         }
     }
 
+    /**
+     * @description Approved leave hours of a year per weekday for the team: a manager's direct reports, or every
+     *              active employee for HR. hours has 7 entries (Mon..Sun); total is the year.
+     */
     @AuraEnabled
-    public static TeamWeek getTeamWeek(Date weekStart) {
+    public static TeamYear getTeamYear(Integer year) {
         try {
             Access a = new Access();
             if (!a.isManager && !a.isHrAdmin) {
-                throw new PtoException('Only managers and HR can see the team week.');
+                throw new PtoException('Only managers and HR can see team leave.');
             }
-            Date monday = mondayOf(weekStart == null ? Date.today() : weekStart);
-            List<Employee__c> employees = a.isHrAdmin ? PtoData.allActiveEmployees(MAX_TEAM) : PtoData.directReports();
-
-            TeamWeek week = new TeamWeek();
-            week.weekStart = String.valueOf(monday);
-            week.days = new List<String>();
-            for (Integer i = 0; i < 7; i++) {
-                week.days.add(String.valueOf(monday.addDays(i)));
-            }
+            TeamYear result = new TeamYear();
+            result.year = year == null ? Date.today().year() : year;
+            result.rows = new List<TeamRow>();
             Map<Id, TeamRow> rowsById = new Map<Id, TeamRow>();
-            week.rows = new List<TeamRow>();
-            for (Employee__c e : employees) {
+            for (Employee__c e : a.isHrAdmin ? PtoData.allActiveEmployees(MAX_TEAM) : PtoData.directReports()) {
                 TeamRow r = new TeamRow();
                 r.employeeId = e.Id;
                 r.name = e.Name;
                 r.hours = new List<Decimal>{ 0, 0, 0, 0, 0, 0, 0 };
+                r.total = 0;
                 rowsById.put(e.Id, r);
-                week.rows.add(r);
+                result.rows.add(r);
             }
             if (!rowsById.isEmpty()) {
-                for (AggregateResult ar : PtoData.weekTotals(rowsById.keySet(), monday, monday.addDays(6))) {
+                for (AggregateResult ar : PtoData.approvedWeekdayTotals(rowsById.keySet(), result.year)) {
                     TeamRow r = rowsById.get((Id) ar.get('employeeId'));
-                    Integer index = monday.daysBetween((Date) ar.get('day'));
+                    // DAY_IN_WEEK: 1 = Sunday .. 7 = Saturday; the chart runs Monday .. Sunday.
+                    Integer weekday = (Integer) ar.get('weekday');
                     Decimal hours = (Decimal) ar.get('hours');
-                    if (r != null && index >= 0 && index < 7) {
-                        r.hours[index] = hours == null ? 0 : hours;
+                    if (r != null && hours != null && weekday >= 1 && weekday <= 7) {
+                        r.hours[Math.mod(weekday + 5, 7)] = hours;
+                        r.total += hours;
                     }
                 }
             }
-            return week;
+            return result;
         } catch (Exception e) {
             throw fail(e);
         }
@@ -717,14 +724,6 @@ public with sharing class PtoController {
         row.decidedOn = r.Decided_On__c == null ? null : r.Decided_On__c.format('yyyy-MM-dd');
         row.submittedOn = r.CreatedDate == null ? null : r.CreatedDate.format('yyyy-MM-dd');
         return row;
-    }
-
-    private static Date mondayOf(Date d) {
-        Integer offset = Math.mod(REFERENCE_MONDAY.daysBetween(d), 7);
-        if (offset < 0) {
-            offset += 7;
-        }
-        return d.addDays(-offset);
     }
 
     private static Date parseDate(Object value) {

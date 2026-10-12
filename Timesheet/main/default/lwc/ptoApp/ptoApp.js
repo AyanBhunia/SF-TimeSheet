@@ -1,4 +1,5 @@
-import { LightningElement } from 'lwc';
+import { LightningElement, wire } from 'lwc';
+import { CurrentPageReference } from 'lightning/navigation';
 import getContext from '@salesforce/apex/PtoController.getContext';
 
 const SECTIONS = [
@@ -8,6 +9,8 @@ const SECTIONS = [
     { name: 'approve', label: 'Approve', approverOnly: true }
 ];
 
+const ID_PATTERN = /^[a-zA-Z0-9]{15}([a-zA-Z0-9]{3})?$/;
+
 const NO_EMPLOYEE =
     "Your user isn't linked to an employee record. Ask HR to set User on your Employee record.";
 
@@ -16,6 +19,19 @@ export default class PtoApp extends LightningElement {
     error;
     isLoading = true;
     active = 'overview';
+    // Request to select on open, from an email link: /lightning/n/dbt__PTO?c__section=approve&c__request=<Id>
+    linkedRequestId;
+
+    @wire(CurrentPageReference)
+    setPageReference(pageRef) {
+        const state = pageRef?.state || {};
+        const section = state.c__section;
+        if (SECTIONS.some((s) => s.name === section)) {
+            this.active = section;
+        }
+        // Ignore a request value that isn't a record Id (e.g. edited by hand); the tab then opens as usual.
+        this.linkedRequestId = ID_PATTERN.test(state.c__request || '') ? state.c__request : undefined;
+    }
 
     connectedCallback() {
         this.load();
@@ -103,6 +119,7 @@ export default class PtoApp extends LightningElement {
     handleTab(event) {
         event.preventDefault();
         this.active = event.currentTarget.dataset.name;
+        this.linkedRequestId = undefined;
     }
 
     handleChanged() {
