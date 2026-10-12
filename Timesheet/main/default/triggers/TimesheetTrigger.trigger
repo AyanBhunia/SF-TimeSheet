@@ -70,6 +70,11 @@ trigger TimesheetTrigger on dbt__Timesheet__c (before insert, before update, aft
     }
 
     if (Trigger.isAfter) {
+        if (Trigger.isInsert) {
+            // Approved leave in the new week becomes absence line items.
+            LeaveToLineItem.forTimesheets(Trigger.new);
+        }
+
         Set<Id> empIdsToUpdate = new Set<Id>();
 
         if (Trigger.isInsert || Trigger.isUpdate || Trigger.isUndelete) {

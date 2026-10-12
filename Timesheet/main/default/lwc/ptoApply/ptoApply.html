@@ -1,0 +1,128 @@
+<template>
+    <div class="pto-apply">
+        <template lwc:if={isLoading}>
+            <lightning-spinner alternative-text="Loading" size="small"></lightning-spinner>
+        </template>
+
+        <template lwc:if={isSetupOrEdit}>
+            <div class="pto-setup">
+                <div class="slds-grid slds-wrap slds-gutters_small">
+                    <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3 slds-large-size_1-of-6 slds-m-bottom_small">
+                        <template lwc:if={canPickEmployee}>
+                            <lightning-combobox label="Employee" value={employeeId} options={employeeOptions}
+                                placeholder="Pick an employee" onchange={handleEmployee} disabled={isEdit} required></lightning-combobox>
+                        </template>
+                        <template lwc:else>
+                            <lightning-input label="Employee" value={selfName} readonly></lightning-input>
+                        </template>
+                    </div>
+                    <div class="slds-col slds-size_1-of-2 slds-medium-size_1-of-3 slds-large-size_1-of-6 slds-m-bottom_small">
+                        <lightning-input label="Type" value="Absence" readonly></lightning-input>
+                    </div>
+                    <div class="slds-col slds-size_1-of-2 slds-medium-size_1-of-3 slds-large-size_1-of-6 slds-m-bottom_small">
+                        <lightning-input type="date" label="Start date" value={startDate} date-style="medium"
+                            disabled={isEdit} onchange={handleStart}></lightning-input>
+                    </div>
+                    <div class="slds-col slds-size_1-of-2 slds-medium-size_1-of-3 slds-large-size_1-of-6 slds-m-bottom_small">
+                        <lightning-input type="date" label="End date" value={endDate} min={startDate} date-style="medium"
+                            disabled={isEdit} onchange={handleEnd}></lightning-input>
+                    </div>
+                    <div class="slds-col slds-size_1-of-2 slds-medium-size_1-of-3 slds-large-size_1-of-6 slds-m-bottom_small">
+                        <lightning-combobox label="Absence category" value={category} options={categoryOptions}
+                            disabled={isEdit} onchange={handleCategory}></lightning-combobox>
+                    </div>
+                    <div class="slds-col slds-size_1-of-2 slds-medium-size_1-of-3 slds-large-size_1-of-6 slds-m-bottom_small">
+                        <lightning-input type="number" label="Hours per day" value={hoursPerDay} min="0" max={categoryMax}
+                            step="0.25" disabled={isEdit} onchange={handleHoursPerDay}></lightning-input>
+                    </div>
+                </div>
+
+                <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-wrap slds-m-bottom_small">
+                    <lightning-input type="checkbox" label="Include Saturday and Sunday" checked={includeWeekends}
+                        disabled={isEdit} onchange={handleWeekends}></lightning-input>
+                    <p class="slds-text-body_small slds-text-color_weak">{hint}</p>
+                </div>
+            </div>
+
+            <template lwc:if={rangeError}>
+                <div class="slds-text-color_error slds-m-bottom_small" role="alert">{rangeError}</div>
+            </template>
+
+            <template lwc:if={isSetup}>
+                <div class="slds-grid slds-grid_align-end">
+                    <lightning-button label="Clear" class="slds-m-right_x-small" onclick={handleClear}></lightning-button>
+                    <lightning-button label="Next" variant="brand" onclick={handleNext}
+                        disabled={noEmployeeSelected}></lightning-button>
+                </div>
+            </template>
+        </template>
+
+        <template lwc:if={isEdit}>
+            <c-pto-table columns={columns} rows={tableRows} row-actions={rowActions}
+                empty-message="No days yet." oncellchange={handleCellChange} onrowaction={handleRowAction}></c-pto-table>
+
+            <lightning-textarea class="slds-m-top_small" label="Reason (one for the whole request)" value={reason}
+                max-length="2000" placeholder="e.g. Family trip" onchange={handleReason}></lightning-textarea>
+
+            <div class="slds-grid slds-grid_align-spread slds-m-top_small">
+                <lightning-button label="Add row" icon-name="utility:add" onclick={handleAddRow}></lightning-button>
+                <div>
+                    <lightning-button label="Back" class="slds-m-right_x-small" onclick={handleBackToSetup}></lightning-button>
+                    <lightning-button label="Clear" class="slds-m-right_x-small" onclick={handleClear}></lightning-button>
+                    <lightning-button label="Review" variant="brand" onclick={handleReview}
+                        disabled={noEmployeeSelected}></lightning-button>
+                </div>
+            </div>
+        </template>
+
+        <template lwc:if={isReview}>
+            <h3 class="slds-text-heading_small slds-m-bottom_small">Review before submitting</h3>
+            <p lwc:if={applyingFor} class="slds-m-bottom_small">{applyingFor}</p>
+            <div class="slds-grid slds-wrap slds-gutters_small slds-m-bottom_small">
+                <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-4">
+                    <div class="pto-tile slds-box slds-box_x-small">
+                        <p class="pto-tile__label">Request</p>
+                        <p class="pto-tile__value">1 new</p>
+                        <p class="pto-tile__sub">{reasonSummary}</p>
+                    </div>
+                </div>
+                <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-4">
+                    <div class="pto-tile slds-box slds-box_x-small">
+                        <p class="pto-tile__label">Days</p>
+                        <p class="pto-tile__value">{dayCount}</p>
+                        <p class="pto-tile__sub">{dateSpan}</p>
+                    </div>
+                </div>
+                <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-4">
+                    <div class="pto-tile slds-box slds-box_x-small">
+                        <p class="pto-tile__label">Total hours</p>
+                        <p class="pto-tile__value">{totalHoursLabel}</p>
+                        <p class="pto-tile__sub">{categorySummary}</p>
+                    </div>
+                </div>
+                <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-4">
+                    <div class="pto-tile slds-box slds-box_x-small">
+                        <p class="pto-tile__label">Balance after</p>
+                        <p class="pto-tile__value">{balanceAfterLabel}</p>
+                        <p class="pto-tile__sub">{balanceNowLabel}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div lwc:if={overBalance} class="pto-note pto-note_warning slds-m-bottom_x-small">{overBalanceMessage}</div>
+            <div lwc:if={noManager} class="pto-note pto-note_warning slds-m-bottom_x-small">
+                This employee has no manager, so the request will stay pending until HR approves it.
+            </div>
+            <div class="pto-note pto-note_warning slds-m-bottom_small">
+                <strong>You won't be able to edit this request after submitting.</strong> The manager approves or rejects the whole request.
+            </div>
+
+            <div class="slds-grid slds-grid_align-end">
+                <lightning-button label="Back" class="slds-m-right_x-small" onclick={handleBack}
+                    disabled={isSubmitting}></lightning-button>
+                <lightning-button label={submitLabel} variant="brand" onclick={handleSubmit}
+                    disabled={isSubmitting}></lightning-button>
+            </div>
+        </template>
+    </div>
+</template>

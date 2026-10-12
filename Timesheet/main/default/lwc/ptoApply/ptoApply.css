@@ -1,0 +1,38 @@
+.pto-apply {
+    position: relative;
+}
+
+/* Keeps the selection fields' icons (SLDS z-index 2) in their own layer, so a row's date picker opening upward
+   from the days table covers them. */
+.pto-setup {
+    isolation: isolate;
+}
+
+.pto-tile__label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--slds-g-color-neutral-base-50, #706e6b);
+}
+
+.pto-tile__value {
+    font-size: 1.25rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.pto-tile__sub {
+    font-size: 0.75rem;
+    color: var(--slds-g-color-neutral-base-50, #706e6b);
+}
+
+.pto-note {
+    border-left: 3px solid var(--slds-g-color-neutral-base-80, #c9c7c5);
+    padding: 0.5rem 0.75rem;
+    background: var(--slds-g-color-neutral-base-95, #f3f3f3);
+}
+
+.pto-note_warning {
+    border-left-color: var(--slds-g-color-warning-base-60, #dd7a01);
+    background: var(--slds-g-color-warning-base-95, #fef1e2);
+}

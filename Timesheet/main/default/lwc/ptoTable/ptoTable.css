@@ -1,0 +1,82 @@
+.table-wrapper {
+    overflow-x: auto;
+}
+
+/* Where the table fits, nothing needs to scroll: let a row's date picker open over the content around the table
+   instead of being cut off by the wrapper, and keep it above other fields' icons. Narrow screens keep the scroll. */
+@media (min-width: 48em) {
+    .table-wrapper {
+        overflow: visible;
+        position: relative;
+        z-index: 1;
+    }
+
+    .table-wrapper table,
+    .table-wrapper td {
+        overflow: visible;
+    }
+}
+
+.row-locked {
+    background-color: #f3f3f3;
+}
+
+.row-error {
+    background-color: #fef1ee;
+}
+
+.message-row td {
+    border-top: none;
+}
+
+.message-row.slds-hide {
+    display: none !important;
+}
+
+.row-msg-error {
+    color: #ea001e;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.row-msg-info {
+    color: #0176d3;
+    font-size: 0.75rem;
+}
+
+.badge-submitted {
+    background-color: #fe9339;
+    color: #080707;
+}
+
+.badge-approved {
+    background-color: #2e844a;
+    color: #ffffff;
+}
+
+.badge-rejected {
+    background-color: #ea001e;
+    color: #ffffff;
+}
+
+.row-selectable {
+    cursor: pointer;
+}
+
+.row-selectable:hover > td {
+    background-color: #f3f3f3;
+}
+
+.row-selected > td,
+.row-selected:hover > td {
+    background-color: #e5f1fb;
+}
+
+.row-selected > td:first-child {
+    box-shadow: inset 3px 0 0 #0176d3;
+}
+
+.row-selectable:focus-visible {
+    outline: 2px solid #0176d3;
+    outline-offset: -2px;
+}

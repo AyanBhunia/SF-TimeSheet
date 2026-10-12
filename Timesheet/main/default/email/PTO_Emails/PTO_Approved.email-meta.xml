@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<EmailTemplate xmlns="http://soap.sforce.com/2006/04/metadata">
+    <available>true</available>
+    <description>Sent to the employee (request owner) when their PTO request is approved.</description>
+    <encodingKey>UTF-8</encodingKey>
+    <name>PTO: Request Approved</name>
+    <style>none</style>
+    <subject>Your PTO request {!dbt__PTO_Request__c.Name} was approved</subject>
+    <textOnly>Hi,
+
+Your time off request was approved. The days have been added to your timesheets.
+
+Request: {!dbt__PTO_Request__c.Name}
+Dates: {!dbt__PTO_Request__c.dbt__Start_Date__c} to {!dbt__PTO_Request__c.dbt__End_Date__c}
+Days: {!dbt__PTO_Request__c.dbt__Day_Count__c}
+Total hours: {!dbt__PTO_Request__c.dbt__Total_Hours__c}
+Decision: {!dbt__PTO_Request__c.dbt__Decision_Notes__c}
+
+View the request: {!dbt__PTO_Request__c.dbt__PTO_Tab_Link__c}&amp;c__section=past</textOnly>
+    <type>custom</type>
+    <uiType>Aloha</uiType>
+</EmailTemplate>

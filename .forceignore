@@ -10,3 +10,6 @@ package.xml
 
 # LWC Jest
 **/__tests__/**
+# Optional org-only metadata (Leave Approval Process); never part of the package
+unpackaged/
+**/approvalProcesses/**

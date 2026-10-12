@@ -1,0 +1,58 @@
+<template>
+    <div class="past-card">
+        <template lwc:if={isLoading}>
+            <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+        </template>
+
+        <template lwc:if={canPickEmployee}>
+            <div class="slds-grid slds-m-bottom_small">
+                <lightning-combobox class="past-employee" label="Employee" value={employeeId} options={employeeOptions}
+                    onchange={handleEmployee}></lightning-combobox>
+            </div>
+        </template>
+
+        <div class="slds-grid slds-wrap slds-gutters_small">
+            <div class="slds-col slds-size_1-of-1 slds-medium-size_7-of-12 slds-m-bottom_small">
+                <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-wrap slds-m-bottom_x-small">
+                    <div class="slds-text-body_small slds-text-color_weak">
+                        {showingText}
+                    </div>
+                    <div class="slds-grid slds-grid_vertical-align-center">
+                        <lightning-button
+                            label="Previous"
+                            variant="neutral"
+                            disabled={isPreviousDisabled}
+                            onclick={handlePrevious}
+                            class="slds-m-right_x-small">
+                        </lightning-button>
+                        <span class="slds-p-horizontal_x-small slds-text-body_small slds-text-color_weak">{pageText}</span>
+                        <lightning-button
+                            label="Next"
+                            variant="neutral"
+                            disabled={isNextDisabled}
+                            onclick={handleNext}
+                            class="slds-m-left_x-small">
+                        </lightning-button>
+                    </div>
+                </div>
+
+                <c-pto-table
+                    columns={columns}
+                    rows={tableRows}
+                    selectable
+                    selected-key={selectedId}
+                    onrowselect={handleSelect}
+                    empty-message="No leave requests yet.">
+                </c-pto-table>
+            </div>
+            <div class="slds-col slds-size_1-of-1 slds-medium-size_5-of-12 slds-m-bottom_small">
+                <c-pto-request-detail
+                    request-id={selectedId}
+                    mode="past"
+                    can-retry={canRetry}
+                    ondecided={handleDecided}>
+                </c-pto-request-detail>
+            </div>
+        </div>
+    </div>
+</template>

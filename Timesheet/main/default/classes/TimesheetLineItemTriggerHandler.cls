@@ -5,11 +5,13 @@ public with sharing class TimesheetLineItemTriggerHandler {
         checkForDuplicateTimesheetLineItem(timesheetLineItems);
         updateEmployeeId(timesheetLineItems);
         updateBillableField(timesheetLineItems);
+        LeaveValidator.checkLineItems(timesheetLineItems);
     }
-    
+
     public static void beforeUpdate(List<Timesheet_Line_Item__c> timesheetLineItems){
         checkForDuplicateTimesheetLineItem(timesheetLineItems);
         updateBillableField(timesheetLineItems);
+        LeaveValidator.checkLineItems(timesheetLineItems);
     }
     
     public static void updateEmployeeId(List<Timesheet_Line_Item__c> timesheetLineItems){

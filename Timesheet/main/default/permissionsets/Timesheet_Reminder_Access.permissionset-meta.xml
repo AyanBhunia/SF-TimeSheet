@@ -6,8 +6,4 @@
     </customPermissions>
     <hasActivationRequired>false</hasActivationRequired>
     <label>Timesheet Reminder Access</label>
-    <userPermissions>
-        <enabled>true</enabled>
-        <name>ManageCustomPermissions</name>
-    </userPermissions>
 </PermissionSet>

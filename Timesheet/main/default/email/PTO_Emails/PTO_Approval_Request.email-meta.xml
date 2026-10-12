@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<EmailTemplate xmlns="http://soap.sforce.com/2006/04/metadata">
+    <available>true</available>
+    <description>Sent to the approver when a PTO request is submitted. Used as the Leave Approval process's approval assignment email template.</description>
+    <encodingKey>UTF-8</encodingKey>
+    <name>PTO: Approval Request</name>
+    <style>none</style>
+    <subject>PTO request {!dbt__PTO_Request__c.Name} from {!dbt__PTO_Request__c.dbt__Employee__c} needs your approval</subject>
+    <textOnly>Hi {!dbt__PTO_Request__c.dbt__Approver__c},
+
+{!dbt__PTO_Request__c.dbt__Employee__c} has requested time off and needs your approval.
+
+Request: {!dbt__PTO_Request__c.Name}
+Dates: {!dbt__PTO_Request__c.dbt__Start_Date__c} to {!dbt__PTO_Request__c.dbt__End_Date__c}
+Days: {!dbt__PTO_Request__c.dbt__Day_Count__c}
+Total hours: {!dbt__PTO_Request__c.dbt__Total_Hours__c}
+Reason: {!dbt__PTO_Request__c.dbt__Notes__c}
+
+Approve or reject it in Salesforce: {!dbt__PTO_Request__c.dbt__PTO_Tab_Link__c}&amp;c__section=approve</textOnly>
+    <type>custom</type>
+    <uiType>Aloha</uiType>
+</EmailTemplate>

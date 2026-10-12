@@ -1,0 +1,42 @@
+<template>
+    <lightning-modal-header label={modalHeader}></lightning-modal-header>
+    <lightning-modal-body>
+        <div class="summary-container slds-box slds-box_x-small slds-theme_shade slds-m-bottom_medium">
+            <p class="slds-text-body_regular slds-text-color_weak">{summary}</p>
+        </div>
+        <template lwc:if={isApprove}>
+            <p class="slds-text-body_regular">Approves every day in this request. Days whose week already has a timesheet are added to it now; the rest are added when the timesheet is created.</p>
+        </template>
+        <template lwc:else>
+            <lightning-textarea
+                label="Reason (shown to the employee)"
+                required
+                value={reason}
+                onchange={handleReasonChange}
+                class="reason-field">
+            </lightning-textarea>
+        </template>
+    </lightning-modal-body>
+    <lightning-modal-footer>
+        <lightning-button
+            label="Cancel"
+            variant="neutral"
+            onclick={handleCancel}
+            class="slds-m-right_x-small">
+        </lightning-button>
+        <template lwc:if={isApprove}>
+            <lightning-button
+                label="Approve"
+                variant="success"
+                onclick={handleApprove}>
+            </lightning-button>
+        </template>
+        <template lwc:else>
+            <lightning-button
+                label="Reject"
+                variant="destructive"
+                onclick={handleReject}>
+            </lightning-button>
+        </template>
+    </lightning-modal-footer>
+</template>

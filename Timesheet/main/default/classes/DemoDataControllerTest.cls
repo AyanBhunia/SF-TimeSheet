@@ -250,7 +250,7 @@ private class DemoDataControllerTest {
 
         queries = Limits.getQueries();
         state = DemoDataController.createDemoTimesheets();
-        Assert.areEqual(2, Limits.getQueries() - queries, 'createDemoTimesheets: 2 queries');
+        Assert.areEqual(3, Limits.getQueries() - queries, 'createDemoTimesheets: 2 queries plus the approved-leave lookup in TimesheetTrigger');
         Assert.areEqual(employees * 4, state.timesheets.size(), 'Four timesheets per employee');
         for (DemoDataController.TimesheetDetail ts : state.timesheets) {
             Assert.areEqual('New', ts.status, 'Timesheets start New');

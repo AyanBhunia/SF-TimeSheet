@@ -1,0 +1,27 @@
+<html>
+<body style="margin:0;padding:0;background-color:#f3f3f3;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3f3f3;padding:24px 0;">
+<tr><td align="center">
+<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background-color:#ffffff;border:1px solid #dddbda;border-radius:4px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:20px;color:#181818;">
+<tr><td style="padding:20px 24px;border-bottom:1px solid #dddbda;font-size:18px;font-weight:bold;">Your PTO request was rejected</td></tr>
+<tr><td style="padding:20px 24px 8px 24px;">Hi,<br/><br/>Your time off request was rejected. The reason is shown below. The dates are free again, so you can submit a new request from the PTO tab.</td></tr>
+<tr><td style="padding:8px 24px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;line-height:20px;">
+<tr><td style="padding:6px 0;color:#706e6b;width:140px;">Request</td><td style="padding:6px 0;">{!dbt__PTO_Request__c.Name}</td></tr>
+<tr><td style="padding:6px 0;color:#706e6b;">Employee</td><td style="padding:6px 0;">{!dbt__PTO_Request__c.dbt__Employee__c}</td></tr>
+<tr><td style="padding:6px 0;color:#706e6b;">Dates</td><td style="padding:6px 0;">{!dbt__PTO_Request__c.dbt__Start_Date__c} to {!dbt__PTO_Request__c.dbt__End_Date__c}</td></tr>
+<tr><td style="padding:6px 0;color:#706e6b;">Days</td><td style="padding:6px 0;">{!dbt__PTO_Request__c.dbt__Day_Count__c}</td></tr>
+<tr><td style="padding:6px 0;color:#706e6b;">Total hours</td><td style="padding:6px 0;">{!dbt__PTO_Request__c.dbt__Total_Hours__c}</td></tr>
+<tr><td style="padding:6px 0;color:#706e6b;vertical-align:top;">Reason</td><td style="padding:6px 0;">{!dbt__PTO_Request__c.dbt__Notes__c}</td></tr>
+<tr><td style="padding:6px 0;color:#706e6b;vertical-align:top;">Decision</td><td style="padding:6px 0;">{!dbt__PTO_Request__c.dbt__Decision_Notes__c}</td></tr>
+</table>
+</td></tr>
+<tr><td style="padding:16px 24px 24px 24px;">
+<a href="{!dbt__PTO_Request__c.dbt__PTO_Tab_Link__c}&amp;c__section=past" style="display:inline-block;padding:8px 16px;background-color:#0176d3;color:#ffffff;text-decoration:none;border-radius:4px;font-weight:bold;">View request</a>
+</td></tr>
+</table>
+<p style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#706e6b;margin:12px 0 0 0;">This email was sent by the Timesheet app in Salesforce.</p>
+</td></tr>
+</table>
+</body>
+</html>
