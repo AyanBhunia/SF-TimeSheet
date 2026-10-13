@@ -147,7 +147,9 @@ private class DemoDataControllerTest {
     @IsTest
     static void userWithEmployeeRecordCannotCreateDemoEmployee() {
         User hrAdmin = createUser('hradm');
-        insert newEmployee(hrAdmin.Id);
+        System.runAs(hrAdmin) {
+            insert newEmployee(hrAdmin.Id);
+        }
         System.runAs(hrAdmin) {
             try {
                 DemoDataController.createDemoEmployees(true);
@@ -184,8 +186,12 @@ private class DemoDataControllerTest {
     static void deleteOnlyTouchesTheUsersDemoData() {
         User hrAdmin = createUser('hradm');
         User otherAdmin = createUser('other');
+        // Created by a third HR user, so it counts as neither admin's demo data
+        User realOwner = createUser('realx');
         Employee__c realEmployee = newEmployee(null);
-        insert realEmployee;
+        System.runAs(realOwner) {
+            insert realEmployee;
+        }
         System.runAs(otherAdmin) {
             DemoDataController.createDemoEmployees(false);
             DemoDataController.createDemoProjects();

@@ -11,8 +11,10 @@ private class ProjectEmployeeControllerTest {
             Group g = new Group(Name = 'PE Test Group', DeveloperName = 'PE_Test_Group', Type = 'Regular');
             insert g;
             insert new GroupMember(GroupId = g.Id, UserOrGroupId = grouped.Id);
+            grantHrAdminToRunningUser();
         }
 
+        System.runAs(new User(Id = UserInfo.getUserId())) {
         insert new List<Project__c>{
             new Project__c(Name = 'PE Active Project', Billable__c = 'Yes', Active__c = true),
             new Project__c(Name = 'PE Second Project', Billable__c = 'No', Active__c = true),
@@ -30,43 +32,48 @@ private class ProjectEmployeeControllerTest {
             Employee__c = employee('Grouped').Id,
             Hourly_Rate__c = 100
         );
+        }
     }
 
     @isTest
     static void getInitialDataReturnsOnlyActiveRecords() {
-        Test.startTest();
-        ProjectEmployeeController.InitialDataWrapper data = ProjectEmployeeController.getInitialData();
-        Test.stopTest();
+        System.runAs(createUser('pehr', 'Timesheet_HR_Admin')) {
+            Test.startTest();
+            ProjectEmployeeController.InitialDataWrapper data = ProjectEmployeeController.getInitialData();
+            Test.stopTest();
 
-        Set<String> projectNames = new Set<String>();
-        for (Project__c p : data.projects) {
-            projectNames.add(p.Name);
+            Set<String> projectNames = new Set<String>();
+            for (Project__c p : data.projects) {
+                projectNames.add(p.Name);
+            }
+            Assert.isTrue(projectNames.contains('PE Active Project'), 'Active project is listed');
+            Assert.isTrue(projectNames.contains('PE Second Project'), 'Second active project is listed');
+            Assert.isFalse(projectNames.contains('PE Inactive Project'), 'Inactive project is not listed');
+
+            Set<Id> employeeIds = new Map<Id, Employee__c>(data.employees).keySet();
+            Assert.isTrue(employeeIds.contains(employee('Grouped').Id), 'Active employee is listed');
+            Assert.isTrue(employeeIds.contains(employee('Solo').Id), 'Active employee is listed');
+            Assert.isFalse(employeeIds.contains(employee('Inactive').Id), 'Inactive employee is not listed');
+
+            Boolean hasGroup = false;
+            for (Group g : data.groups) {
+                hasGroup = hasGroup || g.Name == 'PE Test Group';
+            }
+            Assert.isTrue(hasGroup, 'Public group is listed');
         }
-        Assert.isTrue(projectNames.contains('PE Active Project'), 'Active project is listed');
-        Assert.isTrue(projectNames.contains('PE Second Project'), 'Second active project is listed');
-        Assert.isFalse(projectNames.contains('PE Inactive Project'), 'Inactive project is not listed');
-
-        Set<Id> employeeIds = new Map<Id, Employee__c>(data.employees).keySet();
-        Assert.isTrue(employeeIds.contains(employee('Grouped').Id), 'Active employee is listed');
-        Assert.isTrue(employeeIds.contains(employee('Solo').Id), 'Active employee is listed');
-        Assert.isFalse(employeeIds.contains(employee('Inactive').Id), 'Inactive employee is not listed');
-
-        Boolean hasGroup = false;
-        for (Group g : data.groups) {
-            hasGroup = hasGroup || g.Name == 'PE Test Group';
-        }
-        Assert.isTrue(hasGroup, 'Public group is listed');
     }
 
     @isTest
     static void getEmployeesByGroupReturnsMembersOnly() {
-        Id groupId = [SELECT Id FROM Group WHERE DeveloperName = 'PE_Test_Group'].Id;
+        System.runAs(createUser('pehr', 'Timesheet_HR_Admin')) {
+            Id groupId = [SELECT Id FROM Group WHERE DeveloperName = 'PE_Test_Group'].Id;
 
-        Test.startTest();
-        List<Id> employeeIds = ProjectEmployeeController.getEmployeesByGroup(groupId);
-        Test.stopTest();
+            Test.startTest();
+            List<Id> employeeIds = ProjectEmployeeController.getEmployeesByGroup(groupId);
+            Test.stopTest();
 
-        Assert.areEqual(new List<Id>{ employee('Grouped').Id }, employeeIds, 'Only the group member is returned');
+            Assert.areEqual(new List<Id>{ employee('Grouped').Id }, employeeIds, 'Only the group member is returned');
+        }
     }
 
     @isTest
@@ -88,47 +95,51 @@ private class ProjectEmployeeControllerTest {
 
     @isTest
     static void saveProjectEmployeesInsertsNewPairsAndSkipsDuplicates() {
-        Id activeProject = project('PE Active Project').Id;
-        Id secondProject = project('PE Second Project').Id;
-        Id grouped = employee('Grouped').Id;
-        Id solo = employee('Solo').Id;
+        System.runAs(createUser('pehr', 'Timesheet_HR_Admin')) {
+            Id activeProject = project('PE Active Project').Id;
+            Id secondProject = project('PE Second Project').Id;
+            Id grouped = employee('Grouped').Id;
+            Id solo = employee('Solo').Id;
 
-        List<ProjectEmployeeController.ProjectEmployeeSaveWrapper> records = new List<ProjectEmployeeController.ProjectEmployeeSaveWrapper>{
-            wrapper(activeProject, solo, 150),   // new
-            wrapper(secondProject, grouped, 75), // new
-            wrapper(activeProject, grouped, 999), // already exists
-            wrapper(activeProject, solo, 200)    // duplicate within the request
-        };
+            List<ProjectEmployeeController.ProjectEmployeeSaveWrapper> records = new List<ProjectEmployeeController.ProjectEmployeeSaveWrapper>{
+                wrapper(activeProject, solo, 150),   // new
+                wrapper(secondProject, grouped, 75), // new
+                wrapper(activeProject, grouped, 999), // already exists
+                wrapper(activeProject, solo, 200)    // duplicate within the request
+            };
 
-        Test.startTest();
-        ProjectEmployeeController.SaveResult result = ProjectEmployeeController.saveProjectEmployees(records);
-        Test.stopTest();
+            Test.startTest();
+            ProjectEmployeeController.SaveResult result = ProjectEmployeeController.saveProjectEmployees(records);
+            Test.stopTest();
 
-        Assert.areEqual(2, result.created, 'Only the two new pairs are counted');
-        Assert.areEqual(0, result.updated, 'A new row for an existing pair does not update it');
+            Assert.areEqual(2, result.created, 'Only the two new pairs are counted');
+            Assert.areEqual(0, result.updated, 'A new row for an existing pair does not update it');
 
-        Map<String, Decimal> rateByKey = new Map<String, Decimal>();
-        for (Project_Employee__c pe : [SELECT Project__c, Employee__c, Hourly_Rate__c FROM Project_Employee__c]) {
-            rateByKey.put(pe.Project__c + '_' + pe.Employee__c, pe.Hourly_Rate__c);
+            Map<String, Decimal> rateByKey = new Map<String, Decimal>();
+            for (Project_Employee__c pe : [SELECT Project__c, Employee__c, Hourly_Rate__c FROM Project_Employee__c]) {
+                rateByKey.put(pe.Project__c + '_' + pe.Employee__c, pe.Hourly_Rate__c);
+            }
+            Assert.areEqual(3, rateByKey.size(), 'Two new records plus the existing one');
+            Assert.areEqual(150, rateByKey.get(activeProject + '_' + solo), 'First row of a duplicated pair wins');
+            Assert.areEqual(75, rateByKey.get(secondProject + '_' + grouped), 'New pair is created with its rate');
+            Assert.areEqual(100, rateByKey.get(activeProject + '_' + grouped), 'Existing record is left unchanged');
         }
-        Assert.areEqual(3, rateByKey.size(), 'Two new records plus the existing one');
-        Assert.areEqual(150, rateByKey.get(activeProject + '_' + solo), 'First row of a duplicated pair wins');
-        Assert.areEqual(75, rateByKey.get(secondProject + '_' + grouped), 'New pair is created with its rate');
-        Assert.areEqual(100, rateByKey.get(activeProject + '_' + grouped), 'Existing record is left unchanged');
     }
 
     @isTest
     static void saveProjectEmployeesWithOnlyExistingPairsInsertsNothing() {
-        Test.startTest();
-        ProjectEmployeeController.SaveResult result = ProjectEmployeeController.saveProjectEmployees(new List<ProjectEmployeeController.ProjectEmployeeSaveWrapper>{
-            wrapper(project('PE Active Project').Id, employee('Grouped').Id, 50)
-        });
-        Test.stopTest();
+        System.runAs(createUser('pehr', 'Timesheet_HR_Admin')) {
+            Test.startTest();
+            ProjectEmployeeController.SaveResult result = ProjectEmployeeController.saveProjectEmployees(new List<ProjectEmployeeController.ProjectEmployeeSaveWrapper>{
+                wrapper(project('PE Active Project').Id, employee('Grouped').Id, 50)
+            });
+            Test.stopTest();
 
-        Assert.areEqual(0, result.created, 'Nothing is reported as created');
-        Assert.areEqual(0, result.updated, 'Nothing is reported as updated');
+            Assert.areEqual(0, result.created, 'Nothing is reported as created');
+            Assert.areEqual(0, result.updated, 'Nothing is reported as updated');
 
-        Assert.areEqual(1, [SELECT COUNT() FROM Project_Employee__c], 'No new records are inserted');
+            Assert.areEqual(1, [SELECT COUNT() FROM Project_Employee__c], 'No new records are inserted');
+        }
     }
 
     @isTest
@@ -189,54 +200,71 @@ private class ProjectEmployeeControllerTest {
 
     @isTest
     static void getExistingProjectEmployeesReturnsDetails() {
-        Id activeProject = project('PE Active Project').Id;
-        Id grouped = employee('Grouped').Id;
+        System.runAs(createUser('pehr', 'Timesheet_HR_Admin')) {
+            Id activeProject = project('PE Active Project').Id;
+            Id grouped = employee('Grouped').Id;
 
-        Test.startTest();
-        List<ProjectEmployeeController.ExistingProjectEmployee> existing = ProjectEmployeeController.getExistingProjectEmployees(
-            new List<Id>{ activeProject },
-            new List<Id>{ grouped }
-        );
-        Test.stopTest();
+            Test.startTest();
+            List<ProjectEmployeeController.ExistingProjectEmployee> existing = ProjectEmployeeController.getExistingProjectEmployees(
+                new List<Id>{ activeProject },
+                new List<Id>{ grouped }
+            );
+            Test.stopTest();
 
-        Assert.areEqual(1, existing.size(), 'One existing record returned');
-        Assert.areEqual(activeProject, existing[0].projectId, 'Project ID matches');
-        Assert.areEqual(grouped, existing[0].employeeId, 'Employee ID matches');
-        Assert.areEqual(100, existing[0].hourlyRate, 'Hourly rate matches setup data');
-        Assert.isNotNull(existing[0].id, 'Record ID is populated');
+            Assert.areEqual(1, existing.size(), 'One existing record returned');
+            Assert.areEqual(activeProject, existing[0].projectId, 'Project ID matches');
+            Assert.areEqual(grouped, existing[0].employeeId, 'Employee ID matches');
+            Assert.areEqual(100, existing[0].hourlyRate, 'Hourly rate matches setup data');
+            Assert.isNotNull(existing[0].id, 'Record ID is populated');
+        }
     }
 
     @isTest
     static void saveProjectEmployeesUpdatesExistingRecordRate() {
-        Id activeProject = project('PE Active Project').Id;
-        Id grouped = employee('Grouped').Id;
-        Project_Employee__c existingPe = [SELECT Id, Hourly_Rate__c FROM Project_Employee__c WHERE Project__c = :activeProject AND Employee__c = :grouped LIMIT 1];
+        System.runAs(createUser('pehr', 'Timesheet_HR_Admin')) {
+            Id activeProject = project('PE Active Project').Id;
+            Id grouped = employee('Grouped').Id;
+            Project_Employee__c existingPe = [SELECT Id, Hourly_Rate__c FROM Project_Employee__c WHERE Project__c = :activeProject AND Employee__c = :grouped LIMIT 1];
 
-        ProjectEmployeeController.ProjectEmployeeSaveWrapper w = wrapper(activeProject, grouped, 250);
-        w.isExisting = true;
+            ProjectEmployeeController.ProjectEmployeeSaveWrapper w = wrapper(activeProject, grouped, 250);
+            w.isExisting = true;
 
-        Test.startTest();
-        ProjectEmployeeController.SaveResult result = ProjectEmployeeController.saveProjectEmployees(new List<ProjectEmployeeController.ProjectEmployeeSaveWrapper>{ w });
-        Test.stopTest();
+            Test.startTest();
+            ProjectEmployeeController.SaveResult result = ProjectEmployeeController.saveProjectEmployees(new List<ProjectEmployeeController.ProjectEmployeeSaveWrapper>{ w });
+            Test.stopTest();
 
-        Assert.areEqual(0, result.created, 'Nothing created');
-        Assert.areEqual(1, result.updated, 'One record updated');
-        Project_Employee__c updatedPe = [SELECT Hourly_Rate__c FROM Project_Employee__c WHERE Id = :existingPe.Id];
-        Assert.areEqual(250, updatedPe.Hourly_Rate__c, 'Hourly rate was updated to 250');
-        Assert.areEqual(1, [SELECT COUNT() FROM Project_Employee__c], 'No duplicate record is inserted');
+            Assert.areEqual(0, result.created, 'Nothing created');
+            Assert.areEqual(1, result.updated, 'One record updated');
+            Project_Employee__c updatedPe = [SELECT Hourly_Rate__c FROM Project_Employee__c WHERE Id = :existingPe.Id];
+            Assert.areEqual(250, updatedPe.Hourly_Rate__c, 'Hourly rate was updated to 250');
+            Assert.areEqual(1, [SELECT COUNT() FROM Project_Employee__c], 'No duplicate record is inserted');
+        }
     }
 
     @isTest
     static void saveProjectEmployeesSkipsExistingRowWithUnchangedRate() {
-        ProjectEmployeeController.ProjectEmployeeSaveWrapper w = wrapper(project('PE Active Project').Id, employee('Grouped').Id, 100);
-        w.isExisting = true;
+        System.runAs(createUser('pehr', 'Timesheet_HR_Admin')) {
+            ProjectEmployeeController.ProjectEmployeeSaveWrapper w = wrapper(project('PE Active Project').Id, employee('Grouped').Id, 100);
+            w.isExisting = true;
 
-        Test.startTest();
-        ProjectEmployeeController.SaveResult result = ProjectEmployeeController.saveProjectEmployees(new List<ProjectEmployeeController.ProjectEmployeeSaveWrapper>{ w });
-        Test.stopTest();
+            Test.startTest();
+            ProjectEmployeeController.SaveResult result = ProjectEmployeeController.saveProjectEmployees(new List<ProjectEmployeeController.ProjectEmployeeSaveWrapper>{ w });
+            Test.stopTest();
 
-        Assert.areEqual(0, result.created, 'Nothing created');
-        Assert.areEqual(0, result.updated, 'An unchanged rate is not updated');
+            Assert.areEqual(0, result.created, 'Nothing created');
+            Assert.areEqual(0, result.updated, 'An unchanged rate is not updated');
+        }
+    }
+
+    // Package build orgs run tests as an admin without the app's permission sets, and the Employee and
+    // timesheet triggers refuse users without them. The running user gets Timesheet HR Admin (unless it already has it)
+    // for the setup data; the grant doesn't carry into the test methods, so they act as HR test users instead.
+    private static void grantHrAdminToRunningUser() {
+        Id me = UserInfo.getUserId();
+        Id permissionSetId = [SELECT Id FROM PermissionSet WHERE Name = 'Timesheet_HR_Admin' LIMIT 1].Id;
+        if ([SELECT COUNT() FROM PermissionSetAssignment WHERE AssigneeId = :me AND PermissionSetId = :permissionSetId] == 0) {
+            insert new PermissionSetAssignment(AssigneeId = me, PermissionSetId = permissionSetId);
+        }
     }
 
     private static ProjectEmployeeController.ProjectEmployeeSaveWrapper wrapper(Id projectId, Id employeeId, Decimal rate) {
