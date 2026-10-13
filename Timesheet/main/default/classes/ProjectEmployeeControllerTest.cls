@@ -101,10 +101,11 @@ private class ProjectEmployeeControllerTest {
         };
 
         Test.startTest();
-        Integer created = ProjectEmployeeController.saveProjectEmployees(records);
+        ProjectEmployeeController.SaveResult result = ProjectEmployeeController.saveProjectEmployees(records);
         Test.stopTest();
 
-        Assert.areEqual(2, created, 'Only the two new pairs are counted');
+        Assert.areEqual(2, result.created, 'Only the two new pairs are counted');
+        Assert.areEqual(0, result.updated, 'A new row for an existing pair does not update it');
 
         Map<String, Decimal> rateByKey = new Map<String, Decimal>();
         for (Project_Employee__c pe : [SELECT Project__c, Employee__c, Hourly_Rate__c FROM Project_Employee__c]) {
@@ -119,12 +120,13 @@ private class ProjectEmployeeControllerTest {
     @isTest
     static void saveProjectEmployeesWithOnlyExistingPairsInsertsNothing() {
         Test.startTest();
-        Integer created = ProjectEmployeeController.saveProjectEmployees(new List<ProjectEmployeeController.ProjectEmployeeSaveWrapper>{
+        ProjectEmployeeController.SaveResult result = ProjectEmployeeController.saveProjectEmployees(new List<ProjectEmployeeController.ProjectEmployeeSaveWrapper>{
             wrapper(project('PE Active Project').Id, employee('Grouped').Id, 50)
         });
         Test.stopTest();
 
-        Assert.areEqual(0, created, 'Nothing is reported as created');
+        Assert.areEqual(0, result.created, 'Nothing is reported as created');
+        Assert.areEqual(0, result.updated, 'Nothing is reported as updated');
 
         Assert.areEqual(1, [SELECT COUNT() FROM Project_Employee__c], 'No new records are inserted');
     }
@@ -183,6 +185,58 @@ private class ProjectEmployeeControllerTest {
         }
         Assert.isTrue(blocked, 'User mode blocks users without create access on Project Employee');
         Assert.areEqual(0, [SELECT COUNT() FROM Project_Employee__c WHERE Employee__c = :solo], 'Nothing was inserted');
+    }
+
+    @isTest
+    static void getExistingProjectEmployeesReturnsDetails() {
+        Id activeProject = project('PE Active Project').Id;
+        Id grouped = employee('Grouped').Id;
+
+        Test.startTest();
+        List<ProjectEmployeeController.ExistingProjectEmployee> existing = ProjectEmployeeController.getExistingProjectEmployees(
+            new List<Id>{ activeProject },
+            new List<Id>{ grouped }
+        );
+        Test.stopTest();
+
+        Assert.areEqual(1, existing.size(), 'One existing record returned');
+        Assert.areEqual(activeProject, existing[0].projectId, 'Project ID matches');
+        Assert.areEqual(grouped, existing[0].employeeId, 'Employee ID matches');
+        Assert.areEqual(100, existing[0].hourlyRate, 'Hourly rate matches setup data');
+        Assert.isNotNull(existing[0].id, 'Record ID is populated');
+    }
+
+    @isTest
+    static void saveProjectEmployeesUpdatesExistingRecordRate() {
+        Id activeProject = project('PE Active Project').Id;
+        Id grouped = employee('Grouped').Id;
+        Project_Employee__c existingPe = [SELECT Id, Hourly_Rate__c FROM Project_Employee__c WHERE Project__c = :activeProject AND Employee__c = :grouped LIMIT 1];
+
+        ProjectEmployeeController.ProjectEmployeeSaveWrapper w = wrapper(activeProject, grouped, 250);
+        w.isExisting = true;
+
+        Test.startTest();
+        ProjectEmployeeController.SaveResult result = ProjectEmployeeController.saveProjectEmployees(new List<ProjectEmployeeController.ProjectEmployeeSaveWrapper>{ w });
+        Test.stopTest();
+
+        Assert.areEqual(0, result.created, 'Nothing created');
+        Assert.areEqual(1, result.updated, 'One record updated');
+        Project_Employee__c updatedPe = [SELECT Hourly_Rate__c FROM Project_Employee__c WHERE Id = :existingPe.Id];
+        Assert.areEqual(250, updatedPe.Hourly_Rate__c, 'Hourly rate was updated to 250');
+        Assert.areEqual(1, [SELECT COUNT() FROM Project_Employee__c], 'No duplicate record is inserted');
+    }
+
+    @isTest
+    static void saveProjectEmployeesSkipsExistingRowWithUnchangedRate() {
+        ProjectEmployeeController.ProjectEmployeeSaveWrapper w = wrapper(project('PE Active Project').Id, employee('Grouped').Id, 100);
+        w.isExisting = true;
+
+        Test.startTest();
+        ProjectEmployeeController.SaveResult result = ProjectEmployeeController.saveProjectEmployees(new List<ProjectEmployeeController.ProjectEmployeeSaveWrapper>{ w });
+        Test.stopTest();
+
+        Assert.areEqual(0, result.created, 'Nothing created');
+        Assert.areEqual(0, result.updated, 'An unchanged rate is not updated');
     }
 
     private static ProjectEmployeeController.ProjectEmployeeSaveWrapper wrapper(Id projectId, Id employeeId, Decimal rate) {

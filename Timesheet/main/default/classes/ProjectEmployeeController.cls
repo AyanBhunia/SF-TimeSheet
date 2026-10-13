@@ -36,45 +36,94 @@ public with sharing class ProjectEmployeeController {
         return keys;
     }
 
-    public class ProjectEmployeeSaveWrapper {
+    public class ExistingProjectEmployee {
+        @AuraEnabled public Id id {get; set;}
         @AuraEnabled public Id projectId {get; set;}
         @AuraEnabled public Id employeeId {get; set;}
         @AuraEnabled public Decimal hourlyRate {get; set;}
     }
 
-    // Returns how many records were inserted; pairs that already exist are skipped
+    // Returns existing combinations with their record Id and current hourly rate
     @AuraEnabled
-    public static Integer saveProjectEmployees(List<ProjectEmployeeSaveWrapper> records) {
+    public static List<ExistingProjectEmployee> getExistingProjectEmployees(List<Id> projectIds, List<Id> employeeIds) {
+        List<ExistingProjectEmployee> result = new List<ExistingProjectEmployee>();
+        for (Project_Employee__c pe : [SELECT Id, Project__c, Employee__c, Hourly_Rate__c FROM Project_Employee__c WHERE Project__c IN :projectIds AND Employee__c IN :employeeIds WITH USER_MODE]) {
+            ExistingProjectEmployee rec = new ExistingProjectEmployee();
+            rec.id = pe.Id;
+            rec.projectId = pe.Project__c;
+            rec.employeeId = pe.Employee__c;
+            rec.hourlyRate = pe.Hourly_Rate__c;
+            result.add(rec);
+        }
+        return result;
+    }
+
+    public class ProjectEmployeeSaveWrapper {
+        @AuraEnabled public Id projectId {get; set;}
+        @AuraEnabled public Id employeeId {get; set;}
+        @AuraEnabled public Decimal hourlyRate {get; set;}
+        // True for rows the screen showed as already assigned; only these may change an existing rate
+        @AuraEnabled public Boolean isExisting {get; set;}
+    }
+
+    public class SaveResult {
+        @AuraEnabled public Integer created {get; set;}
+        @AuraEnabled public Integer updated {get; set;}
+    }
+
+    // Inserts new pairs and updates the rate of existing pairs sent as isExisting.
+    // Existing records are matched by project and employee; a new row for a pair that already exists is skipped.
+    @AuraEnabled
+    public static SaveResult saveProjectEmployees(List<ProjectEmployeeSaveWrapper> records) {
         List<Project_Employee__c> toInsert = new List<Project_Employee__c>();
+        List<Project_Employee__c> toUpdate = new List<Project_Employee__c>();
         
         Set<Id> pIds = new Set<Id>();
         Set<Id> eIds = new Set<Id>();
         for (ProjectEmployeeSaveWrapper w : records) {
-            pIds.add(w.projectId);
-            eIds.add(w.employeeId);
+            if (w.projectId != null) pIds.add(w.projectId);
+            if (w.employeeId != null) eIds.add(w.employeeId);
         }
 
-        Set<String> existingKeys = new Set<String>();
-        for (Project_Employee__c pe : [SELECT Project__c, Employee__c FROM Project_Employee__c WHERE Project__c IN :pIds AND Employee__c IN :eIds WITH USER_MODE]) {
-            existingKeys.add(pe.Project__c + '_' + pe.Employee__c);
+        Map<String, Project_Employee__c> existingByCombo = new Map<String, Project_Employee__c>();
+        for (Project_Employee__c pe : [SELECT Id, Project__c, Employee__c, Hourly_Rate__c FROM Project_Employee__c WHERE Project__c IN :pIds AND Employee__c IN :eIds WITH USER_MODE]) {
+            existingByCombo.put(pe.Project__c + '_' + pe.Employee__c, pe);
         }
 
+        Set<String> processedKeys = new Set<String>();
         for (ProjectEmployeeSaveWrapper w : records) {
             String key = w.projectId + '_' + w.employeeId;
-            if (!existingKeys.contains(key)) {
+            if (processedKeys.contains(key)) {
+                continue;
+            }
+            processedKeys.add(key);
+
+            Project_Employee__c existing = existingByCombo.get(key);
+            if (existing != null) {
+                if (w.isExisting == true && existing.Hourly_Rate__c != w.hourlyRate) {
+                    toUpdate.add(new Project_Employee__c(
+                        Id = existing.Id,
+                        Hourly_Rate__c = w.hourlyRate
+                    ));
+                }
+            } else {
                 toInsert.add(new Project_Employee__c(
                     Project__c = w.projectId,
                     Employee__c = w.employeeId,
                     Hourly_Rate__c = w.hourlyRate
                 ));
-                // Add to existingKeys to prevent duplicates within the same transaction request
-                existingKeys.add(key);
             }
         }
 
         if (!toInsert.isEmpty()) {
             Database.insert(toInsert, AccessLevel.USER_MODE);
         }
-        return toInsert.size();
+        if (!toUpdate.isEmpty()) {
+            Database.update(toUpdate, AccessLevel.USER_MODE);
+        }
+        SaveResult result = new SaveResult();
+        result.created = toInsert.size();
+        result.updated = toUpdate.size();
+        return result;
     }
 }
