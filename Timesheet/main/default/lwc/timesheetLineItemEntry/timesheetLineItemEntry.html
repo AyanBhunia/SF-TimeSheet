@@ -12,14 +12,9 @@
                         <lightning-button label="Copy" onclick={handleCopy} disabled={isTimesheetLocked}></lightning-button>
                     </div>
                     <div class="slds-col slds-text-align_right">
-                        <template if:true={showPartialSubmitButton}>
-                            <lightning-button label="Partial Submit" onclick={handlePartialSubmit} variant="brand-outline" class="slds-m-right_x-small" disabled={isTimesheetLocked}>
-                            </lightning-button>
-                        </template>
-                        <template if:true={showSubmitButton}>
-                            <lightning-button label="Submit" onclick={handleSubmit} variant="brand" class="slds-m-right_x-small" disabled={isTimesheetLocked}>
-                            </lightning-button>
-                        </template>
+
+                       
+                        
                         <lightning-button label="Refresh" onclick={handleCancel} variant="neutral" class="slds-m-right_x-small">
                         </lightning-button>
                         <lightning-button label="Save" onclick={handleSave} variant="brand" class="slds-m-right_x-small" disabled={isTimesheetLocked}>
@@ -201,14 +196,7 @@
                 
                     <!-- Right group -->
                     <div class="slds-col slds-text-align_right">
-                        <template if:true={showPartialSubmitButton}>
-                            <lightning-button label="Partial Submit" onclick={handlePartialSubmit} variant="brand-outline" class="slds-m-right_x-small" disabled={isTimesheetLocked}>
-                            </lightning-button>
-                        </template>
-                        <template if:true={showSubmitButton}>
-                            <lightning-button label="Submit" onclick={handleSubmit} variant="brand" class="slds-m-right_x-small" disabled={isTimesheetLocked}>
-                            </lightning-button>
-                        </template>
+
                         <lightning-button label="Refresh" onclick={handleCancel} variant="neutral" class="slds-m-right_x-small">
                         </lightning-button>
                         <lightning-button label="Save" onclick={handleSave} variant="brand" class="slds-m-right_x-small" disabled={isTimesheetLocked}>

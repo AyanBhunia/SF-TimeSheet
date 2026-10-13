@@ -1,5 +1,8 @@
 public with sharing class TimesheetTriggerHandler extends TriggerHandler {
 
+     private static Set<Id> processedTimesheetIds = new Set<Id>();
+
+
     protected override void beforeInsert() {
         beforeInsert((List<Timesheet__c>)Trigger.new);
     }
@@ -25,6 +28,7 @@ public with sharing class TimesheetTriggerHandler extends TriggerHandler {
 
     public static void beforeUpdate(List<Timesheet__c> newTimesheets, Map<Id, Timesheet__c> oldMap) {
         calculateAccruedHours(newTimesheets, oldMap);
+        syncStatusFromLineItems(newTimesheets, oldMap);
     }
 
     public static void afterInsert(List<Timesheet__c> newTimesheets) {
@@ -50,7 +54,7 @@ public with sharing class TimesheetTriggerHandler extends TriggerHandler {
 
     private static Boolean isAccrualEligible(Timesheet__c ts) {
         if (ts == null) return false;
-        return ts.Status__c == 'Approved' || ts.Status__c == 'Partial';
+        return ts.Status__c == 'Approved';
     }
 
     private static void updateEmployeeTotals(List<Timesheet__c> timesheets, Map<Id, Timesheet__c> oldMap) {
@@ -91,80 +95,128 @@ public with sharing class TimesheetTriggerHandler extends TriggerHandler {
         }
     }
 
-    /**
-     * Cascade Sys Admin status overrides to child line items.
-     * Only fires when Status__c actually changed and the new transition
-     * matches one of the 6 defined admin overrides in StatusLogic.md.
-     */
-    private static void cascadeStatusToLineItems(List<Timesheet__c> newTimesheets, Map<Id, Timesheet__c> oldMap) {
-        Map<Id, String[]> tsToCascade = new Map<Id, String[]>(); // tsId -> [oldStatus, newStatus]
+    private static void cascadeStatusToLineItems(
+    List<Timesheet__c> newTimesheets,
+    Map<Id, Timesheet__c> oldMap
+) {
+    Map<Id, String> timesheetStatusMap = new Map<Id, String>();
 
+    // Collect Timesheets whose status changed
+    for (Timesheet__c ts : newTimesheets) {
+        Timesheet__c oldTs = oldMap.get(ts.Id);
+
+        if (
+            ts.Status__c != oldTs.Status__c &&
+            !processedTimesheetIds.contains(ts.Id)
+        ) {
+            timesheetStatusMap.put(ts.Id, ts.Status__c);
+            processedTimesheetIds.add(ts.Id);
+        }
+    }
+
+    if (timesheetStatusMap.isEmpty()) {
+        return;
+    }
+
+    // Query all related line items in one SOQL
+    List<Timesheet_Line_Item__c> lineItems = [
+        SELECT Id, Timesheet__c, Line_Item_Status__c
+        FROM Timesheet_Line_Item__c
+        WHERE Timesheet__c IN :timesheetStatusMap.keySet()
+    ];
+
+    List<Timesheet_Line_Item__c> lineItemsToUpdate =
+        new List<Timesheet_Line_Item__c>();
+
+    for (Timesheet_Line_Item__c li : lineItems) {
+        String timesheetStatus = timesheetStatusMap.get(li.Timesheet__c);
+
+        // Timesheet New → all Line Items New
+        if (timesheetStatus == 'New') {
+            if (li.Line_Item_Status__c != 'New') {
+                li.Line_Item_Status__c = 'New';
+                lineItemsToUpdate.add(li);
+            }
+        }
+
+                // Timesheet Submitted -> all except Approved become Submitted
+        else if (timesheetStatus == 'Submitted') {
+            if (li.Line_Item_Status__c != 'Approved' &&
+                li.Line_Item_Status__c != 'Submitted') {
+                li.Line_Item_Status__c = 'Submitted';
+                lineItemsToUpdate.add(li);
+            }
+        }
+
+        // Timesheet Approved -> all Line Items Approved
+        else if (timesheetStatus == 'Approved') {
+            if (li.Line_Item_Status__c != 'Approved') {
+                li.Line_Item_Status__c = 'Approved';
+                lineItemsToUpdate.add(li);
+            }
+        }
+    }
+
+    // Single bulk update
+    if (!lineItemsToUpdate.isEmpty()) {
+        update lineItemsToUpdate;
+    }
+
+}
+    private static void syncStatusFromLineItems(List<Timesheet__c> newTimesheets, Map<Id, Timesheet__c> oldMap) {
+        Map<Id, Timesheet__c> timesheetsToSync = new Map<Id, Timesheet__c>();
+        
         for (Timesheet__c ts : newTimesheets) {
             Timesheet__c oldTs = oldMap.get(ts.Id);
-            if (ts.Status__c == oldTs.Status__c) continue; // No status change
-
-            String oldS = oldTs.Status__c;
-            String newS = ts.Status__c;
-
-            // Only cascade known admin override transitions
-            Boolean isAdminOverride =
-                (oldS == 'Partial' && newS == 'New') ||
-                (oldS == 'Submitted' && newS == 'New') ||
-                (oldS == 'Approved' && newS == 'New') ||
-                (oldS == 'Approved' && newS == 'Submitted') ||
-                (oldS == 'Submitted' && newS == 'Partial') ||
-                (oldS == 'Approved' && newS == 'Partial');
-
-            if (isAdminOverride) {
-                tsToCascade.put(ts.Id, new String[]{ oldS, newS });
+            // Only sync if the status was not explicitly modified
+            if (ts.Status__c == oldTs.Status__c) {
+                timesheetsToSync.put(ts.Id, ts);
             }
         }
 
-        if (tsToCascade.isEmpty()) return;
+        if (timesheetsToSync.isEmpty()) return;
 
-        List<Timesheet_Line_Item__c> allChildren = [
-            SELECT Id, Line_Item_Status__c, Timesheet__c
-            FROM Timesheet_Line_Item__c
-            WHERE Timesheet__c IN :tsToCascade.keySet()
+        List<Timesheet_Line_Item__c> allItems = [
+            SELECT Id, Timesheet__c, Line_Item_Status__c 
+            FROM Timesheet_Line_Item__c 
+            WHERE Timesheet__c IN :timesheetsToSync.keySet()
         ];
 
-        List<Timesheet_Line_Item__c> toUpdate = new List<Timesheet_Line_Item__c>();
+        Map<Id, Integer> totalCount = new Map<Id, Integer>();
+        Map<Id, Integer> newCount = new Map<Id, Integer>();
+        Map<Id, Integer> approvedCount = new Map<Id, Integer>();
 
-        for (Timesheet_Line_Item__c li : allChildren) {
-            String[] transition = tsToCascade.get(li.Timesheet__c);
-            String oldStatus = transition[0];
-            String newStatus = transition[1];
-            String newLiStatus = null;
+        for (Timesheet_Line_Item__c li : allItems) {
+            if (!totalCount.containsKey(li.Timesheet__c)) {
+                totalCount.put(li.Timesheet__c, 0);
+                newCount.put(li.Timesheet__c, 0);
+                approvedCount.put(li.Timesheet__c, 0);
+            }
+            totalCount.put(li.Timesheet__c, totalCount.get(li.Timesheet__c) + 1);
 
-            if (newStatus == 'New') {
-                if (oldStatus == 'Submitted' && li.Line_Item_Status__c == 'Partial Approved') {
-                    // Submitted → New: PRESERVE Partial Approved
-                    continue;
-                }
-                // Partial→New, Approved→New: ALL become New
-                newLiStatus = 'New';
-            }
-            else if (oldStatus == 'Approved' && newStatus == 'Submitted') {
-                // Approved → Submitted: ALL become Submitted
-                newLiStatus = 'Submitted';
-            }
-            else if (newStatus == 'Partial') {
-                if (oldStatus == 'Submitted' && li.Line_Item_Status__c == 'Partial Approved') {
-                    // Submitted → Partial: PRESERVE Partial Approved
-                    continue;
-                }
-                // Submitted→Partial (non-PA), Approved→Partial: become Partial Submitted
-                newLiStatus = 'Partial Submitted';
-            }
-
-            if (newLiStatus != null && li.Line_Item_Status__c != newLiStatus) {
-                li.Line_Item_Status__c = newLiStatus;
-                toUpdate.add(li);
+            if (li.Line_Item_Status__c == 'New') {
+                newCount.put(li.Timesheet__c, newCount.get(li.Timesheet__c) + 1);
+            } else if (li.Line_Item_Status__c == 'Approved') {
+                approvedCount.put(li.Timesheet__c, approvedCount.get(li.Timesheet__c) + 1);
             }
         }
 
-        if (!toUpdate.isEmpty()) {
-            update toUpdate;
+        for (Timesheet__c ts : timesheetsToSync.values()) {
+            if (totalCount.containsKey(ts.Id)) {
+                Integer total = totalCount.get(ts.Id);
+                Integer newItems = newCount.get(ts.Id);
+                Integer approved = approvedCount.get(ts.Id);
+
+                if (total == 0) {
+                    continue;
+                } else if (newItems == total) {
+                    ts.Status__c = 'New';
+                } else if (approved == total) {
+                    ts.Status__c = 'Approved';
+                } else {
+                    ts.Status__c = 'Submitted';
+                }
+            }
         }
     }
 }

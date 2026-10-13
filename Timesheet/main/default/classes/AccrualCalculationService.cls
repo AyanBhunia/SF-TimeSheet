@@ -2,7 +2,7 @@ public with sharing class AccrualCalculationService {
 
     public static Boolean isAccrualEligible(Timesheet__c ts) {
         if (ts == null) return false;
-        return ts.Status__c == 'Approved' || ts.Status__c == 'Partial';
+        return ts.Status__c == 'Approved';
     }
 
     public static void calculateTimesheetAccruals(List<Timesheet__c> timesheets) {
@@ -55,8 +55,7 @@ public with sharing class AccrualCalculationService {
                 Date accrualStart = empAccrualStartMap.get(li.Timesheet__r.Employee__c);
                 if (accrualStart != null && li.Date__c != null && li.Date__c >= accrualStart) {
                     Boolean shouldInclude = li.Timesheet__r.Status__c == 'Approved' || 
-                                            li.Line_Item_Status__c == 'Approved' || 
-                                            li.Line_Item_Status__c == 'Partial Approved';
+                                            li.Line_Item_Status__c == 'Approved';
                     if (shouldInclude) {
                         Decimal running = timesheetToBillableHours.containsKey(li.Timesheet__c)
                             ? timesheetToBillableHours.get(li.Timesheet__c)
@@ -118,7 +117,7 @@ public with sharing class AccrualCalculationService {
                 SELECT Employee__c, Accrued_Hours__c, Absence_Hours__c, End_Date__c
                 FROM Timesheet__c 
                 WHERE Employee__c IN :empIds
-                AND (Status__c = 'Approved' OR Status__c = 'Partial')
+                AND Status__c = 'Approved'
                 AND End_Date__c >= :minAccrualDate
                 AND Employee__r.Accrual_Start_Date__c != NULL
                 WITH SECURITY_ENFORCED

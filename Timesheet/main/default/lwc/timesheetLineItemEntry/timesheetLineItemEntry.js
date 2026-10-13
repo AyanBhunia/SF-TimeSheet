@@ -8,8 +8,6 @@ import getTimesheet from '@salesforce/apex/WeeklyTimesheetController.getTimeshee
 import getEmployeeTimesheetItems from '@salesforce/apex/WeeklyTimesheetController.getEmployeeTimesheetItems';
 import upsertLineItems from '@salesforce/apex/WeeklyTimesheetController.upsertLineItems';
 import deleteTimesheetLineItems from '@salesforce/apex/WeeklyTimesheetController.deleteTimesheetLineItems';
-import isPartialSubmitAllowed from '@salesforce/apex/WeeklyTimesheetController.isPartialSubmitAllowed';
-import submitPartialLineItems from '@salesforce/apex/WeeklyTimesheetController.submitPartialLineItems';
 import submitTimesheet from '@salesforce/apex/WeeklyTimesheetController.submitTimesheet';
 import { getPicklistValues, getObjectInfo } from 'lightning/uiObjectInfoApi';
 import TIMESHEET_LINE_ITEM_OBJECT from '@salesforce/schema/Timesheet_Line_Item__c';
@@ -90,43 +88,15 @@ export default class TimesheetLineItemEntry extends LightningElement {
     @track grandTotals = [0, 0, 0, 0, 0, 0, 0];
     @track billableAmounts = [0, 0, 0, 0, 0, 0, 0];
 
-    @track allowPartialSubmit = false;
     @track TimesheetStatus = '';
 
-    @wire(isPartialSubmitAllowed)
-    wiredAllowPartialSubmit({ error, data }) {
-        if (data !== undefined) {
-            this.allowPartialSubmit = data;
-        } else if (error) {
-            console.error('Error fetching Allow_Partial_Submit__c setting', error);
-        }
-    }
-
     get isTimesheetLocked() {
-        return this.TimesheetStatus === 'Submitted' || this.TimesheetStatus === 'Approved';
-    }
-
-    get showPartialSubmitButton() {
-        if (!this.allowPartialSubmit) return false;
-        if (this.isTimesheetLocked) return false;
-        const todayStr = this.formatDateYMD(new Date());
-        let hasEligible = false;
-        const checkEligible = (row) => {
-            (row.dates || []).forEach(day => {
-                if (parseFloat(day.dur) > 0 && day.date <= todayStr) {
-                    if (day.status !== 'Partial Submitted' && day.status !== 'Partial Approved' && day.status !== 'Approved') {
-                        hasEligible = true;
-                    }
-                }
-            });
-        };
-        (this.projectsList || []).forEach(checkEligible);
-        (this.absenceList || []).forEach(checkEligible);
-        return hasEligible;
+        return  this.TimesheetStatus === 'Approved';
     }
 
     get showSubmitButton() {
         if (this.isTimesheetLocked) return false;
+        if (!this.IsPartialAllowed) return false;
         let hasHours = false;
         const checkHours = (row) => {
             (row.dates || []).forEach(day => {
@@ -294,6 +264,7 @@ export default class TimesheetLineItemEntry extends LightningElement {
                 this.TimeSheetEndDate = result.dbt__End_Date__c || result.End_Date__c;
                 this.TimeSheetName = result.name || result.Name;
                 this.TimesheetStatus = result.dbt__Status__c || result.Status__c;
+                this.IsPartialAllowed = result.dbt__Is_Partial_Allowed__c !== undefined ? result.dbt__Is_Partial_Allowed__c : result.Is_Partial_Allowed__c;
             })
             .then(() => {
                 this.createDays();
@@ -447,7 +418,10 @@ export default class TimesheetLineItemEntry extends LightningElement {
                 let dur = parseFloat(item.dbt__Duration__c || item.Duration__c) || 0;
                 const liStatus = item.dbt__Line_Item_Status__c || item.Line_Item_Status__c;
                 const rNotes = item.dbt__Rejection_Notes__c || item.Rejection_Notes__c;
-                const isLocked = (liStatus === 'Partial Submitted' || liStatus === 'Partial Approved' || liStatus === 'Submitted' || liStatus === 'Approved' || this.isTimesheetLocked);
+                const isLocked =
+                    liStatus === 'Submitted' ||
+                    liStatus === 'Approved' ||
+                    this.isTimesheetLocked;
 
                 record.dates[dayIndex].dur = dur;
                 record.dates[dayIndex].desc = (item.dbt__Description__c || item.Description__c) || '';
@@ -1036,51 +1010,7 @@ export default class TimesheetLineItemEntry extends LightningElement {
         });
     }
 
-    async handlePartialSubmit() {
-        try {
-            if (this.hasUnsavedChanges) {
-                const saved = await this.handleSave();
-                if (!saved) return;
-            }
-            const todayStr = this.formatDateYMD(new Date());
-            const eligibleIds = [];
-            const checkEligible = (row) => {
-                (row.dates || []).forEach(day => {
-                    if (day.id && parseFloat(day.dur) > 0 && day.date <= todayStr) {
-                        if (day.status !== 'Partial Submitted' && day.status !== 'Partial Approved' && day.status !== 'Approved') {
-                            eligibleIds.push(day.id);
-                        }
-                    }
-                });
-            };
-            (this.projectsList || []).forEach(checkEligible);
-            (this.absenceList || []).forEach(checkEligible);
 
-            if (eligibleIds.length === 0) {
-                this.showToast('Info', 'No eligible line items up to today to partially submit.', 'info');
-                return;
-            }
-
-            const res = await submitPartialLineItems({
-                timesheetId: this.recordId,
-                lineItemIds: eligibleIds
-            });
-
-            if (res === 'Success') {
-                this.showToast('Success', 'Line items up to today partially submitted.', 'success');
-                this.fetchTimesheetData(this.recordId, result => {
-                    this.wiredTimesheetResult = result;
-                    this.processTimesheetData(this.wiredTimesheetResult, true);
-                });
-                this.loadTimesheet();
-            } else {
-                this.showToast('Error', res, 'error');
-            }
-        } catch (err) {
-            console.error(err);
-            this.showToast('Error', err.message || String(err), 'error');
-        }
-    }
 
     async handleSubmit() {
         try {
