@@ -97,15 +97,20 @@
                     ></lightning-input-field>
                   </td>
                   <td>
-                    <lightning-input-field
-                      variant="label-hidden"
-                      name="dbt__Duration__c"
-                      field-name="dbt__Duration__c"
-                      data-id={rec.index}
-                      data-record-id={rec.Id}
-                      onchange={handleChange}
-                      value={rec.dbt__Duration__c}
-                    ></lightning-input-field>
+                    
+<lightning-input
+    variant="label-hidden"
+    type="number"
+    name="dbt__Duration__c"
+    label="Duration"
+    class="editable-duration"
+    data-id={rec.index}
+    data-record-id={rec.Id}
+    value={rec.dbt__Duration__c}
+    onchange={handleChange}
+    step="0.25">
+</lightning-input>
+
                   </td>
                   <td>
                     <lightning-input-field

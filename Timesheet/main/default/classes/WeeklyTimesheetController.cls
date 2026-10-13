@@ -1,21 +1,6 @@
 public with sharing class WeeklyTimesheetController {
 
-    @AuraEnabled(cacheable=true)
-    public static Boolean isPartialSubmitAllowed() {
-        try {
-            Timesheet_Default_Value__mdt[] mdts = [
-                SELECT Allow_Partial_Submit__c
-                FROM Timesheet_Default_Value__mdt
-                LIMIT 1
-            ];
-            if (!mdts.isEmpty() && mdts[0].Allow_Partial_Submit__c != null) {
-                return mdts[0].Allow_Partial_Submit__c;
-            }
-            return false;
-        } catch (Exception e) {
-            return false;
-        }
-    }
+
 
     @AuraEnabled(cacheable=true)
     public static Timesheet__c getTimesheet(Id timesheetId){
@@ -25,7 +10,8 @@ public with sharing class WeeklyTimesheetController {
                     Employee__c, 
                     Start_Date__c, 
                     End_Date__c,
-                    Status__c
+                    Status__c,
+                    Is_Partial_Allowed__c
                     from Timesheet__c 
                     WHERE Id = :timesheetId
                     WITH SECURITY_ENFORCED];
@@ -144,82 +130,92 @@ public with sharing class WeeklyTimesheetController {
     }
 
     @AuraEnabled
-    public static String submitPartialLineItems(Id timesheetId, List<Id> lineItemIds) {
-        if (timesheetId == null || lineItemIds == null || lineItemIds.isEmpty()) {
-            return 'Error: Please provide valid Timesheet and Line Items.';
-        }
-        try {
-            List<Timesheet_Line_Item__c> itemsToUpdate = [
-                SELECT Id, Line_Item_Status__c, Date__c
-                FROM Timesheet_Line_Item__c
-                WHERE Id IN :lineItemIds AND Timesheet__c = :timesheetId
-                WITH SECURITY_ENFORCED
-            ];
-            if (itemsToUpdate.isEmpty()) {
-                return 'Error: No matching line items found.';
-            }
-            for (Timesheet_Line_Item__c li : itemsToUpdate) {
-                li.Line_Item_Status__c = 'Partial Submitted';
-            }
-            SObjectAccessDecision decision = Security.stripInaccessible(AccessType.UPDATABLE, itemsToUpdate, true);
-            update decision.getRecords();
-
-            Timesheet__c ts = new Timesheet__c(
-                Id = timesheetId,
-                Status__c = 'Partial'
-            );
-            SObjectAccessDecision tsDecision = Security.stripInaccessible(AccessType.UPDATABLE, new List<Timesheet__c>{ ts }, true);
-            update tsDecision.getRecords();
-
-            return 'Success';
-        } catch (Exception e) {
-            return 'Error: ' + e.getMessage();
-        }
+public static String submitTimesheet(Id timesheetId) {
+    if (timesheetId == null) {
+        return 'Error: Please provide a valid Timesheet Id.';
     }
 
-    @AuraEnabled
-    public static String submitTimesheet(Id timesheetId) {
-        if (timesheetId == null) {
-            return 'Error: Please provide a valid Timesheet Id.';
-        }
-        try {
-            // Validate pre-condition: Timesheet must be New or Partial
-            Timesheet__c ts = [
-                SELECT Id, Status__c
-                FROM Timesheet__c
-                WHERE Id = :timesheetId
-                WITH SECURITY_ENFORCED
-            ];
-            if (ts.Status__c != 'New' && ts.Status__c != 'Partial') {
-                return 'Error: Timesheet can only be submitted when in New or Partial status.';
-            }
+    try {
+        Timesheet__c ts = [
+            SELECT Id, Status__c
+            FROM Timesheet__c
+            WHERE Id = :timesheetId
+            WITH SECURITY_ENFORCED
+        ];
+        System.debug('### SUBMIT METHOD STARTED ###');
+System.debug('### TIMESHEET STATUS = ' + ts.Status__c);
 
-            // Update all line items to Submitted, EXCEPT Partial Approved
-            List<Timesheet_Line_Item__c> lineItems = [
-                SELECT Id, Line_Item_Status__c
-                FROM Timesheet_Line_Item__c
-                WHERE Timesheet__c = :timesheetId
-                AND Line_Item_Status__c != 'Partial Approved'
-                WITH SECURITY_ENFORCED
-            ];
-            for (Timesheet_Line_Item__c li : lineItems) {
+        // Approved Timesheet cannot be submitted again
+        if (ts.Status__c == 'Approved') {
+            return 'Error: Approved Timesheet cannot be submitted.';
+        }
+
+        List<Timesheet_Line_Item__c> lineItems = [
+            SELECT Id, Line_Item_Status__c
+            FROM Timesheet_Line_Item__c
+            WHERE Timesheet__c = :timesheetId
+            WITH SECURITY_ENFORCED
+        ];
+
+        List<Timesheet_Line_Item__c> itemsToSubmit =
+            new List<Timesheet_Line_Item__c>();
+
+        // Submit only New line items
+        for (Timesheet_Line_Item__c li : lineItems) {
+            if (li.Line_Item_Status__c == 'New') {
                 li.Line_Item_Status__c = 'Submitted';
+                itemsToSubmit.add(li);
             }
-            if (!lineItems.isEmpty()) {
-                SObjectAccessDecision liDecision = Security.stripInaccessible(AccessType.UPDATABLE, lineItems, true);
-                update liDecision.getRecords();
-            }
-
-            // Update Timesheet to Submitted
-            ts.Status__c = 'Submitted';
-            SObjectAccessDecision tsDecision = Security.stripInaccessible(
-                AccessType.UPDATABLE, new List<Timesheet__c>{ ts }, true
-            );
-            update tsDecision.getRecords();
-
-            return 'Success';
-        } catch (Exception e) {
-            return 'Error: ' + e.getMessage();
         }
+
+        // No New line items means there is nothing to submit
+if (itemsToSubmit.isEmpty()) {
+    return 'Error: There are no new line items to submit.';
+}
+
+
+        // Update only the New line items
+        if (!itemsToSubmit.isEmpty()) {
+            SObjectAccessDecision liDecision =
+                Security.stripInaccessible(
+                    AccessType.UPDATABLE,
+                    itemsToSubmit,
+                    true
+                );
+
+            update liDecision.getRecords();
+        }
+
+        // Parent Timesheet becomes Submitted
+        ts.Status__c = 'Submitted';
+
+        SObjectAccessDecision tsDecision =
+            Security.stripInaccessible(
+                AccessType.UPDATABLE,
+                new List<Timesheet__c>{ ts },
+                true
+            );
+
+        update tsDecision.getRecords();
+        // Lock the Timesheet record immediately
+Approval.LockResult[] lockResults =
+    Approval.lock(new List<Id>{ timesheetId });
+
+if (!lockResults[0].isSuccess()) {
+    String errorMessage = 'Unable to lock Timesheet record.';
+
+    for (Database.Error err : lockResults[0].getErrors()) {
+        errorMessage += ' ' + err.getMessage();
     }
-}
+
+    throw new AuraHandledException(errorMessage);
+}
+
+
+        return 'Success';
+
+    } catch (Exception e) {
+        return 'Error: ' + e.getMessage();
+    }
+}
+}

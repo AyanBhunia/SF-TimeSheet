@@ -9,7 +9,7 @@
                         <valueListItems>
                             <value>Submit</value>
                             <visibilityRule>
-                                <booleanFilter>1 AND 2 AND 3</booleanFilter>
+                                <booleanFilter>(1 OR 4) AND 2 AND 3</booleanFilter>
                                 <criteria>
                                     <leftValue>{!Record.Status__c}</leftValue>
                                     <operator>EQUAL</operator>
@@ -23,6 +23,11 @@
                                 <criteria>
                                     <leftValue>{!Record.Manager__r.Alias}</leftValue>
                                     <operator>NE</operator>
+                                </criteria>
+                                <criteria>
+                                    <leftValue>{!Record.Status__c}</leftValue>
+                                    <operator>EQUAL</operator>
+                                    <rightValue>Submitted</rightValue>
                                 </criteria>
                             </visibilityRule>
                         </valueListItems>
