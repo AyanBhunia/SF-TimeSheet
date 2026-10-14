@@ -10,7 +10,7 @@ global with sharing class EmployeeAccrualUpdater {
         for(Timesheet__c ts : [
             SELECT Employee__c 
             FROM Timesheet__c 
-            WHERE (Status__c = 'Approved' OR Status__c = 'Partial')
+            WHERE Status__c = 'Approved'
             AND Employee__c != NULL 
             AND Employee__r.Accrual_Start_Date__c != NULL 
             AND Employee__r.Accrual_Divisor__c != NULL

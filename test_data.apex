@@ -1,0 +1,10 @@
+﻿Project__c p = new Project__c(Name='Test Proj');
+insert p;
+Employee__c emp = new Employee__c(Name='Test Emp');
+insert emp;
+Timesheet__c ts = new Timesheet__c(Employee__c=emp.Id, Status__c='Submitted', Is_Partial_Allowed__c=true, Start_Date__c=Date.today(), End_Date__c=Date.today().addDays(6));
+insert ts;
+Timesheet_Line_Item__c li = new Timesheet_Line_Item__c(Timesheet__c=ts.Id, Project__c=p.Id, Duration__c=4.5, Activity__c='Dev', Date__c=Date.today(), Line_Item_Status__c='Submitted');
+insert li;
+String jsonStr = JSON.serialize(TimesheetApprovalController.getTimesheetData('All Pending', null, null, null, new List<String>()));
+System.debug('JSON_OUTPUT: ' + jsonStr);

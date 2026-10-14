@@ -1,285 +1,766 @@
 <template>
     <div class="tli-container slds-box slds-theme_default">
 
-        <!-- Compact Filter & Search Toolbar -->
-        <div class="tli-toolbar slds-grid slds-wrap slds-gutters slds-align-items-end">
-            <div class="slds-col slds-size_1-of-1 slds-medium-size_2-of-12 slds-m-bottom_x-small">
-                <lightning-combobox
-                    name="dateRange"
-                    label="Date Range"
-                    value={dateRange}
-                    options={dateRangeOptions}
-                    onchange={handleDateRangeChange}
-                ></lightning-combobox>
+        <!-- Page Header -->
+        <div class="tli-page-header">
+            <div>
+                <h1 class="tli-page-title">Manager Approval</h1>
+                <p class="tli-page-subtitle">
+                    Review and take action on submitted timesheets and line items.
+                </p>
             </div>
-            <template if:true={isCustomDate}>
-                <div class="slds-col slds-size_1-of-1 slds-medium-size_2-of-12 slds-m-bottom_x-small">
-                    <lightning-input type="date" name="startDate" label="Start Date" value={customStartDate} onchange={handleCustomDateChange}></lightning-input>
-                </div>
-                <div class="slds-col slds-size_1-of-1 slds-medium-size_2-of-12 slds-m-bottom_x-small">
-                    <lightning-input type="date" name="endDate" label="End Date" value={customEndDate} onchange={handleCustomDateChange}></lightning-input>
-                </div>
-            </template>
-            <div class="slds-col slds-size_1-of-1 slds-medium-size_2-of-12 slds-m-bottom_x-small">
-                <lightning-combobox
-                    name="statusFilter"
-                    label="Status Filter"
-                    value={statusFilter}
-                    options={statusOptions}
-                    onchange={handleStatusFilterChange}
-                ></lightning-combobox>
-            </div>
-            <div class="slds-col slds-size_1-of-1 slds-medium-size_3-of-12 slds-m-bottom_x-small">
-                <lightning-input
-                    type="search"
-                    label="Employee Search"
-                    placeholder="Search by employee name..."
-                    value={employeeSearch}
-                    onchange={handleEmployeeSearchChange}
-                ></lightning-input>
-            </div>
-            <div class="slds-col slds-size_1-of-1 slds-medium-size_2-of-12 slds-m-bottom_x-small">
-                <lightning-combobox
-                    name="projectFilter"
-                    label="Project Filter"
-                    value={projectFilter}
-                    options={projectOptions}
-                    onchange={handleProjectFilterChange}
-                ></lightning-combobox>
-            </div>
-            <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-12 slds-m-bottom_x-small slds-text-align_right">
-                <lightning-button
-                    variant="destructive"
-                    label="Reject"
-                    icon-name="utility:close"
-                    onclick={handleBulkReject}
-                    class="slds-m-right_x-small"
-                    disabled={isNoSelection}
-                ></lightning-button>
-                <lightning-button
-                    variant="success"
-                    label="Approve"
-                    icon-name="utility:check"
-                    onclick={handleApprove}
-                    disabled={isNoSelection}
-                ></lightning-button>
-            </div>
+
         </div>
 
-        <!-- Large-Dataset Banner -->
-        <template if:true={isCountExceeded}>
-            <div class="tli-sticky-banner" role="alert">
-                <lightning-icon icon-name="utility:info" size="x-small" class="slds-m-right_x-small"></lightning-icon>
-                <span>Showing first {maxLimit} of {totalCount} records.</span>
-            </div>
-        </template>
+        <!-- Compact Filter & Search Toolbar -->
+        <div class="tli-filter-toolbar">
 
-        <!-- Main Table -->
-        <div class="tli-table-wrap">
-            <template if:true={isTableLoading}>
-                <div class="tli-loading-overlay">
-                    <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
+            <!-- Date Range -->
+            <div class="tli-filter-date tli-filter-with-icon">
+                <div class="tli-filter-label">
+                    <span>Date Range</span>
                 </div>
-            </template>
 
-            <table class="tli-table" role="grid">
-                <thead>
-                    <tr class="tli-thead-row">
-                        <!-- Select-all checkbox -->
-                        <th class="tli-th tli-th-num" scope="col">
-                            <input
-                                type="checkbox"
-                                class="tli-col-checkbox"
-                                checked={isAllSelected}
-                                onchange={handleSelectAll}
-                                title="Select / Deselect All"
-                            />
-                        </th>
-                        <!-- Row number -->
-                        <th class="tli-th tli-th-num" scope="col">#</th>
+                <div class="tli-icon-combobox">
+                    <span
+                        class="tli-inside-filter-icon tli-date-icon"
+                        aria-hidden="true">
+                        📅
+                    </span>
 
-                        <!-- Dynamic column headers -->
-                        <template for:each={orderedColumns} for:item="col">
-                            <th
-                                key={col.id}
-                                class="tli-th"
-                                scope="col"
-                                draggable="true"
-                                data-col-id={col.id}
-                                ondragstart={handleColDragStart}
-                                ondragover={handleColDragOver}
-                                ondragleave={handleColDragLeave}
-                                ondrop={handleColDrop}
-                            >
-                                <div class="tli-th-inner">
-                                    <!-- Expand/Collapse toggle button -->
+                    <lightning-combobox
+                        name="dateRange"
+                        variant="label-hidden"
+                        value={dateRange}
+                        options={dateRangeOptions}
+                        onchange={handleDateRangeChange}>
+                    </lightning-combobox>
+                </div>
+            </div>
+
+            <!-- Custom Dates -->
+            <template if:true={isCustomDate}>
+                <div class="tli-filter-custom">
+                    <lightning-input
+                    type="date"
+                    name="startDate"
+                    label="Start Date"
+                    value={customStartDate}
+                    onchange={handleCustomDateChange}>
+                </lightning-input>
+            </div>
+
+            <div class="tli-filter-custom">
+                <lightning-input
+                type="date"
+                name="endDate"
+                label="End Date"
+                value={customEndDate}
+                onchange={handleCustomDateChange}>
+            </lightning-input>
+        </div>
+    </template>
+
+    <!-- Status Filter 
+     /*
+    <div class="tli-filter-status tli-filter-with-icon">
+        <div class="tli-filter-label">
+            <span>Status Filter</span>
+        </div>
+
+        <div class="tli-icon-combobox">
+            <span
+                class="tli-inside-filter-icon tli-status-icon"
+                aria-hidden="true">
+                🚩
+            </span>
+
+            <lightning-combobox
+                name="statusFilter"
+                variant="label-hidden"
+                value={statusFilter}
+                options={statusOptions}
+                onchange={handleStatusFilterChange}>
+            </lightning-combobox>
+        </div>
+    </div> -->
+
+    <!-- Employee Search
+    <div class="tli-filter-employee">
+        <lightning-input
+        type="search"
+        label="Employee Search"
+        placeholder="Search by employee name..."
+        value={employeeSearch}
+        onchange={handleEmployeeSearchChange}>
+    </lightning-input>
+</div>  -->
+
+<!-- Project Filter 
+<div class="tli-filter-project tli-filter-with-icon">
+    <div class="tli-filter-label">
+        <span>Project Filter</span>
+    </div>
+
+    <div class="tli-icon-combobox">
+        <span
+            class="tli-inside-filter-icon tli-project-icon"
+            aria-hidden="true">
+            📁
+        </span>
+
+        <lightning-combobox
+            name="projectFilter"
+            variant="label-hidden"
+            value={projectFilter}
+            options={projectOptions}
+            onchange={handleProjectFilterChange}>
+        </lightning-combobox>
+    </div>
+
+</div> -->
+
+<!-- Action Buttons -->
+<div class="tli-action-col">
+    <div class="tli-action-buttons">
+
+        <button
+            type="button"
+            class="tli-clear-filter-btn"
+            onclick={handleClearFilters}
+            title="Clear all filters">
+            <lightning-icon
+            icon-name="utility:filterList"
+            alternative-text="Clear Filters"
+            size="x-small">
+        </lightning-icon>
+        <span>Clear Filters</span>
+    </button>
+
+    <button
+        class="tli-refresh-btn"
+        onclick={fetchData}
+        title="Refresh">
+        <lightning-icon
+        icon-name="utility:refresh"
+        alternative-text="Refresh"
+        size="x-small">
+    </lightning-icon>
+    <span>Refresh</span>
+</button>
+
+<button
+    type="button"
+    class="tli-reject-btn"
+    onclick={handleBulkReject}
+    disabled={isNoSelection}
+    title="Reject selected records">
+    <span class="tli-action-icon">×</span>
+    <span>Reject</span>
+</button>
+
+<button
+    type="button"
+    class="tli-approve-btn"
+    onclick={handleApprove}
+    disabled={isNoSelection}
+    onmousedown={handleApproveMouseDown}
+    title="Approve selected records">
+    <span class="tli-action-icon">✓</span>
+    <span>Approve</span>
+</button>
+
+</div>
+</div>
+</div>
+
+<!-- Large-Dataset Banner -->
+<template if:true={isCountExceeded}>
+    <div class="tli-sticky-banner" role="alert">
+        <lightning-icon
+        icon-name="utility:info"
+        size="x-small"
+        class="slds-m-right_x-small">
+    </lightning-icon>
+
+    <span>
+        Showing first {maxLimit} of {totalCount} records.
+    </span>
+</div>
+</template>
+
+<!-- Main Table -->
+<div class="tli-table-wrap">
+
+    <template if:true={isTableLoading}>
+        <div class="tli-loading-overlay">
+            <lightning-spinner
+                alternative-text="Loading..."
+                size="medium">
+            </lightning-spinner>
+        </div>
+    </template>
+
+    <template if:false={isAllCheckboxesDisabled}>
+
+        <table class="tli-table" role="grid">
+
+            <thead>
+                <tr class="tli-thead-row">
+
+                    <!-- Select-all checkbox -->
+   <template if:true={showSelectionColumn}>
+                    <!-- Select-all checkbox -->
+    <th class="tli-th tli-th-num" scope="col">
+        <input
+            type="checkbox"
+            class="tli-col-checkbox"
+            checked={isAllSelected}
+            onchange={handleSelectAll}
+            title="Select / Deselect All"
+        />
+    </th>
+</template>
+<template if:true={isTimesheetApprovalMode}>
+    <th class="tli-th" scope="col">
+        <div class="tli-th-inner">
+
+            <!-- Timesheet label -->
+            <div class="tli-th-label-wrap">
+                <span class="tli-th-label">Timesheet</span>
+            </div>
+
+            <!-- Timesheet Sort + Filter -->
+            <div class="tli-th-actions">
+
+                <!-- Sort -->
+                <button
+                    type="button"
+                    class="tli-col-action-btn"
+                    data-col-id="timesheet"
+                    onclick={handleTimesheetSort}
+                    title={timesheetSortTitle}>
+                    {timesheetSortIcon}
+                </button>
+
+                <!-- Filter -->
+                <div class="tli-col-filter-wrap">
+
+                    <button
+                        type="button"
+                        class={timesheetFilterBtnClass}
+                        data-col-id="timesheet"
+                        onclick={handleTimesheetFilterToggle}
+                        title="Filter Timesheet">
+                        &#x25BC;
+                    </button>
+
+                    <template if:true={isTimesheetFilterOpen}>
+                        <div
+                            class="tli-filter-dropdown"
+                            onclick={handleDropdownClick}>
+
+                            <div class="tli-filter-header">
+                                <span>Filter Timesheet</span>
+
+                                <button
+                                    type="button"
+                                    class="tli-filter-close"
+                                    onclick={handleTimesheetFilterClose}>
+                                    ✕
+                                </button>
+                            </div>
+
+                            <div class="tli-filter-actions">
+
+                                <button
+                                    type="button"
+                                    class="tli-filter-link"
+                                    onclick={handleTimesheetFilterSelectAll}>
+                                    Select All
+                                </button>
+
+                                <span class="tli-filter-sep">|</span>
+
+                                <button
+                                    type="button"
+                                    class="tli-filter-link"
+                                    onclick={handleTimesheetFilterClearAll}>
+                                    Clear All
+                                </button>
+
+                            </div>
+
+                            <div class="tli-filter-list">
+
+                                <template
+                                    for:each={timesheetFilterOptions}
+                                    for:item="opt">
+
+                                    <label
+                                        key={opt.value}
+                                        class="tli-filter-item">
+
+                                        <input
+                                            type="checkbox"
+                                            value={opt.value}
+                                            checked={opt.checked}
+                                            onchange={handleTimesheetFilterOptionChange}
+                                        />
+
+                                        <span class="tli-filter-opt-label">
+                                            {opt.label}
+                                        </span>
+
+                                    </label>
+
+                                </template>
+
+                            </div>
+
+                        </div>
+                    </template>
+
+                </div>
+            </div>
+
+        </div>
+    </th>
+</template>
+
+                    <!-- Dynamic column headers -->
+                    <template
+                        for:each={orderedColumns}
+                        for:item="col">
+
+                        <th
+                            key={col.id}
+                            class="tli-th"
+                            scope="col"
+                            data-col-id={col.id}
+                            ondragover={handleColDragOver}
+                            ondragleave={handleColDragLeave}
+                            ondrop={handleColDrop}>
+
+                            <div class="tli-th-inner">
+
+                                <!-- Column Label + Group By -->
+                                <div class="tli-th-label-wrap">
+
+                                    <template if:true={col.showGroupByButton}>
+                                        <button
+                                            type="button"
+                                            class={col.groupByBtnClass}
+                                            data-column-index={col.columnIndex}
+                                            onclick={handleHeaderGroupBy}
+                                            title={col.groupByTitle}>
+                                            {col.groupByIcon}
+                                        </button>
+                                    </template>
+
+                                    <span class="tli-th-label">
+                                        {col.label}
+                                    </span>
+
+                                </div>
+
+                                <!-- Header Actions -->
+                                <div class="tli-th-actions">
+
+                                    <!-- Sort Button -->
                                     <button
-                                        class="tli-col-type-btn"
-                                        data-col-id={col.id}
-                                        onclick={handleColTypeToggle}
-                                        title={col.typeTitle}
-                                    >
-                                        <template if:true={col.isExpanded}>
-                                            <!-- 3 vertical bars = Expanded -->
-                                            <span class="tli-icon-expanded">&#x2551;&#x2551;&#x2551;</span>
-                                        </template>
-                                        <template if:false={col.isExpanded}>
-                                            <!-- 3 horizontal bars = Collapsed -->
-                                            <span class="tli-icon-collapsed">&#x2261;</span>
-                                        </template>
-                                    </button>
-
-                                    <!-- Column Label -->
-                                    <span class="tli-th-label">{col.label}</span>
-
-                                    <!-- Sort Button (ASC ↔ DESC) -->
-                                    <button
+                                        type="button"
                                         class="tli-col-action-btn"
                                         data-col-id={col.id}
-                                        onclick={handleColSortToggle}
-                                        title={col.sortTitle}
-                                    >
+                                        onclick={handleSort}
+                                        title={col.sortTitle}>
+
                                         {col.sortIcon}
+
                                     </button>
 
-                                    <!-- Filter Button (Dropdown) -->
+                                    <!-- Filter Button + Dropdown -->
                                     <div class="tli-col-filter-wrap">
+
                                         <button
+                                            type="button"
                                             class={col.filterBtnClass}
                                             data-col-id={col.id}
                                             onclick={handleColFilterToggle}
-                                            title="Filter Column"
-                                        >
+                                            title="Filter Column">
+
                                             &#x25BC;
+
                                         </button>
+
                                         <!-- Filter Dropdown Menu -->
                                         <template if:true={col.isFilterOpen}>
-                                            <div class="tli-filter-dropdown" onclick={handleDropdownClick}>
+
+                                            <div
+                                                class="tli-filter-dropdown"
+                                                onclick={handleDropdownClick}>
+
+                                                <!-- Filter Header -->
                                                 <div class="tli-filter-header">
-                                                    <span>Filter {col.label}</span>
-                                                    <button class="tli-filter-close" data-col-id={col.id} onclick={handleColFilterClose}>✕</button>
+
+                                                    <span>
+                                                        Filter {col.label}
+                                                    </span>
+
+                                                    <button
+                                                        type="button"
+                                                        class="tli-filter-close"
+                                                        data-col-id={col.id}
+                                                        onclick={handleColFilterClose}>
+
+                                                        ✕
+
+                                                    </button>
+
                                                 </div>
+
+                                                <!-- Filter Actions -->
                                                 <div class="tli-filter-actions">
-                                                    <button class="tli-filter-link" data-col-id={col.id} onclick={handleFilterSelectAll}>Select All</button>
-                                                    <span class="tli-filter-sep">|</span>
-                                                    <button class="tli-filter-link" data-col-id={col.id} onclick={handleFilterClearAll}>Clear All</button>
+
+                                                    <button
+                                                        type="button"
+                                                        class="tli-filter-link"
+                                                        data-col-id={col.id}
+                                                        onclick={handleFilterSelectAll}>
+
+                                                        Select All
+
+                                                    </button>
+
+                                                    <span class="tli-filter-sep">
+                                                        |
+                                                    </span>
+
+                                                    <button
+                                                        type="button"
+                                                        class="tli-filter-link"
+                                                        data-col-id={col.id}
+                                                        onclick={handleFilterClearAll}>
+
+                                                        Clear All
+
+                                                    </button>
+
                                                 </div>
+
+                                                <!-- Filter Options -->
                                                 <div class="tli-filter-list">
-                                                    <template for:each={col.filterOptions} for:item="opt">
-                                                        <label key={opt.value} class="tli-filter-item">
+
+                                                    <template
+                                                        for:each={col.filterOptions}
+                                                        for:item="opt">
+
+                                                        <label
+                                                            key={opt.value}
+                                                            class="tli-filter-item">
+
                                                             <input
-                                                                type="checkbox"
-                                                                data-col-id={col.id}
-                                                                value={opt.value}
-                                                                checked={opt.checked}
-                                                                onchange={handleFilterOptionChange}
+                                                            type="checkbox"
+                                                            data-col-id={col.id}
+                                                            value={opt.value}
+                                                            checked={opt.checked}
+                                                            onchange={handleFilterOptionChange}
                                                             />
-                                                            <span class="tli-filter-opt-label">{opt.label}</span>
+
+                                                            <span class="tli-filter-opt-label">
+                                                                {opt.label}
+                                                            </span>
+
                                                         </label>
+
                                                     </template>
+
                                                 </div>
+
                                             </div>
+
                                         </template>
+
                                     </div>
 
                                     <!-- Drag Handle -->
-                                    <span class="tli-drag-handle" title="Drag to reorder">&#8942;&#8942;</span>
-                                </div>
-                            </th>
-                        </template>
-                    </tr>
-                </thead>
+                                    <span
+                                        class="tli-drag-handle"
+                                        title="Drag to reorder columns"
+                                        draggable="true"
+                                        data-col-id={col.id}
+                                        ondragstart={handleColDragStart}
+                                        ondragend={handleColDragEnd}>
 
-                <tbody>
-                    <!--
-                        Flat row rendering with rowspan.
-                        Each row has a `cells` array with one entry per column.
-                        cell.rowspan === 0 → this cell is covered by a rowspan above → render nothing.
-                        row.hidden === true → row is "covered" by a collapsed merge → render nothing.
-                    -->
-                    <template for:each={tableRows} for:item="row">
-                        <template if:false={row.hidden}>
-                            <tr key={row.id} class="tli-tr">
+                                        &#8942;&#8942;
+
+                                    </span>
+
+                                </div>
+
+                            </div>
+
+                        </th>
+
+                    </template>
+
+                </tr>
+            </thead>
+
+            <tbody>
+
+                <template
+                    for:each={tableRows}
+                    for:item="row">
+
+                    <template if:false={row.hidden}>
+
+                        <tr
+                            key={row.id}
+                            class="tli-tr"
+                            data-selected={row.selected}>
+                            <template if:true={showSelectionColumn}>
                                 <!-- Checkbox -->
                                 <td class="tli-td tli-td-num">
                                     <input
                                         type="checkbox"
                                         class="tli-col-checkbox"
                                         checked={row.selected}
+                                        disabled={row.actioned}
                                         data-id={row.id}
                                         onchange={handleRowSelect}
                                     />
                                 </td>
-                                <!-- Row number -->
-                                <td class="tli-td tli-td-num">{row.rowNum}</td>
+                            </template>
+                            <!-- Timesheet column -->
+                             <template if:true={isTimesheetApprovalMode}>
+    <td class="tli-td">
+        <span class="tli-cell-text">
+            {row.timesheetName}
+        </span>
+    </td>
+</template>
 
-                                <!-- Data cells -->
-                                <template for:each={row.cells} for:item="cell">
-                                    <template if:true={cell.rowspan}>
-                                        <td
-                                            key={cell.id}
-                                            class="tli-td"
-                                            rowspan={cell.rowspan}
-                                            data-rowspan={cell.rowspan}
-                                        >
-                                            <template if:true={cell.isStatus}>
-                                                <span class={cell.statusClass}>{cell.value}</span>
-                                            </template>
+
+                            <!-- Data cells -->
+                            <template
+                                for:each={row.cells}
+                                for:item="cell">
+
+                                <template if:true={cell.rowspan}>
+
+                                    <td
+                                        key={cell.id}
+                                        class="tli-td"
+                                        rowspan={cell.rowspan}
+                                        data-rowspan={cell.rowspan}>
+
+                                        <!-- Grouped cell -->
+                                        <template if:true={cell.isGrouped}>
+                                            <div>
+                                                <template if:true={cell.showGroupCheckbox}>
+                                                    
+    <input
+        type="checkbox"
+        class="tli-col-checkbox"
+        checked={cell.groupCheckboxChecked}
+        disabled={cell.groupCheckboxDisabled}
+        data-group-key={cell.groupSelectionKey}
+        data-group-level={cell.groupSelectionLevel}
+        data-indeterminate={cell.groupCheckboxIndeterminate}
+        onchange={handleGroupSelect}
+        title="Select group"
+    />
+</template>
+                                                <span class="tli-cell-text">
+                                                    {cell.value}
+                                                </span>
+
+                                                <template if:true={cell.showGroupCheckbox}>
+                                                    <div>
+                                                        <span class="tli-cell-num">
+                                                            {cell.groupSelectedCount} of {cell.groupTotalCount} selected
+                                                        </span>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
+
+                                        <!-- Normal line-item cell -->
+                                        <template if:false={cell.isGrouped}>
+
+                                            <!-- Status -->
+                                            <!-- Status -->
+<template if:true={cell.isStatus}>
+
+    <template if:true={cell.statusItems}>
+        <template
+            for:each={cell.statusItems}
+            for:item="statusItem">
+
+            <span
+                key={statusItem.label}
+                class={statusItem.className}>
+                {statusItem.label}
+            </span>
+
+        </template>
+    </template>
+
+    <template if:false={cell.statusItems}>
+        <span class={cell.statusClass}>
+            {cell.value}
+        </span>
+    </template>
+
+</template>
+
                                             <template if:false={cell.isStatus}>
-                                                <template if:true={cell.isDuration}>
-                                                    <span class="tli-cell-num">{cell.value}</span>
-                                                </template>
-                                                <template if:false={cell.isDuration}>
-                                                    <span class="tli-cell-text">{cell.value}</span>
-                                                </template>
-                                            </template>
-                                        </td>
-                                    </template>
-                                </template>
-                            </tr>
-                        </template>
-                    </template>
-                </tbody>
-            </table>
 
-            <!-- Empty state -->
-            <template if:true={isTableEmpty}>
-                <div class="tli-empty-state">
-                    <lightning-icon icon-name="utility:info" size="small" class="slds-m-bottom_x-small"></lightning-icon>
-                    <p>No timesheets found matching the selected filters.</p>
-                </div>
-            </template>
-        </div>
+                                                <!-- Duration column -->
+                                                <template if:true={cell.isDuration}>
+                                                    <span class="tli-cell-num">
+                                                        {cell.value}
+                                                    </span>
+                                                </template>
+
+                                                <!-- Other columns -->
+                                                <template if:false={cell.isDuration}>
+                                                    <span class="tli-cell-text">
+                                                        {cell.value}
+                                                    </span>
+                                                </template>
+
+                                            </template>
+
+                                        </template>
+
+                                    </td>
+
+                                </template>
+
+                            </template>
+
+                        </tr>
+
+                    </template>
+
+                </template>
+
+            </tbody>
+
+        </table>
+
+    </template>
+    <!-- Empty state -->
+    <template if:true={isTableEmpty}>
+
+        <div class="tli-empty-state">
+
+            <lightning-icon
+            icon-name="utility:info"
+            size="small"
+            class="slds-m-bottom_x-small">
+        </lightning-icon>
+
+        <p>
+            No timesheets found matching the selected filters.
+        </p>
+
     </div>
 
-    <!-- Bulk Reject Modal -->
-    <template if:true={isBulkRejectModalOpen}>
-        <section role="dialog" tabindex="-1" aria-labelledby="bulk-reject-heading" aria-modal="true" class="slds-modal slds-fade-in-open">
-            <div class="slds-modal__container">
-                <header class="slds-modal__header">
-                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={closeBulkRejectModal}>
-                        <lightning-icon icon-name="utility:close" alternative-text="close" variant="inverse" size="small"></lightning-icon>
-                        <span class="slds-assistive-text">Close</span>
-                    </button>
-                    <h2 id="bulk-reject-heading" class="slds-modal__title slds-hyphenate">Bulk Reject Timesheets</h2>
-                </header>
-                <div class="slds-modal__content slds-p-around_medium">
-                    <p class="slds-m-bottom_small">You have selected <strong>{selectedTimesheetIds.length}</strong> timesheet(s) to reject.</p>
-                    <lightning-input
-                        type="text"
-                        label="Rejection Reason"
-                        placeholder="Provide a reason for bulk rejection..."
-                        value={bulkRejectionReason}
-                        onchange={handleBulkRejectionReasonChange}
-                        required
-                    ></lightning-input>
-                </div>
-                <footer class="slds-modal__footer">
-                    <lightning-button label="Cancel" variant="neutral" onclick={closeBulkRejectModal} class="slds-m-right_x-small"></lightning-button>
-                    <lightning-button label="Confirm Reject" variant="destructive" onclick={confirmBulkReject}></lightning-button>
-                </footer>
-            </div>
-        </section>
-        <div class="slds-backdrop slds-backdrop_open"></div>
-    </template>
+</template>
+
+</div>
+</div>
+
+<!-- Bulk Reject Modal -->
+<template if:true={isBulkRejectModalOpen}>
+
+    <section
+        role="dialog"
+        tabindex="-1"
+        aria-labelledby="bulk-reject-heading"
+        aria-modal="true"
+        class="slds-modal slds-fade-in-open">
+
+        <div class="slds-modal__container">
+
+            <header class="slds-modal__header">
+
+                <button
+                    class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                    title="Close"
+                    onclick={closeBulkRejectModal}>
+
+                    <lightning-icon
+                    icon-name="utility:close"
+                    alternative-text="close"
+                    variant="inverse"
+                    size="small">
+                </lightning-icon>
+
+                <span class="slds-assistive-text">
+                    Close
+                </span>
+
+            </button>
+
+            <h2
+                id="bulk-reject-heading"
+                class="slds-modal__title slds-hyphenate">
+
+                Bulk Reject Records
+
+            </h2>
+
+        </header>
+
+        <div class="slds-modal__content slds-p-around_medium">
+
+            <p class="slds-m-bottom_small">
+
+                You have selected
+                <strong>{selectedLineItemIds.length}</strong>
+                line item(s) and <strong>{selectedTimesheetIds.length}</strong>
+                timesheet(s) to reject.
+
+            </p>
+
+            <lightning-input
+            type="text"
+            label="Rejection Reason"
+            placeholder="Provide a reason for bulk rejection..."
+            value={bulkRejectionReason}
+            onchange={handleBulkRejectionReasonChange}
+            required>
+        </lightning-input>
+
+    </div>
+
+    <footer class="slds-modal__footer">
+
+        <lightning-button
+        label="Cancel"
+        variant="neutral"
+        onclick={closeBulkRejectModal}
+        class="slds-m-right_x-small">
+    </lightning-button>
+
+    <lightning-button
+    label="Confirm Reject"
+    variant="destructive"
+    onclick={confirmBulkReject}>
+</lightning-button>
+
+</footer>
+
+</div>
+
+</section>
+
+<div class="slds-backdrop slds-backdrop_open"></div>
+
+</template>
+
 </template>

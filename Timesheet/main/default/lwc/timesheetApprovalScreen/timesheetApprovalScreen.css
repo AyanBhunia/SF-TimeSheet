@@ -1,55 +1,220 @@
-/* ══════════════════════════════════════════════════════════
-   Manager Approval — Expanded/Collapsed Table Styles
-   ══════════════════════════════════════════════════════════ */
-
 .tli-container {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    color: #1e293b;
-    background-color: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 0.5rem;
-    box-shadow: 0 1px 3px 0 rgba(0,0,0,0.05), 0 1px 2px -1px rgba(0,0,0,0.05);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #172b4d;
+    background: #ffffff;
+    border: 1px solid #d8e2ee;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
 }
 
-/* ── Filter Toolbar ─────────────────────────── */
-.tli-toolbar {
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid #f1f5f9;
-    margin-bottom: 0.75rem;
+.tli-page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem 0.9rem;
+    border-bottom: 1px solid #e2e8f0;
+    background: #ffffff;
 }
 
-/* ── Status Badges ────────────────────────────── */
-.status-pill {
-    display: inline-block;
-    padding: 0.15rem 0.6rem;
-    border-radius: 9999px;
+.tli-page-title {
+    margin: 0;
+    color: #102a56;
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+.tli-page-subtitle {
+    margin: 0.2rem 0 0;
+    color: #64748b;
+    font-size: 0.8rem;
+}
+
+.tli-refresh-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.7rem;
+    border: 0;
+    border-radius: 0.35rem;
+    background: transparent;
+    color: #0969da;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.tli-refresh-btn:hover {
+    background: #eff6ff;
+}
+
+.tli-filter-toolbar {
+    display: grid;
+    grid-template-columns:
+    minmax(150px, 16%)
+    minmax(150px, 16%)
+    minmax(230px, 24%)
+    minmax(170px, 16%)
+    minmax(270px, 1fr);
+
+    gap: 12px;
+    align-items: end;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.85rem 0.25rem 0.75rem;
+    border-bottom: 1px solid #d7e6f8;
+    background: #ffffff;
+}
+
+.tli-filter-date,
+.tli-filter-status,
+.tli-filter-employee,
+.tli-filter-project,
+.tli-filter-custom {
+    width: 100%;
+    min-width: 0;
+}
+
+.tli-filter-label {
+    display: flex;
+    align-items: center;
+    min-height: 16px;
+    margin-bottom: 4px;
+    color: #102a56;
     font-size: 0.75rem;
     font-weight: 600;
-    line-height: 1.25;
-    text-align: center;
-}
-.status-approved {
-    background-color: #dcfce7;
-    color: #15803d;
-    border: 1px solid #bbf7d0;
-}
-.status-submitted {
-    background-color: #dbeafe;
-    color: #1d4ed8;
-    border: 1px solid #bfdbfe;
-}
-.status-partial {
-    background-color: #fef9c3;
-    color: #854d0e;
-    border: 1px solid #fde047;
-}
-.status-rejected {
-    background-color: #fee2e2;
-    color: #991b1b;
-    border: 1px solid #fca5a5;
+    line-height: 16px;
 }
 
-/* ── Large-Dataset Banner ─────────────────────── */
+.tli-icon-combobox {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+}
+
+.tli-inside-filter-icon {
+    position: absolute;
+    left: 9px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 20;
+    pointer-events: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    font-size: 13px;
+    line-height: 1;
+}
+
+.tli-icon-combobox lightning-combobox {
+    position: relative;
+    z-index: 1;
+    display: block;
+    width: 100%;
+    --slds-c-input-spacing-inline-start: 2rem;
+}
+
+.tli-filter-icon {
+    display: none;
+}
+
+.tli-action-col {
+    display: flex;
+    align-items: flex-end;
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+}
+
+.tli-action-buttons {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    white-space: nowrap;
+    flex-wrap: nowrap;
+}
+
+.tli-clear-filter-btn,
+.tli-reject-btn,
+.tli-approve-btn {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    min-height: 40px;
+    margin: 0;
+    padding: 0 12px;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+    flex: 0 0 auto;
+    gap: 6px;
+}
+
+.tli-clear-filter-btn {
+    width: 103px;
+    min-width: 103px;
+    background: #ffffff;
+    border: 1px solid #b9d5f5;
+    color: #0b63ce;
+    cursor: pointer;
+}
+
+.tli-clear-filter-btn:hover {
+    background: #edf5ff;
+    border-color: #0b63ce;
+}
+
+.tli-reject-btn {
+    width: 75px;
+    min-width: 75px;
+    background: #fff5f5 !important;
+    border: 1px solid #f4a7ad !important;
+    color: #d92d3a !important;
+    cursor: pointer;
+}
+
+.tli-reject-btn:not(:disabled):hover {
+    background: #dc2626 !important;
+    border-color: #dc2626 !important;
+    color: #ffffff !important;
+}
+
+.tli-approve-btn {
+    width: 84px;
+    min-width: 84px;
+    background: #f0faf5 !important;
+    border: 1px solid #98d7b3 !important;
+    color: #168653 !important;
+    cursor: pointer;
+}
+
+.tli-approve-btn:not(:disabled):hover {
+    background: #18a566 !important;
+    border-color: #18a566 !important;
+    color: #ffffff !important;
+}
+
+.tli-action-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+}
+
 .tli-sticky-banner {
     position: sticky;
     top: 0;
@@ -58,312 +223,517 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.5rem 1rem;
+    margin-bottom: 0.75rem;
     background: #fef3c7;
     border: 1px solid #f59e0b;
     border-radius: 0.375rem;
-    font-size: 0.8125rem;
     color: #92400e;
-    margin-bottom: 0.75rem;
+    font-size: 0.8125rem;
 }
 
-/* ── Table Wrap ───────────────────────────────── */
-.tli-table-wrap {
-    position: relative;
-    overflow-x: auto;
-    border: 1px solid #e2e8f0;
-    border-radius: 0.5rem;
-}
-
-/* ── Loading Overlay ──────────────────────────── */
 .tli-loading-overlay {
     position: absolute;
     inset: 0;
-    background: rgba(255,255,255,0.72);
     z-index: 10;
     display: flex;
     align-items: center;
     justify-content: center;
     min-height: 10rem;
+    background: rgba(255, 255, 255, 0.72);
     border-radius: 0.5rem;
 }
 
-/* ── Table Core ───────────────────────────────── */
-.tli-table {
-    width: 100%;
-    border-collapse: collapse;
-    table-layout: auto;
-    font-size: 0.8125rem;
+.tli-table-wrap {
+    position: relative;
+
+    overflow: visible;
+
+    border: 1px solid #cfe0f5;
+    border-radius: 7px;
+    background: #ffffff;
 }
 
-/* ── Table Headers ────────────────────────────── */
-.tli-thead-row {
-    background: #f8fafc;
-    border-bottom: 2px solid #e2e8f0;
+.tli-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: auto;
+    background: #ffffff;
+    font-size: 0.8rem;
 }
-.tli-th {
-    padding: 0.5rem 0.65rem;
-    border-right: 1px solid #e2e8f0;
-    white-space: nowrap;
-    user-select: none;
-    vertical-align: middle;
-    cursor: grab;
-    font-size: 0.72rem;
+
+.tli-table thead th {
+    background: #d9eaf7;
+    color: #16325c;
+    font-size: 0.8rem;
     font-weight: 700;
-    color: #334155;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
+    height: 40px;
+    padding: 8px 10px;
+    border-bottom: 2px solid #8fb8d8;
+    border-right: 1px solid #b8d0e3;
+    vertical-align: middle;
+
+    overflow: visible;
 }
-.tli-th:last-child { border-right: none; }
-.tli-th-num {
-    width: 2.5rem;
-    text-align: center;
-    cursor: default;
-    color: #64748b;
-}
+
 .tli-th-inner {
     display: flex;
     align-items: center;
-    gap: 0.3rem;
+    justify-content: space-between;
+    gap: 0.75rem;
+    min-height: 1.5rem;
+    width: 100%;
+    min-width: 0;
 }
+
 .tli-th-label {
-    flex: 1;
+    flex: 1 1 auto;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-.tli-drag-handle {
-    color: #94a3b8;
-    font-size: 0.7rem;
-    line-height: 1;
-    cursor: grab;
-    letter-spacing: -0.1em;
-}
-
-/* ── Expand / Collapse Column Type Button ─────── */
-.tli-col-type-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: none;
-    border: 1px solid #cbd5e1;
-    border-radius: 0.25rem;
-    cursor: pointer;
-    padding: 0.1rem 0.25rem;
-    line-height: 1;
-    transition: background 0.12s ease, border-color 0.12s ease;
-    flex-shrink: 0;
-}
-.tli-col-type-btn:hover {
-    background: #eff6ff;
-    border-color: #3b82f6;
-}
-/* Expanded column: vertical bars icon */
-.tli-icon-expanded {
-    font-size: 0.65rem;
-    letter-spacing: -0.05em;
-    color: #0284c7;
-    font-weight: 900;
-}
-/* Collapsed column: horizontal bars icon */
-.tli-icon-collapsed {
-    font-size: 0.85rem;
-    color: #64748b;
-    font-weight: 900;
-}
-
-/* ── Sort & Filter Column Action Buttons ──────── */
-.tli-col-action-btn,
-.tli-col-filter-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: none;
-    border: 1px solid #e2e8f0;
-    border-radius: 0.25rem;
-    cursor: pointer;
-    padding: 0.1rem 0.3rem;
-    font-size: 0.65rem;
-    color: #475569;
-    line-height: 1;
-    transition: all 0.15s ease;
-    flex-shrink: 0;
-}
-.tli-col-action-btn:hover,
-.tli-col-filter-btn:hover {
-    background: #f1f5f9;
-    border-color: #cbd5e1;
-    color: #0f172a;
-}
-.tli-filter-active {
-    background: #eff6ff !important;
-    border-color: #3b82f6 !important;
-    color: #1d4ed8 !important;
+    white-space: nowrap;
+    color: #16325c;
     font-weight: 700;
 }
-.tli-sort-active {
-    background: #f1f5f9 !important;
-    border-color: #64748b !important;
-    color: #0f172a !important;
+
+.tli-th-actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.3rem;
+    flex: 0 0 auto;
+    min-width: max-content;
+}
+
+.tli-drag-handle {
+    width: 1.35rem;
+    height: 1.35rem;
+    min-width: 1.35rem;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    margin: 0;
+    padding: 0;
+
+    border: 1px solid transparent;
+    border-radius: 4px;
+
+    color: #647b94;
+    background: transparent;
+
+    font-size: 0.9rem;
+    font-weight: 700;
+    line-height: 1;
+
+    cursor: grab;
+    user-select: none;
+
+    letter-spacing: -0.12em;
+}
+
+.tli-drag-handle:hover {
+    background: #eaf3ff;
+    border-color: #9bbde2;
+    color: #1468b3;
+}
+
+.tli-drag-handle:active {
+    cursor: grabbing;
+}
+
+.tli-column-dragging {
+    opacity: 0.55;
+}
+
+.tli-column-drag-over {
+    background: #c9e1f8 !important;
+    box-shadow:
+    inset 3px 0 0 #1976d2,
+    inset -3px 0 0 #1976d2 !important;
+}
+
+.tli-col-type-btn,
+.tli-col-action-btn,
+.tli-col-filter-btn {
+    width: 1.4rem;
+    height: 1.4rem;
+    min-width: 1.4rem;
+    padding: 0;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    box-sizing: border-box;
+    border: 1px solid #9fc3df;
+    border-radius: 4px;
+
+    background: #ffffff;
+    color: #1769aa;
+
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.tli-col-type-btn:hover,
+.tli-col-action-btn:hover,
+.tli-col-filter-btn:hover {
+    background: #eef7fd;
+    border-color: #5fa1d2;
+    color: #0b63ce;
+}
+
+.tli-icon-expanded {
+    color: #0879d1;
+    font-size: 0.65rem;
     font-weight: 900;
 }
+
+.tli-icon-collapsed {
+    color: #52708f;
+    font-size: 0.85rem;
+    font-weight: 900;
+}
+
 .tli-col-filter-wrap {
     position: relative;
     display: inline-flex;
     align-items: center;
 }
+
 .tli-filter-dropdown {
     position: absolute;
     top: calc(100% + 4px);
     right: 0;
-    z-index: 100;
-    background: #ffffff;
-    border: 1px solid #cbd5e1;
-    border-radius: 0.5rem;
-    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.15), 0 4px 6px -2px rgba(0,0,0,0.05);
-    padding: 0.65rem;
-    min-width: 13rem;
-    max-height: 18rem;
+    z-index: 9999;
+
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-    text-transform: none;
-    font-weight: 500;
-    font-size: 0.75rem;
+
+    min-width: 14rem;
+    max-height: 22rem;
+
+    padding: 0.65rem;
+    box-sizing: border-box;
+
+    background: #ffffff;
+    border: 1px solid #cbdceb;
+    border-radius: 0.5rem;
+
+    box-shadow:
+    0 8px 18px rgba(15, 23, 42, 0.12),
+    0 2px 5px rgba(15, 23, 42, 0.06);
+
     color: #1e293b;
-    cursor: default;
+    font-size: 0.75rem;
+    font-weight: 500;
 }
+
 .tli-filter-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-weight: 700;
-    font-size: 0.8rem;
-    color: #0f172a;
-    border-bottom: 1px solid #e2e8f0;
     padding-bottom: 0.4rem;
+    border-bottom: 1px solid #e1eaf4;
+    color: #17365f;
+    font-size: 0.8rem;
+    font-weight: 700;
 }
+
 .tli-filter-close {
-    background: transparent;
-    border: none;
-    font-size: 0.85rem;
-    color: #64748b;
-    cursor: pointer;
     padding: 0 0.2rem;
+    border: 0;
+    background: transparent;
+    color: #64748b;
+    font-size: 0.85rem;
+    cursor: pointer;
 }
+
 .tli-filter-close:hover {
     color: #ef4444;
 }
+
 .tli-filter-actions {
     display: flex;
     align-items: center;
     gap: 0.5rem;
     font-size: 0.7rem;
 }
+
 .tli-filter-link {
-    background: transparent;
-    border: none;
-    color: #2563eb;
-    cursor: pointer;
     padding: 0;
-    text-decoration: underline;
+    border: 0;
+    background: transparent;
+    color: #0969da;
     font-size: 0.7rem;
+    cursor: pointer;
+    text-decoration: underline;
 }
+
 .tli-filter-link:hover {
-    color: #1d4ed8;
+    color: #0758b5;
 }
+
 .tli-filter-sep {
     color: #cbd5e1;
 }
+
 .tli-filter-list {
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
-    max-height: 12rem;
+    max-height: 16rem;
     overflow-y: auto;
     padding-right: 0.25rem;
 }
+
 .tli-filter-item {
     display: flex;
     align-items: center;
     gap: 0.4rem;
-    cursor: pointer;
     color: #334155;
+    font-size: 0.75rem;
     white-space: normal;
     word-break: break-word;
     user-select: none;
-    font-size: 0.75rem;
-}
-.tli-filter-item input[type="checkbox"] {
     cursor: pointer;
-    accent-color: #2563eb;
+}
+
+.tli-filter-item input[type="checkbox"] {
     width: 0.85rem;
     height: 0.85rem;
+    accent-color: #2563eb;
+    cursor: pointer;
 }
+
 .tli-filter-opt-label {
     flex: 1;
 }
 
-/* ── Checkboxes ───────────────────────────────── */
-.tli-col-checkbox {
-    width: 0.9rem;
-    height: 0.9rem;
-    cursor: pointer;
-    accent-color: #0284c7;
+.tli-filter-active {
+    background: #eff6ff !important;
+    border-color: #3b82f6 !important;
+    color: #1d4ed8 !important;
+    font-weight: 700;
 }
 
-/* ── Table Body ───────────────────────────────── */
-.tli-tr {
-    border-bottom: 1px solid #f1f5f9;
+.tli-sort-active {
+    background: #f1f5f9 !important;
+    border-color: #64748b !important;
+    color: #0f172a !important;
+    font-weight: 900;
+}
+
+input.tli-col-checkbox {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    width: 15px !important;
+    height: 15px !important;
+    border: 2px solid #000000 !important;
+    border-radius: 2px !important;
+    background: #ffffff !important;
+    cursor: pointer;
+    position: relative;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+input.tli-col-checkbox:checked {
+    background: #0879d1 !important;
+    border: 2px solid #000000 !important;
+}
+
+input.tli-col-checkbox:checked::after {
+    content: '';
+    position: absolute;
+    left: 3px;
+    top: 0px;
+    width: 5px;
+    height: 8px;
+    border: solid #ffffff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+input.tli-col-checkbox[data-indeterminate="true"] {
+    background: #0879d1 !important;
+    border: 2px solid #000000 !important;
+}
+
+input.tli-col-checkbox[data-indeterminate="true"]::after {
+    content: '';
+    position: absolute;
+    left: 2px;
+    top: 4px;
+    width: 7px;
+    height: 0;
+    border: solid #ffffff;
+    border-width: 2px 0 0 0;
+}
+
+.tli-table tbody .tli-tr {
+    background: #ffffff !important;
+    background-image: none !important;
+    border-bottom: 1px solid #d8e5f3;
     transition: background-color 0.12s ease;
 }
-.tli-tr:hover { background-color: #f8fafc; }
 
-.tli-td {
-    padding: 0.5rem 0.65rem;
+.tli-table tbody .tli-tr > .tli-td {
+    background: #ffffff !important;
+    background-image: none !important;
+    color: #172b4d;
+}
+
+.tli-table tbody .tli-tr[data-selected="true"] {
+    background: #eaf3ff !important;
+}
+
+.tli-table tbody .tli-tr[data-selected="true"] > .tli-td {
+    background: #eaf3ff !important;
+}
+
+.tli-table tbody .tli-tr[data-selected="true"] > .tli-td:first-child {
+    box-shadow: inset 3px 0 0 #0879d1 !important;
+}
+
+.tli-table tbody .tli-tr:not([data-selected="true"]):hover > .tli-td {
+    background: #ffffff !important;
+}
+
+.tli-table tbody .tli-tr[data-selected="true"]:hover > .tli-td {
+    background: #eaf3ff !important;
+}
+
+.tli-table tbody .tli-td {
+    padding: 0.7rem 0.75rem;
     vertical-align: middle;
-    border-right: 1px solid #f1f5f9;
-    border-bottom: 1px solid #e8edf3;
-    color: #1e293b;
-    font-size: 0.8125rem;
-}
-.tli-td:last-child { border-right: none; }
 
-/* Merged (rowspan > 1) cells get a subtle left accent and background tint */
-.tli-td[data-rowspan="2"],
-.tli-td[data-rowspan="3"],
-.tli-td[data-rowspan="4"],
-.tli-td[data-rowspan="5"],
-.tli-td[data-rowspan="6"],
-.tli-td[data-rowspan="7"],
-.tli-td[data-rowspan="8"],
-.tli-td[data-rowspan="9"],
-.tli-td[data-rowspan="10"] {
-    background-color: #f0f7ff;
-    border-left: 2px solid #bfdbfe;
-    font-weight: 600;
-    color: #0f172a;
-    vertical-align: top;
+    border-right: 1px solid #d8e5f3 !important;
+    border-bottom: 1px solid #d8e5f3 !important;
+
+    color: #172b4d;
+    font-size: 0.8rem;
 }
 
-.tli-td-num {
-    text-align: center;
-    color: #64748b;
-    font-size: 0.75rem;
-    width: 2.5rem;
+.tli-table tbody .tli-td:last-child {
+    border-right: none !important;
 }
+
+.tli-employee-cell {
+    display: flex;
+    align-items: center;
+    min-height: 1.4rem;
+}
+
 .tli-cell-text {
+    color: #172b4d;
     font-weight: 500;
-    color: #1e293b;
 }
+
 .tli-cell-num {
+    color: #172b4d;
     font-weight: 600;
-    color: #0f172a;
     font-variant-numeric: tabular-nums;
 }
 
-/* ── Empty State ──────────────────────────────── */
+.tli-td-num {
+    width: 2.5rem;
+    color: #47627d;
+    font-size: 0.75rem;
+    text-align: center;
+}
+
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.status-new {
+    background: #fff4f4;
+    border: 1px solid #ffb5b5;
+    color: #d92d20;
+}
+
+.status-partial-approved {
+    background: #e3fcef;
+    border: 1px solid #7fd8aa;
+    color: #067647;
+}
+
+.status-approved {
+    background: #ecfdf3;
+    border: 1px solid #a7e8c3;
+    color: #168653;
+}
+
+.status-submitted {
+    background: #eff6ff;
+    border: 1px solid #b9d6fb;
+    color: #1d5fbf;
+}
+
+.status-partial {
+    background: #fff9e6;
+    border: 1px solid #f6d77a;
+    color: #946200;
+}
+
+.status-rejected {
+    background: #fff1f2;
+    border: 1px solid #f7b0b8;
+    color: #c92a3a;
+}
+
 .tli-empty-state {
     padding: 2.5rem 1rem;
-    text-align: center;
+    background: #ffffff;
     color: #64748b;
     font-size: 0.875rem;
+    text-align: center;
+}
+
+@media (max-width: 1100px) {
+
+    .tli-filter-toolbar {
+        grid-template-columns: repeat(2, minmax(180px, 1fr));
+    }
+
+    .tli-action-col {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 650px) {
+
+    .tli-page-header {
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .tli-filter-toolbar {
+        grid-template-columns: 1fr;
+    }
+
+    .tli-action-col {
+        grid-column: auto;
+    }
+
+    .tli-action-buttons {
+        width: auto;
+    }
+}
+.tli-th-label-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }

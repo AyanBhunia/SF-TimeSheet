@@ -4,7 +4,7 @@ global with sharing class TimesheetAccrualBatch implements Database.Batchable<sO
         return Database.getQueryLocator([
             SELECT Id, Status__c, Employee__c, Accrued_Hours__c 
             FROM Timesheet__c 
-            WHERE (Status__c = 'Approved' OR Status__c = 'Partial')
+            WHERE Status__c = 'Approved'
             AND Employee__c != NULL
             AND Employee__r.Accrual_Start_Date__c != NULL
             AND Employee__r.Accrual_Divisor__c != NULL
