@@ -14,7 +14,7 @@ Request: {!dbt__PTO_Request__c.Name}
 Dates: {!dbt__PTO_Request__c.dbt__Start_Date__c} to {!dbt__PTO_Request__c.dbt__End_Date__c}
 Days: {!dbt__PTO_Request__c.dbt__Day_Count__c}
 Total hours: {!dbt__PTO_Request__c.dbt__Total_Hours__c}
-Decision: {!dbt__PTO_Request__c.dbt__Decision_Notes__c}
+Notes: {!dbt__PTO_Request__c.dbt__Decision_Notes__c}
 
 View the request: {!dbt__PTO_Request__c.dbt__PTO_Tab_Link__c}&amp;c__section=past</textOnly>
     <type>custom</type>

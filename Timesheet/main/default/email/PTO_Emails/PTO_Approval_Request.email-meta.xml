@@ -14,7 +14,7 @@ Request: {!dbt__PTO_Request__c.Name}
 Dates: {!dbt__PTO_Request__c.dbt__Start_Date__c} to {!dbt__PTO_Request__c.dbt__End_Date__c}
 Days: {!dbt__PTO_Request__c.dbt__Day_Count__c}
 Total hours: {!dbt__PTO_Request__c.dbt__Total_Hours__c}
-Reason: {!dbt__PTO_Request__c.dbt__Notes__c}
+PTO Reason: {!dbt__PTO_Request__c.dbt__Notes__c}
 
 Approve or reject it in Salesforce: {!dbt__PTO_Request__c.dbt__PTO_Tab_Link__c}&amp;c__section=approve</textOnly>
     <type>custom</type>

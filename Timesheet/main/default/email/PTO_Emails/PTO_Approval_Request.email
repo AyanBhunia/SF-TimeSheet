@@ -12,7 +12,7 @@
 <tr><td style="padding:6px 0;color:#706e6b;">Dates</td><td style="padding:6px 0;">{!dbt__PTO_Request__c.dbt__Start_Date__c} to {!dbt__PTO_Request__c.dbt__End_Date__c}</td></tr>
 <tr><td style="padding:6px 0;color:#706e6b;">Days</td><td style="padding:6px 0;">{!dbt__PTO_Request__c.dbt__Day_Count__c}</td></tr>
 <tr><td style="padding:6px 0;color:#706e6b;">Total hours</td><td style="padding:6px 0;">{!dbt__PTO_Request__c.dbt__Total_Hours__c}</td></tr>
-<tr><td style="padding:6px 0;color:#706e6b;vertical-align:top;">Reason</td><td style="padding:6px 0;">{!dbt__PTO_Request__c.dbt__Notes__c}</td></tr>
+<tr><td style="padding:6px 0;color:#706e6b;vertical-align:top;">PTO Reason</td><td style="padding:6px 0;">{!dbt__PTO_Request__c.dbt__Notes__c}</td></tr>
 
 </table>
 </td></tr>
