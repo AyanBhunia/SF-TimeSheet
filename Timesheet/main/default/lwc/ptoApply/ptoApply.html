@@ -20,11 +20,11 @@
                         <lightning-input label="Type" value="Absence" readonly></lightning-input>
                     </div>
                     <div class="slds-col slds-size_1-of-2 slds-medium-size_1-of-3 slds-large-size_1-of-6 slds-m-bottom_small">
-                        <lightning-input type="date" label="Start date" value={startDate} date-style="medium"
+                        <lightning-input type="date" label="Start date" value={startDate} min={today} date-style="medium"
                             disabled={isEdit} onchange={handleStart}></lightning-input>
                     </div>
                     <div class="slds-col slds-size_1-of-2 slds-medium-size_1-of-3 slds-large-size_1-of-6 slds-m-bottom_small">
-                        <lightning-input type="date" label="End date" value={endDate} min={startDate} date-style="medium"
+                        <lightning-input type="date" label="End date" value={endDate} min={endMin} date-style="medium"
                             disabled={isEdit} onchange={handleEnd}></lightning-input>
                     </div>
                     <div class="slds-col slds-size_1-of-2 slds-medium-size_1-of-3 slds-large-size_1-of-6 slds-m-bottom_small">

@@ -11,6 +11,11 @@ const STATUS_BADGE = {
     'Approved, sync error': 'badge-rejected'
 };
 
+// lightning-input's date picker: it opens below the field when it fits under the field in the window, otherwise
+// above when it fits there, otherwise on the side with more room; a small gap from the field.
+const PICKER_HEIGHT = 346;
+const PICKER_GAP = 2;
+
 export default class PtoTable extends LightningElement {
     @api columns = [];
     @api rows = [];
@@ -144,6 +149,7 @@ export default class PtoTable extends LightningElement {
                     isPicklist: type === 'picklist',
                     isStatus: type === 'status',
                     options: col.options || [],
+                    min: col.min,
                     selectOptions: [{ label: '--Pick--', value: '', selected: value === '' }].concat(
                         (col.options || []).map(o => ({ label: o.label, value: o.value, selected: o.value === value }))
                     ),
@@ -218,6 +224,44 @@ export default class PtoTable extends LightningElement {
         this.dispatchEvent(new CustomEvent('rowselect', {
             detail: { rowKey: event.currentTarget.dataset.rowKey }
         }));
+    }
+
+    // The date box's height before focus adds the format hint under it; the picker is placed against the box.
+    handleDatePointerDown(event) {
+        this.dateBoxHeight = event.currentTarget.getBoundingClientRect().height;
+    }
+
+    /**
+     * A row's date picker opens on click, below or above the field (see PICKER_HEIGHT). In a short window neither
+     * side may have room and part of the picker is off screen. Once it's open, scroll just enough to show all of it;
+     * the picker stays attached to its field. (Scrolling before the click lands would move the field away from the
+     * pointer and the picker wouldn't open.)
+     */
+    handleDateClick(event) {
+        const field = event.currentTarget;
+        const boxHeight = this.dateBoxHeight || 32;
+        // eslint-disable-next-line @lwc/lwc/no-async-operation
+        requestAnimationFrame(() => {
+            const anchor = this.template.querySelector('.picker-anchor');
+            const wrapper = this.template.querySelector('.table-wrapper');
+            // Narrow screens scroll the table sideways and clip the picker either way (see ptoTable.css).
+            if (!anchor || !wrapper || !window.matchMedia('(min-width: 48em)').matches) {
+                return;
+            }
+            const boxTop = field.getBoundingClientRect().top;
+            const boxBottom = boxTop + boxHeight;
+            const roomBelow = window.innerHeight - boxBottom;
+            const roomAbove = boxTop;
+            const opensBelow = roomBelow >= PICKER_HEIGHT || (roomAbove < PICKER_HEIGHT && roomBelow >= roomAbove);
+            const top = opensBelow ? boxTop : boxTop - PICKER_GAP - PICKER_HEIGHT;
+            const bottom = opensBelow ? boxBottom + PICKER_GAP + PICKER_HEIGHT : boxBottom;
+            if (top >= 0 && bottom <= window.innerHeight) {
+                return;
+            }
+            anchor.style.top = `${top - wrapper.getBoundingClientRect().top}px`;
+            anchor.style.height = `${bottom - top}px`;
+            anchor.scrollIntoView({ block: 'nearest' });
+        });
     }
 
     handleRowAction(event) {

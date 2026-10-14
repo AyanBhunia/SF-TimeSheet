@@ -11,10 +11,26 @@
         z-index: 1;
     }
 
+    /* A date picker that opens upward from a row near the top of the window reaches under the Salesforce header
+       (z-index 100). While focus is in the table, which it is while a picker is open, lift the table above the
+       header so the whole picker shows. Only then, so the header's own menus still cover the table. */
+    .table-wrapper:focus-within {
+        z-index: 101;
+    }
+
     .table-wrapper table,
     .table-wrapper td {
         overflow: visible;
     }
+}
+
+/* Invisible box over an open date picker and its field, scrolled into view by handleDateClick. */
+.picker-anchor {
+    position: absolute;
+    left: 0;
+    width: 1px;
+    visibility: hidden;
+    pointer-events: none;
 }
 
 .row-locked {

@@ -60,9 +60,12 @@
                                                 label={cell.label}
                                                 variant="label-hidden"
                                                 value={cell.value}
+                                                min={cell.min}
                                                 disabled={cell.disabled}
                                                 data-row-key={cell.rowKey}
                                                 data-field={cell.fieldName}
+                                                onpointerdown={handleDatePointerDown}
+                                                onclick={handleDateClick}
                                                 onchange={handleCellChange}>
                                             </lightning-input>
                                         </template>
@@ -130,5 +133,7 @@
                 </template>
             </tbody>
         </table>
+        <!-- Marks where an open date picker sits, to scroll it into view; see handleDateClick. -->
+        <div class="picker-anchor" aria-hidden="true"></div>
     </div>
 </template>

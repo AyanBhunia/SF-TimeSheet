@@ -369,6 +369,7 @@ private class PtoControllerTest {
         PTO_Request__c request = [SELECT Status__c, Decision_Notes__c FROM PTO_Request__c WHERE Id = :requestId];
         Assert.areEqual(LeaveValidator.STATUS_REJECTED, request.Status__c, 'Status is Rejected');
         Assert.isTrue(request.Decision_Notes__c.contains('Busy week'), 'Reason is recorded');
+        Assert.areEqual(1, request.Decision_Notes__c.countMatches('Rejected by'), 'Decision is recorded once: ' + request.Decision_Notes__c);
         Assert.areEqual(0, [SELECT COUNT() FROM Leave_Line_Item__c WHERE Unique_Key__c != null], 'Rejected days are released');
 
         // The same day can be requested again once the first request is rejected

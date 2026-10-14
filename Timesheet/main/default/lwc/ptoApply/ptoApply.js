@@ -115,9 +115,19 @@ export default class PtoApply extends LightningElement {
         return !this.employeeId;
     }
 
+    // Leave can't start in the past. Today comes from the server (the user's Salesforce time zone, the same day the
+    // date picker marks as today); the browser's own date only if the context hasn't loaded.
+    get today() {
+        return this._context?.today || formatYmd(new Date());
+    }
+
+    get endMin() {
+        return this.startDate && this.startDate > this.today ? this.startDate : this.today;
+    }
+
     get columns() {
         return [
-            { fieldName: 'date', label: 'Date', type: 'date', editable: true, width: '10rem' },
+            { fieldName: 'date', label: 'Date', type: 'date', editable: true, width: '10rem', min: this.today },
             { fieldName: 'day', label: 'Day', type: 'text', width: '4rem' },
             {
                 fieldName: 'category',
@@ -220,6 +230,8 @@ export default class PtoApply extends LightningElement {
             if (!error) {
                 if (!r.date) {
                     error = this.showMissing && !blank ? 'Pick a date.' : '';
+                } else if (r.date < this.today) {
+                    error = `${r.date} is in the past. Pick today or a later date.`;
                 } else if (!r.category) {
                     error = 'Pick an absence category.';
                 } else if (r.hours === '' || r.hours === null || r.hours === undefined || !(hours > 0)) {
@@ -531,6 +543,10 @@ export default class PtoApply extends LightningElement {
             this.loadRecords();
             return;
         }
+        if (this.startDate < this.today) {
+            this.rangeError = 'Pick a start date of today or later.';
+            return;
+        }
         if (this.endDate < this.startDate) {
             this.rangeError = 'Pick an end date on or after the start date.';
             return;
@@ -626,6 +642,11 @@ function parseDate(value) {
 function addDays(value, n) {
     const date = parseDate(value);
     date.setDate(date.getDate() + n);
+    return formatYmd(date);
+}
+
+// Local yyyy-mm-dd; never toISOString, which shifts the day through UTC.
+function formatYmd(date) {
     const mm = String(date.getMonth() + 1).padStart(2, '0');
     const dd = String(date.getDate()).padStart(2, '0');
     return `${date.getFullYear()}-${mm}-${dd}`;

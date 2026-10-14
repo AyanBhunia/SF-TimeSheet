@@ -15,6 +15,9 @@ public without sharing class PtoRequestService {
     // is stamped in that same save, so the approval process's email alerts already show it.
     private static Map<Id, String> tabComments = new Map<Id, String>();
 
+    // Requests whose decision was written before Approval.process closed the step; stampDecision leaves them alone.
+    private static Set<Id> preStamped = new Set<Id>();
+
     public class PtoException extends Exception {}
 
     public class SubmitResult {
@@ -76,7 +79,16 @@ public without sharing class PtoRequestService {
         }
     }
 
-    private static void stampDecision(List<PTO_Request__c> records) {
+    private static void stampDecision(List<PTO_Request__c> stampable) {
+        List<PTO_Request__c> records = new List<PTO_Request__c>();
+        for (PTO_Request__c r : stampable) {
+            if (!preStamped.contains(r.Id)) {
+                records.add(r);
+            }
+        }
+        if (records.isEmpty()) {
+            return;
+        }
         Set<Id> ids = new Set<Id>();
         for (PTO_Request__c r : records) {
             if (!tabComments.containsKey(r.Id)) {
@@ -95,11 +107,8 @@ public without sharing class PtoRequestService {
                 commentById.put(target, s.Comments);
             }
         }
-        String today = String.valueOf(Date.today());
         for (PTO_Request__c r : records) {
-            String comment = commentById.get(r.Id);
-            String line = (r.Status__c == LeaveValidator.STATUS_APPROVED ? 'Approved by ' : 'Rejected by ') + UserInfo.getName()
-                + ' on ' + today + (String.isBlank(comment) ? '' : ': ' + comment.trim());
+            String line = decisionLine(r.Status__c == LeaveValidator.STATUS_APPROVED, commentById.get(r.Id));
             r.Decided_By__c = UserInfo.getUserId();
             r.Decided_On__c = System.now();
             r.Decision_Notes__c = appendNote(r.Decision_Notes__c, line);
@@ -329,22 +338,24 @@ public without sharing class PtoRequestService {
             return result;
         }
         Map<Id, PTO_Request__c> byId = new Map<Id, PTO_Request__c>(requests);
-        Set<Id> closedByProcess = closeWorkitems(byId, approve, reason, result);
+        Set<Id> stampedIds = new Set<Id>();
+        Set<Id> closedByProcess = closeWorkitems(byId, approve, reason, result, stampedIds);
         deciding = true;
         try {
-            return writeDecisions(byId, closedByProcess, approve, reason, result);
+            return writeDecisions(byId, closedByProcess, stampedIds, approve, reason, result);
         } finally {
             deciding = false;
         }
     }
 
     /**
-     * @description Approves or rejects the open Approval Process step of each request that has one. The process's
-     *              field update sets the status and the request trigger stamps the decision, both before the
-     *              process's email alerts go out. Returns the requests whose step closed; failures are removed
-     *              from byId and reported.
+     * @description Approves or rejects the open Approval Process step of each request that has one. The decision
+     *              is written first (preStampDecisions), then the process's field update sets the status, so the
+     *              process's email alerts show the decision. Returns the requests whose step closed; failures are removed
+     *              from byId and reported. stampedIds gets the requests whose decision is already written.
      */
-    private static Set<Id> closeWorkitems(Map<Id, PTO_Request__c> byId, Boolean approve, String reason, DecisionResult result) {
+    private static Set<Id> closeWorkitems(Map<Id, PTO_Request__c> byId, Boolean approve, String reason, DecisionResult result,
+            Set<Id> stampedIds) {
         Map<Id, Id> workitemByRecord = openWorkitems(byId.keySet());
         List<Approval.ProcessWorkitemRequest> processRequests = new List<Approval.ProcessWorkitemRequest>();
         List<Id> processRecordIds = new List<Id>();
@@ -361,31 +372,79 @@ public without sharing class PtoRequestService {
         if (processRequests.isEmpty()) {
             return closed;
         }
+        Map<Id, PTO_Request__c> beforeStamp = preStampDecisions(processRecordIds, approve, reason);
         List<Approval.ProcessResult> results;
         try {
             results = Approval.process(processRequests, false);
         } finally {
             tabComments.clear();
+            preStamped.clear();
         }
+        List<PTO_Request__c> restore = new List<PTO_Request__c>();
         for (Integer i = 0; i < results.size(); i++) {
             if (results[i].isSuccess()) {
                 closed.add(processRecordIds[i]);
             } else {
                 result.errors.add(byId.get(processRecordIds[i]).Name + ': ' + results[i].getErrors()[0].getMessage());
                 byId.remove(processRecordIds[i]);
+                if (beforeStamp.containsKey(processRecordIds[i])) {
+                    restore.add(beforeStamp.get(processRecordIds[i]));
+                }
             }
         }
+        if (!restore.isEmpty()) {
+            Database.update(restore, false);
+        }
+        stampedIds.addAll(beforeStamp.keySet());
+        stampedIds.retainAll(closed);
         return closed;
     }
 
-    private static DecisionResult writeDecisions(Map<Id, PTO_Request__c> byId, Set<Id> closedByProcess, Boolean approve,
-            String reason, DecisionResult result) {
+    /**
+     * @description Writes who decided, when and the comment onto each request before its Approval Process step
+     *              closes. The process's email alerts read the record as it is when the step closes, so the
+     *              decision has to be there already. Returns each stamped request's previous values, to put back if
+     *              the step then fails. A request that can't be stamped (locked for this user) is stamped by the
+     *              trigger instead, as before.
+     */
+    private static Map<Id, PTO_Request__c> preStampDecisions(List<Id> recordIds, Boolean approve, String reason) {
+        Map<Id, PTO_Request__c> previous = new Map<Id, PTO_Request__c>();
+        List<PTO_Request__c> stamps = new List<PTO_Request__c>();
+        String line = decisionLine(approve, reason);
+        for (PTO_Request__c r : [
+            SELECT Id, Decided_By__c, Decided_On__c, Decision_Notes__c FROM PTO_Request__c WHERE Id IN :recordIds
+        ]) {
+            previous.put(r.Id, r);
+            stamps.add(new PTO_Request__c(
+                Id = r.Id,
+                Decided_By__c = UserInfo.getUserId(),
+                Decided_On__c = System.now(),
+                Decision_Notes__c = appendNote(r.Decision_Notes__c, line)
+            ));
+        }
+        List<Database.SaveResult> saved = Database.update(stamps, false);
+        Map<Id, PTO_Request__c> stamped = new Map<Id, PTO_Request__c>();
+        for (Integer i = 0; i < saved.size(); i++) {
+            if (saved[i].isSuccess()) {
+                preStamped.add(stamps[i].Id);
+                stamped.put(stamps[i].Id, previous.get(stamps[i].Id));
+            }
+        }
+        return stamped;
+    }
+
+    private static String decisionLine(Boolean approve, String comment) {
+        return (approve ? 'Approved by ' : 'Rejected by ') + UserInfo.getName() + ' on ' + String.valueOf(Date.today())
+            + (String.isBlank(comment) ? '' : ': ' + comment.trim());
+    }
+
+    private static DecisionResult writeDecisions(Map<Id, PTO_Request__c> byId, Set<Id> closedByProcess, Set<Id> stampedIds,
+            Boolean approve, String reason, DecisionResult result) {
         // Re-read after the Approval Process step: its field update has usually set the status already (and the
         // trigger has stamped the decision and written the days to the timesheet). Only requests still Submitted,
         // or with no Approval Process step, are updated here.
         String target = approve ? LeaveValidator.STATUS_APPROVED : LeaveValidator.STATUS_REJECTED;
-        String line = (approve ? 'Approved by ' : 'Rejected by ') + UserInfo.getName() + ' on ' + String.valueOf(Date.today())
-            + (approve ? '' : ': ' + reason);
+        String line = decisionLine(approve, reason);
         List<PTO_Request__c> updates = new List<PTO_Request__c>();
         for (PTO_Request__c r : [SELECT Id, Name, Status__c, Decision_Notes__c FROM PTO_Request__c WHERE Id IN :byId.keySet()]) {
             if (r.Status__c != LeaveValidator.STATUS_SUBMITTED && r.Status__c != target) {
@@ -397,13 +456,14 @@ public without sharing class PtoRequestService {
                 result.processed++;
                 continue;
             }
-            PTO_Request__c u = new PTO_Request__c(
-                Id = r.Id,
-                Status__c = target,
-                Decided_By__c = UserInfo.getUserId(),
-                Decided_On__c = System.now(),
-                Decision_Notes__c = appendNote(r.Decision_Notes__c, line)
-            );
+            // A step that closed without setting the status (another step follows, say) already has the decision
+            // written by preStampDecisions; only the status is left to set.
+            PTO_Request__c u = new PTO_Request__c(Id = r.Id, Status__c = target);
+            if (!stampedIds.contains(r.Id)) {
+                u.Decided_By__c = UserInfo.getUserId();
+                u.Decided_On__c = System.now();
+                u.Decision_Notes__c = appendNote(r.Decision_Notes__c, line);
+            }
             updates.add(u);
         }
         List<Database.SaveResult> saved = Database.update(updates, false);
