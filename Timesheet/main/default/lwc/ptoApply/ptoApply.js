@@ -7,6 +7,15 @@ const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MAX_RANGE_DAYS = 62;
 const ACTIVE = ['Submitted', 'Approved'];
 
+// lightning-input's date picker: it opens below the field when it fits under the field in the window, otherwise
+// above when it fits there, otherwise on the side with more room; a small gap from the field. Where it opens is
+// decided once, on the click, and it stays on that side while the page scrolls.
+const PICKER_HEIGHT = 348;
+const PICKER_GAP = 3;
+const DATE_BOX_HEIGHT = 32;
+// The app's utility bar is fixed across the bottom of the window and covers what is under it.
+const UTILITY_BAR_HEIGHT = 40;
+
 let rowSeq = 0;
 const newKey = () => `n${++rowSeq}`;
 
@@ -28,6 +37,10 @@ export default class PtoApply extends LightningElement {
     step = 'setup';
     isLoading = false;
     isSubmitting = false;
+    // While a Start/End date picker that opened upward is open: lift the fields over the Salesforce header, and the
+    // space added above them when the picker would start above the window; see handleDateClick.
+    pickerLifted = false;
+    pickerShift = 0;
     rangeError;
     loadSeq = 0;
 
@@ -350,7 +363,68 @@ export default class PtoApply extends LightningElement {
         return 'Submit request';
     }
 
+    get setupClass() {
+        return this.pickerLifted ? 'pto-setup pto-setup_lifted' : 'pto-setup';
+    }
+
+    get setupStyle() {
+        return this.pickerShift ? `padding-top: ${this.pickerShift}px` : '';
+    }
+
     // ------------------------------------------------------------------ handlers
+
+    // The date box's bottom before focus adds the format hint under it; the picker is placed against the box.
+    handleDatePointerDown(event) {
+        this.dateBoxBottom = event.currentTarget.getBoundingClientRect().bottom;
+    }
+
+    /**
+     * Start/End date pickers open on click, below or above the field (see PICKER_HEIGHT). In a short window, such as
+     * a laptop zoomed to 150%, neither side has room and part of the picker is cut off. Once it's open, make room:
+     * - opened below: scroll the page just enough to show all of it above the utility bar;
+     * - opened above: the page is already at its top, so push the fields down by what is missing and lift them over
+     *   the Salesforce header while the picker is open.
+     * The picker stays attached to its field either way. (Scrolling before the click lands would move the field away
+     * from the pointer and the picker wouldn't open.)
+     */
+    handleDateClick(event) {
+        const boxBottom = this.dateBoxBottom || event.currentTarget.getBoundingClientRect().bottom;
+        this.dateBoxBottom = undefined;
+        // eslint-disable-next-line @lwc/lwc/no-async-operation
+        requestAnimationFrame(() => {
+            const boxTop = boxBottom - DATE_BOX_HEIGHT;
+            const roomBelow = window.innerHeight - boxBottom;
+            const roomAbove = boxTop;
+            const opensBelow = roomBelow >= PICKER_HEIGHT || (roomAbove < PICKER_HEIGHT && roomBelow >= roomAbove);
+            if (!opensBelow) {
+                const top = boxTop - PICKER_GAP - PICKER_HEIGHT;
+                this.pickerLifted = true;
+                this.pickerShift = top < 0 ? Math.ceil(-top) : 0;
+                return;
+            }
+            const bottom = boxBottom + PICKER_GAP + PICKER_HEIGHT + UTILITY_BAR_HEIGHT;
+            const anchor = this.template.querySelector('.picker-anchor');
+            const root = this.template.querySelector('.pto-apply');
+            if (bottom <= window.innerHeight || !anchor || !root) {
+                return;
+            }
+            anchor.style.top = `${boxTop - root.getBoundingClientRect().top}px`;
+            anchor.style.height = `${bottom - boxTop}px`;
+            anchor.scrollIntoView({ block: 'nearest' });
+        });
+    }
+
+    // Focus leaving the date field (not moving into its own picker) closes the picker; drop the room made for it.
+    handleDateFocusOut(event) {
+        if (event.relatedTarget !== event.currentTarget) {
+            this.resetPicker();
+        }
+    }
+
+    resetPicker() {
+        this.pickerLifted = false;
+        this.pickerShift = 0;
+    }
 
     handleEmployee(event) {
         this.employeeId = event.detail.value;
@@ -359,6 +433,7 @@ export default class PtoApply extends LightningElement {
     }
 
     handleStart(event) {
+        this.resetPicker();
         this.startDate = event.target.value || '';
         if (this.startDate && (!this.endDate || this.endDate < this.startDate)) {
             this.endDate = this.startDate;
@@ -367,6 +442,7 @@ export default class PtoApply extends LightningElement {
     }
 
     handleEnd(event) {
+        this.resetPicker();
         this.endDate = event.target.value || '';
         this.fillFromRange();
     }

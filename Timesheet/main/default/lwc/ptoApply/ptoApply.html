@@ -1,11 +1,13 @@
 <template>
     <div class="pto-apply">
+        <!-- Marks where an open Start/End date picker sits, to scroll it into view; see handleDateClick. -->
+        <div class="picker-anchor" aria-hidden="true"></div>
         <template lwc:if={isLoading}>
             <lightning-spinner alternative-text="Loading" size="small"></lightning-spinner>
         </template>
 
         <template lwc:if={isSetupOrEdit}>
-            <div class="pto-setup">
+            <div class={setupClass} style={setupStyle}>
                 <div class="slds-grid slds-wrap slds-gutters_small">
                     <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3 slds-large-size_1-of-6 slds-m-bottom_small">
                         <template lwc:if={canPickEmployee}>
@@ -21,11 +23,13 @@
                     </div>
                     <div class="slds-col slds-size_1-of-2 slds-medium-size_1-of-3 slds-large-size_1-of-6 slds-m-bottom_small">
                         <lightning-input type="date" label="Start date" value={startDate} min={today} date-style="medium"
-                            disabled={isEdit} onchange={handleStart}></lightning-input>
+                            disabled={isEdit} onpointerdown={handleDatePointerDown} onclick={handleDateClick}
+                            onfocusout={handleDateFocusOut} onchange={handleStart}></lightning-input>
                     </div>
                     <div class="slds-col slds-size_1-of-2 slds-medium-size_1-of-3 slds-large-size_1-of-6 slds-m-bottom_small">
                         <lightning-input type="date" label="End date" value={endDate} min={endMin} date-style="medium"
-                            disabled={isEdit} onchange={handleEnd}></lightning-input>
+                            disabled={isEdit} onpointerdown={handleDatePointerDown} onclick={handleDateClick}
+                            onfocusout={handleDateFocusOut} onchange={handleEnd}></lightning-input>
                     </div>
                     <div class="slds-col slds-size_1-of-2 slds-medium-size_1-of-3 slds-large-size_1-of-6 slds-m-bottom_small">
                         <lightning-combobox label="Absence category" value={category} options={categoryOptions}

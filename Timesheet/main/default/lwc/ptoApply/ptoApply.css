@@ -8,6 +8,22 @@
     isolation: isolate;
 }
 
+/* A Start/End date picker that opened upward reaches under the Salesforce header (z-index 100); lift the fields
+   above it while that picker is open (see handleDateClick). Only then, so the header's own menus still cover them. */
+.pto-setup_lifted {
+    position: relative;
+    z-index: 101;
+}
+
+/* Invisible box over an open Start/End date picker and its field, scrolled into view by handleDateClick. */
+.picker-anchor {
+    position: absolute;
+    left: 0;
+    width: 1px;
+    visibility: hidden;
+    pointer-events: none;
+}
+
 .pto-tile__label {
     font-size: 0.75rem;
     text-transform: uppercase;
