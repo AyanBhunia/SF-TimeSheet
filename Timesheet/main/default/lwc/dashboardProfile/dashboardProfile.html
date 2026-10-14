@@ -1,8 +1,8 @@
 <template>
     <div class="slds-m-around_x-small">
-        <div class="slds-grid slds-gutters">
+        <div class="slds-grid slds-gutters profile-grid">
             <template if:true={column1Data}>
-                <div class="slds-col">
+                <div class="slds-col profile-col">
                     <template for:each={column1Data} for:item="field">
                         <div key={field.label} class="field-row">
                             <span class="field-label">
@@ -23,7 +23,7 @@
             </template>
 
             <template if:true={column2Data}>
-                <div class="slds-col">
+                <div class="slds-col profile-col">
                     <template for:each={column2Data} for:item="field">
                         <div key={field.label} class="field-row">
                             <span class="field-label">
@@ -44,7 +44,7 @@
             </template>
 
             <template if:true={column3Data}>
-                <div class="slds-col">
+                <div class="slds-col profile-col">
                     <template for:each={column3Data} for:item="field">
                         <div key={field.label} class="field-row">
                             <span class="field-label">
