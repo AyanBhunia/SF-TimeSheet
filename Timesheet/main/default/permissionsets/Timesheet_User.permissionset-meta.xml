@@ -349,6 +349,11 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
+        <field>Timesheet_Line_Item__c.Next_Notify_At__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
         <field>Timesheet_Line_Item__c.Employee__c</field>
         <readable>true</readable>
     </fieldPermissions>

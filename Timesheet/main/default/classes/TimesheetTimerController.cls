@@ -20,26 +20,27 @@ public with sharing class TimesheetTimerController {
         public Decimal limitHours;   // row total at which the current run stops by itself
         public Decimal limitBase;    // row hours when this run started or continued
         public Boolean autoStopped;  // the pause was caused by reaching limitHours
-        public Boolean warning30Sent;
-        public String jobId;         // active CronTrigger Id
         public Integer stageSent;    // highest notification stage sent (1 to 4)
-        public transient String schedulingError; // in-memory only status
 
         public Boolean isStageSent(Integer stage) {
-            if (stage == 1) return (stageSent != null && stageSent >= 1) || warning30Sent == true;
-            if (stage == 2) return stageSent != null && stageSent >= 2;
-            if (stage == 3) return stageSent != null && stageSent >= 3;
-            if (stage == 4) return stageSent != null && stageSent >= 4;
-            return false;
+            return stageSent != null && stageSent >= stage;
         }
 
         public void markStageSent(Integer stage) {
             if (stageSent == null || stage > stageSent) {
                 stageSent = stage;
             }
-            if (stage == 1) {
-                warning30Sent = true;
-            }
+        }
+    }
+
+    // The next notification of a running timer. Stage 1 warns an hour before the workday
+    // hours and 2 is the stop there; 3 and 4 do the same for the daily maximum.
+    public class Notification {
+        public Integer stage;
+        public Long dueMs;
+        Notification(Integer stage, Long dueMs) {
+            this.stage = stage;
+            this.dueMs = dueMs;
         }
     }
 
@@ -117,7 +118,8 @@ public with sharing class TimesheetTimerController {
             Timesheet_Line_Item__c item;
             if (!existing.isEmpty()) {
                 state.newItem = false;
-                item = new Timesheet_Line_Item__c(Id = existing[0].Id, Timer_Data__c = JSON.serialize(state));
+                item = new Timesheet_Line_Item__c(Id = existing[0].Id);
+                setState(item, state);
                 update Security.stripInaccessible(AccessType.UPDATABLE, new List<Timesheet_Line_Item__c>{ item }).getRecords();
             } else {
                 state.newItem = true;
@@ -128,19 +130,12 @@ public with sharing class TimesheetTimerController {
                     Activity__c = activity,
                     Type__c = 'Attendance',
                     Date__c = today,
-                    Duration__c = 0, // field default is 8
-                    Timer_Data__c = JSON.serialize(state)
+                    Duration__c = 0 // field default is 8
                 );
+                setState(item, state);
                 List<SObject> inserted = Security.stripInaccessible(AccessType.CREATABLE, new List<Timesheet_Line_Item__c>{ item }).getRecords();
                 insert inserted;
                 item.Id = inserted[0].Id;
-            }
-
-            TimesheetTimerNotificationService.scheduleNextStage(item.Id, state);
-            if (state.jobId != null) {
-                update Security.stripInaccessible(AccessType.UPDATABLE, new List<Timesheet_Line_Item__c>{
-                    new Timesheet_Line_Item__c(Id = item.Id, Timer_Data__c = JSON.serialize(state))
-                }).getRecords();
             }
 
             return toTimerMap(ownedTimer(item.Id));
@@ -156,12 +151,10 @@ public with sharing class TimesheetTimerController {
     @AuraEnabled
     public static Map<String, Object> pauseTimer(Id lineItemId) {
         try {
-            Timesheet_Line_Item__c item = ownedTimer(lineItemId);
+            Timesheet_Line_Item__c item = lockedTimer(lineItemId);
             TimerState state = applyLimit(item, stateOf(item));
             if (state.pauseStartMs == null) {
                 state.pauseStartMs = Datetime.now().getTime();
-                TimesheetTimerNotificationService.cancelNotificationJob(state.jobId);
-                state.jobId = null;
                 saveState(item.Id, state);
             }
             return toTimerMap(ownedTimer(item.Id));
@@ -173,7 +166,7 @@ public with sharing class TimesheetTimerController {
     @AuraEnabled
     public static Map<String, Object> continueTimer(Id lineItemId) {
         try {
-            Timesheet_Line_Item__c item = ownedTimer(lineItemId);
+            Timesheet_Line_Item__c item = lockedTimer(lineItemId);
             TimerState state = applyLimit(item, stateOf(item));
             if (state.pauseStartMs != null) {
                 // All of a timer's hours go on its start day's row.
@@ -187,9 +180,6 @@ public with sharing class TimesheetTimerController {
                 state.limitHours = nextLimit(total);
                 state.limitBase = nz(item.Duration__c);
                 state.autoStopped = false;
-                TimesheetTimerNotificationService.cancelNotificationJob(state.jobId);
-                state.jobId = null;
-                TimesheetTimerNotificationService.scheduleNextStage(item.Id, state);
                 saveState(item.Id, state);
             }
             return toTimerMap(ownedTimer(item.Id));
@@ -203,19 +193,18 @@ public with sharing class TimesheetTimerController {
     @AuraEnabled
     public static void saveTimer(Id lineItemId, String description) {
         try {
-            Timesheet_Line_Item__c item = ownedTimer(lineItemId);
+            Timesheet_Line_Item__c item = lockedTimer(lineItemId);
             assertEditable(item.Timesheet__r.Status__c);
             if (item.Project__r.Active__c != true) {
                 throw error('Project ' + item.Project__r.Name + ' is no longer active. Discard the timer instead.');
             }
 
             TimerState state = applyLimit(item, stateOf(item));
-            TimesheetTimerNotificationService.cancelNotificationJob(state.jobId);
             Timesheet_Line_Item__c row = new Timesheet_Line_Item__c(
                 Id = item.Id,
-                Duration__c = nz(item.Duration__c) + workedHours(state).setScale(2),
-                Timer_Data__c = null
+                Duration__c = nz(item.Duration__c) + workedHours(state).setScale(2)
             );
+            setState(row, null);
             if (description != null) {
                 row.Description__c = description;
             }
@@ -228,17 +217,14 @@ public with sharing class TimesheetTimerController {
     @AuraEnabled
     public static void discardTimer(Id lineItemId) {
         try {
-            Timesheet_Line_Item__c item = ownedTimer(lineItemId);
+            Timesheet_Line_Item__c item = lockedTimer(lineItemId);
             TimerState state = stateOf(item);
-            TimesheetTimerNotificationService.cancelNotificationJob(state.jobId);
             // Duration__c is only changed on save, so discarding just undoes the start.
             if (state.newItem == true && nz(item.Duration__c) == 0
                 && Schema.SObjectType.Timesheet_Line_Item__c.isDeletable()) {
                 delete item;
             } else {
-                update Security.stripInaccessible(AccessType.UPDATABLE, new List<Timesheet_Line_Item__c>{
-                    new Timesheet_Line_Item__c(Id = item.Id, Timer_Data__c = null)
-                }).getRecords();
+                saveState(item.Id, null);
             }
         } catch (Exception e) {
             throw error(messageOf(e));
@@ -249,19 +235,87 @@ public with sharing class TimesheetTimerController {
     // whenever the timer is read, so no scheduled job is needed. Uses the row hours from
     // when the run started, so an edit while running never cuts time already worked.
     private static TimerState applyLimit(Timesheet_Line_Item__c item, TimerState state) {
-        if (state.pauseStartMs != null) {
-            return state;
-        }
-        Decimal limitHours = state.limitHours != null ? state.limitHours : workdayHours();
-        Decimal limitBase = state.limitBase != null ? state.limitBase : nz(item.Duration__c);
-        Long workStartMs = state.startMs + nz(state.pausedMs);
-        Long stopMs = workStartMs + ((limitHours - limitBase) * MS_PER_HOUR).longValue();
-        if (Datetime.now().getTime() >= stopMs) {
-            state.pauseStartMs = Math.max(stopMs, workStartMs);
-            state.autoStopped = true;
-            saveState(item.Id, state);
+        if (stopAtLimit(state, item.Duration__c)) {
+            // Keeps Next_Notify_At__c: the stop notification is still sent when it is due.
+            update Security.stripInaccessible(AccessType.UPDATABLE, new List<Timesheet_Line_Item__c>{
+                new Timesheet_Line_Item__c(Id = item.Id, Timer_Data__c = JSON.serialize(state))
+            }).getRecords();
         }
         return state;
+    }
+
+    // Pauses a running timer at the moment it reached limitHours, if that moment has passed.
+    // Shared with the stop notifications, so both stop at exactly the same time.
+    public static Boolean stopAtLimit(TimerState state, Decimal rowHours) {
+        if (state.pauseStartMs != null) {
+            return false;
+        }
+        Long workStartMs = state.startMs + nz(state.pausedMs);
+        Long stopMs = stopMsOf(state, rowHours);
+        if (Datetime.now().getTime() < stopMs) {
+            return false;
+        }
+        state.pauseStartMs = Math.max(stopMs, workStartMs);
+        state.autoStopped = true;
+        return true;
+    }
+
+    private static Long stopMsOf(TimerState state, Decimal rowHours) {
+        Decimal limitHours = state.limitHours != null ? state.limitHours : workdayHours();
+        Decimal limitBase = state.limitBase != null ? state.limitBase : nz(rowHours);
+        return state.startMs + nz(state.pausedMs) + ((limitHours - limitBase) * MS_PER_HOUR).longValue();
+    }
+
+    // The notification still to come for this run: the warning an hour before the stop
+    // (skipped when that hour has already started), then the stop. Null once paused.
+    public static Notification nextNotification(TimerState state, Decimal rowHours) {
+        if (state == null || state.pauseStartMs != null) {
+            return null;
+        }
+        Decimal limitHours = state.limitHours != null ? state.limitHours : workdayHours();
+        Integer warning = limitHours < capHours() ? 1 : 3;
+        Long stopMs = stopMsOf(state, rowHours);
+        if (!state.isStageSent(warning) && Datetime.now().getTime() < stopMs - MS_PER_HOUR) {
+            return new Notification(warning, stopMs - MS_PER_HOUR);
+        }
+        if (!state.isStageSent(warning + 1)) {
+            return new Notification(warning + 1, stopMs);
+        }
+        return null;
+    }
+
+    // The notification to send when the flow wakes up, worked out from the state alone so
+    // Next_Notify_At__c only decides when to look: the warning until the stop time, then the
+    // stop (also when the controller already stopped the timer there). Null when nothing is left
+    // for this run or the timer was paused by hand.
+    public static Notification dueNotification(TimerState state, Decimal rowHours) {
+        if (state == null || (state.pauseStartMs != null && state.autoStopped != true)) {
+            return null;
+        }
+        Decimal limitHours = state.limitHours != null ? state.limitHours : workdayHours();
+        Integer warning = limitHours < capHours() ? 1 : 3;
+        Long stopMs = stopMsOf(state, rowHours);
+        Boolean running = state.pauseStartMs == null;
+        if (running && !state.isStageSent(warning) && Datetime.now().getTime() < stopMs) {
+            return new Notification(warning, stopMs - MS_PER_HOUR);
+        }
+        if (!state.isStageSent(warning + 1)) {
+            return new Notification(warning + 1, stopMs);
+        }
+        return null;
+    }
+
+    // Writes the state and when its next notification is due; the record-triggered flow
+    // Timesheet_Timer_Notification waits for Next_Notify_At__c. A null state ends the timer.
+    // rowHours (the row's Duration__c) only matters for states saved before limitBase existed.
+    private static void setState(Timesheet_Line_Item__c row, TimerState state) {
+        setState(row, state, null);
+    }
+
+    public static void setState(Timesheet_Line_Item__c row, TimerState state, Decimal rowHours) {
+        Notification next = nextNotification(state, rowHours);
+        row.Timer_Data__c = state == null ? null : JSON.serialize(state);
+        row.Next_Notify_At__c = next == null ? null : Datetime.newInstance(next.dueMs);
     }
 
     // The first run stops at the workday hours; once those are reached, at the daily maximum.
@@ -342,14 +396,33 @@ public with sharing class TimesheetTimerController {
         return items[0];
     }
 
+    // Same as ownedTimer, but locks the row so a notification sent at the same moment
+    // cannot have its stage result overwritten by this call's older copy of the state.
+    private static Timesheet_Line_Item__c lockedTimer(Id lineItemId) {
+        Id userId = UserInfo.getUserId();
+        List<Timesheet_Line_Item__c> items = [
+            SELECT Id, Date__c, Duration__c, Description__c, Activity__c, Employee__c, Timer_Data__c,
+                   Project__c, Project__r.Name, Project__r.Active__c, Timesheet__r.Status__c
+            FROM Timesheet_Line_Item__c
+            WHERE Id = :lineItemId AND Employee__r.User__c = :userId AND Timer_Data__c != null
+            WITH SECURITY_ENFORCED
+            LIMIT 1
+            FOR UPDATE
+        ];
+        if (items.isEmpty()) {
+            throw error('This timer is no longer running. It was saved, discarded or deleted somewhere else.');
+        }
+        return items[0];
+    }
+
     private static TimerState stateOf(Timesheet_Line_Item__c item) {
         return (TimerState) JSON.deserialize(item.Timer_Data__c, TimerState.class);
     }
 
     private static void saveState(Id lineItemId, TimerState state) {
-        update Security.stripInaccessible(AccessType.UPDATABLE, new List<Timesheet_Line_Item__c>{
-            new Timesheet_Line_Item__c(Id = lineItemId, Timer_Data__c = JSON.serialize(state))
-        }).getRecords();
+        Timesheet_Line_Item__c row = new Timesheet_Line_Item__c(Id = lineItemId);
+        setState(row, state);
+        update Security.stripInaccessible(AccessType.UPDATABLE, new List<Timesheet_Line_Item__c>{ row }).getRecords();
     }
 
     // Plain keys so the LWC never deals with namespace prefixes.
