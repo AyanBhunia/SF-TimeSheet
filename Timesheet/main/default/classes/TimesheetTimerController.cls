@@ -20,6 +20,27 @@ public with sharing class TimesheetTimerController {
         public Decimal limitHours;   // row total at which the current run stops by itself
         public Decimal limitBase;    // row hours when this run started or continued
         public Boolean autoStopped;  // the pause was caused by reaching limitHours
+        public Boolean warning30Sent;
+        public String jobId;         // active CronTrigger Id
+        public Integer stageSent;    // highest notification stage sent (1 to 4)
+        public transient String schedulingError; // in-memory only status
+
+        public Boolean isStageSent(Integer stage) {
+            if (stage == 1) return (stageSent != null && stageSent >= 1) || warning30Sent == true;
+            if (stage == 2) return stageSent != null && stageSent >= 2;
+            if (stage == 3) return stageSent != null && stageSent >= 3;
+            if (stage == 4) return stageSent != null && stageSent >= 4;
+            return false;
+        }
+
+        public void markStageSent(Integer stage) {
+            if (stageSent == null || stage > stageSent) {
+                stageSent = stage;
+            }
+            if (stage == 1) {
+                warning30Sent = true;
+            }
+        }
     }
 
     @AuraEnabled
@@ -114,6 +135,14 @@ public with sharing class TimesheetTimerController {
                 insert inserted;
                 item.Id = inserted[0].Id;
             }
+
+            TimesheetTimerNotificationService.scheduleNextStage(item.Id, state);
+            if (state.jobId != null) {
+                update Security.stripInaccessible(AccessType.UPDATABLE, new List<Timesheet_Line_Item__c>{
+                    new Timesheet_Line_Item__c(Id = item.Id, Timer_Data__c = JSON.serialize(state))
+                }).getRecords();
+            }
+
             return toTimerMap(ownedTimer(item.Id));
         } catch (Exception e) {
             // Two starts at once (double click, two tabs): the loser hits the duplicate rule.
@@ -131,6 +160,8 @@ public with sharing class TimesheetTimerController {
             TimerState state = applyLimit(item, stateOf(item));
             if (state.pauseStartMs == null) {
                 state.pauseStartMs = Datetime.now().getTime();
+                TimesheetTimerNotificationService.cancelNotificationJob(state.jobId);
+                state.jobId = null;
                 saveState(item.Id, state);
             }
             return toTimerMap(ownedTimer(item.Id));
@@ -156,6 +187,9 @@ public with sharing class TimesheetTimerController {
                 state.limitHours = nextLimit(total);
                 state.limitBase = nz(item.Duration__c);
                 state.autoStopped = false;
+                TimesheetTimerNotificationService.cancelNotificationJob(state.jobId);
+                state.jobId = null;
+                TimesheetTimerNotificationService.scheduleNextStage(item.Id, state);
                 saveState(item.Id, state);
             }
             return toTimerMap(ownedTimer(item.Id));
@@ -176,6 +210,7 @@ public with sharing class TimesheetTimerController {
             }
 
             TimerState state = applyLimit(item, stateOf(item));
+            TimesheetTimerNotificationService.cancelNotificationJob(state.jobId);
             Timesheet_Line_Item__c row = new Timesheet_Line_Item__c(
                 Id = item.Id,
                 Duration__c = nz(item.Duration__c) + workedHours(state).setScale(2),
@@ -194,8 +229,10 @@ public with sharing class TimesheetTimerController {
     public static void discardTimer(Id lineItemId) {
         try {
             Timesheet_Line_Item__c item = ownedTimer(lineItemId);
+            TimerState state = stateOf(item);
+            TimesheetTimerNotificationService.cancelNotificationJob(state.jobId);
             // Duration__c is only changed on save, so discarding just undoes the start.
-            if (stateOf(item).newItem == true && nz(item.Duration__c) == 0
+            if (state.newItem == true && nz(item.Duration__c) == 0
                 && Schema.SObjectType.Timesheet_Line_Item__c.isDeletable()) {
                 delete item;
             } else {
