@@ -156,7 +156,7 @@ public with sharing class TimesheetTimerController {
     @AuraEnabled
     public static Map<String, Object> pauseTimer(Id lineItemId) {
         try {
-            Timesheet_Line_Item__c item = ownedTimer(lineItemId);
+            Timesheet_Line_Item__c item = lockedTimer(lineItemId);
             TimerState state = applyLimit(item, stateOf(item));
             if (state.pauseStartMs == null) {
                 state.pauseStartMs = Datetime.now().getTime();
@@ -173,7 +173,7 @@ public with sharing class TimesheetTimerController {
     @AuraEnabled
     public static Map<String, Object> continueTimer(Id lineItemId) {
         try {
-            Timesheet_Line_Item__c item = ownedTimer(lineItemId);
+            Timesheet_Line_Item__c item = lockedTimer(lineItemId);
             TimerState state = applyLimit(item, stateOf(item));
             if (state.pauseStartMs != null) {
                 // All of a timer's hours go on its start day's row.
@@ -203,7 +203,7 @@ public with sharing class TimesheetTimerController {
     @AuraEnabled
     public static void saveTimer(Id lineItemId, String description) {
         try {
-            Timesheet_Line_Item__c item = ownedTimer(lineItemId);
+            Timesheet_Line_Item__c item = lockedTimer(lineItemId);
             assertEditable(item.Timesheet__r.Status__c);
             if (item.Project__r.Active__c != true) {
                 throw error('Project ' + item.Project__r.Name + ' is no longer active. Discard the timer instead.');
@@ -228,7 +228,7 @@ public with sharing class TimesheetTimerController {
     @AuraEnabled
     public static void discardTimer(Id lineItemId) {
         try {
-            Timesheet_Line_Item__c item = ownedTimer(lineItemId);
+            Timesheet_Line_Item__c item = lockedTimer(lineItemId);
             TimerState state = stateOf(item);
             TimesheetTimerNotificationService.cancelNotificationJob(state.jobId);
             // Duration__c is only changed on save, so discarding just undoes the start.
@@ -335,6 +335,25 @@ public with sharing class TimesheetTimerController {
             WHERE Id = :lineItemId AND Employee__r.User__c = :userId AND Timer_Data__c != null
             WITH SECURITY_ENFORCED
             LIMIT 1
+        ];
+        if (items.isEmpty()) {
+            throw error('This timer is no longer running. It was saved, discarded or deleted somewhere else.');
+        }
+        return items[0];
+    }
+
+    // Same as ownedTimer, but locks the row so a notification job firing at the same moment
+    // cannot have its stage result overwritten by this call's older copy of the state.
+    private static Timesheet_Line_Item__c lockedTimer(Id lineItemId) {
+        Id userId = UserInfo.getUserId();
+        List<Timesheet_Line_Item__c> items = [
+            SELECT Id, Date__c, Duration__c, Description__c, Activity__c, Employee__c, Timer_Data__c,
+                   Project__c, Project__r.Name, Project__r.Active__c, Timesheet__r.Status__c
+            FROM Timesheet_Line_Item__c
+            WHERE Id = :lineItemId AND Employee__r.User__c = :userId AND Timer_Data__c != null
+            WITH SECURITY_ENFORCED
+            LIMIT 1
+            FOR UPDATE
         ];
         if (items.isEmpty()) {
             throw error('This timer is no longer running. It was saved, discarded or deleted somewhere else.');

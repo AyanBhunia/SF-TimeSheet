@@ -280,6 +280,9 @@ public with sharing class TimesheetTimerNotificationService {
             return;
         }
 
+        // The job that is running now is finished once it returns; scheduleStage must not abort it.
+        state.jobId = null;
+
         // Revalidate: Manual pause stops all stages; auto-stop only skips warning stages (1 and 3)
         Boolean isManuallyPaused = (state.pauseStartMs != null && state.autoStopped != true);
         if (isManuallyPaused) {

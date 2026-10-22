@@ -840,4 +840,30 @@ private class TimesheetTimerNotificationTest {
         System.assertEquals(2, postContinueState.stageSent, 'stageSent remains 2 until stage 3 executes.');
         System.assertNotEquals(null, postContinueState.jobId, 'Continued timer must reschedule next stage (Stage 3).');
     }
+
+    // ------------------------------------------------------------------------
+    // Scenario 28: A firing stage never aborts its own job when chaining the next one
+    // ------------------------------------------------------------------------
+    @isTest
+    static void testScenario28_ExecutingStageDoesNotAbortItsOwnJob() {
+        setupMockLimits(8.0, 12.0);
+        Timesheet_Line_Item__c item = createTestItem(0.0, Datetime.now().getTime() - (7.0 * MS_PER_HOUR).longValue(), 0L, false, false);
+
+        // Stand-in for the job that is executing: the Id the stored state still points at.
+        TimesheetTimerController.TimerState running = (TimesheetTimerController.TimerState)
+            JSON.deserialize([SELECT Timer_Data__c FROM Timesheet_Line_Item__c WHERE Id = :item.Id].Timer_Data__c, TimesheetTimerController.TimerState.class);
+        TimesheetTimerNotificationService.scheduleStage(item.Id, running, 1, 7.0);
+        String currentJobId = running.jobId;
+        System.assertNotEquals(null, currentJobId, 'Setup: the current job must be scheduled.');
+        item.Timer_Data__c = JSON.serialize(running);
+        update item;
+
+        Test.startTest();
+        TimesheetTimerNotificationService.executeStage(item.Id, 1);
+        Test.stopTest();
+
+        // stopTest ran the chained stage 2 job, so the stored jobId is already cleared again.
+        System.assertEquals(1, [SELECT COUNT() FROM CronTrigger WHERE Id = :currentJobId AND State NOT IN ('DELETED', 'ERROR', 'COMPLETE')],
+            'The job that is executing must not be aborted by its own execution.');
+    }
 }
