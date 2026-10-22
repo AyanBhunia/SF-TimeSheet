@@ -68,3 +68,11 @@
     background-color: #ea001e;
     color: #ffffff;
 }
+
+.detail-warning {
+    margin-bottom: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    border-left: 0.25rem solid var(--slds-g-color-warning-base-40, #ffb75d);
+    background: var(--slds-g-color-warning-base-95, #fef6e0);
+    font-size: 0.8125rem;
+}

@@ -431,6 +431,65 @@ private class PtoControllerTest {
             'Existing absence takes the leave hours again');
     }
 
+    // ---------------------------------------------------------------- balance
+
+    private static void setUpAccrual(Decimal extraAccrued) {
+        update new Employee__c(
+            Id = employee('PtoEmp').Id,
+            Accrual_Start_Date__c = WEEK_START.addYears(-1),
+            Accrual_Divisor__c = 8,
+            Extra_Accrued_Hours__c = extraAccrued,
+            Total_Accrued_Hours__c = extraAccrued
+        );
+    }
+
+    private static Decimal availableAsEmployee() {
+        PtoController.Context context;
+        System.runAs(user('PtoEmp')) { context = PtoController.getContext(); }
+        return context.employee.available;
+    }
+
+    @isTest
+    static void approvedLeaveStaysOffTheBalanceUntilItsWeekIsApproved() {
+        setUpAccrual(10);
+        Id requestId = submitAsEmployee(new List<Map<String, Object>>{ day(0, PLANNED, 8) }, null);
+        Assert.areEqual(2, availableAsEmployee(), 'Waiting leave is held back');
+
+        System.runAs(user('PtoHr')) {
+            PtoController.approveRequests(new List<Id>{ requestId });
+        }
+        Assert.areEqual(2, availableAsEmployee(), 'Approved leave on an open week is still held back');
+
+        update new Timesheet__c(Id = timesheet().Id, Status__c = 'Approved');
+        Assert.areEqual(2, availableAsEmployee(), 'Once the week is approved the balance itself has dropped, so it is counted once');
+        Assert.areEqual(2, [SELECT Total_Absence_Hours_Available__c FROM Employee__c WHERE Id = :employee('PtoEmp').Id].Total_Absence_Hours_Available__c);
+    }
+
+    @isTest
+    static void approverSeesHowFarAWaitingRequestIsOverTheBalance() {
+        setUpAccrual(10);
+        Id requestId = submitAsEmployee(new List<Map<String, Object>>{ day(0, PLANNED, 8), day(1, SICK, 4) }, null);
+
+        PtoController.RequestDetail asApprover;
+        PtoController.SubmitResponse another;
+        System.runAs(user('PtoMgr')) { asApprover = PtoController.getRequestLines(requestId); }
+        Assert.areEqual(2, asApprover.overBalanceHours, '12 h requested against 10 h available');
+
+        System.runAs(user('PtoEmp')) {
+            another = PtoController.submitLeave(null, JSON.serialize(new List<Map<String, Object>>{ day(2, PLANNED, 8) }), null);
+        }
+        Assert.isTrue(another.success, 'Over-balance requests are still allowed');
+        Assert.isTrue(String.join(another.warnings, ' ').contains('adds extra accrued hours'), 'Employee is told what can happen: ' + another.warnings);
+    }
+
+    @isTest
+    static void noOverBalanceWarningWithoutAccrual() {
+        Id requestId = submitAsEmployee(new List<Map<String, Object>>{ day(0, PLANNED, 8) }, null);
+        PtoController.RequestDetail asApprover;
+        System.runAs(user('PtoMgr')) { asApprover = PtoController.getRequestLines(requestId); }
+        Assert.isNull(asApprover.overBalanceHours, 'The timesheet rule does not apply without accrual');
+    }
+
     @isTest
     static void leaveIsNotWrittenToASubmittedWeekUntilItIsReopened() {
         assertClosedWeekHoldsLeave('Submitted');

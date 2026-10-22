@@ -25,6 +25,7 @@ public with sharing class PtoController {
         @AuraEnabled public String managerName;
         @AuraEnabled public Boolean hasManager;
         @AuraEnabled public Decimal available;
+        @AuraEnabled public Boolean accrualConfigured; // the timesheet balance rule applies to this employee
     }
 
     public class CategoryOption {
@@ -111,6 +112,7 @@ public with sharing class PtoController {
     public class RequestDetail {
         @AuraEnabled public RequestRow request;
         @AuraEnabled public List<LineRow> lines;
+        @AuraEnabled public Decimal overBalanceHours; // set when this waiting request takes the balance below 0
     }
 
     public class PastPage {
@@ -311,7 +313,8 @@ public with sharing class PtoController {
             }
             Decimal available = availableHours(emp, PtoData.pendingLeaveHours(new Set<Id>{ emp.Id }));
             if (available != null && available < 0) {
-                response.warnings.add('This goes over the leave balance by ' + LeaveValidator.formatHours(-available) + ' hours.');
+                response.warnings.add('This goes over the leave balance by ' + LeaveValidator.formatHours(-available) + ' hours.'
+                    + (accrualConfigured(emp) ? ' Your timesheet for that week may not be submitted or approved until your manager adds extra accrued hours to your balance.' : ''));
             }
             return response;
         } catch (Exception e) {
@@ -362,6 +365,12 @@ public with sharing class PtoController {
                 r.syncStatus = l.Sync_Status__c;
                 r.syncError = l.Sync_Error__c;
                 detail.lines.add(r);
+            }
+            if (request.Status__c == LeaveValidator.STATUS_SUBMITTED) {
+                Employee__c e = PtoData.employeeById(request.Employee__c);
+                Decimal available = e == null || !accrualConfigured(e) ? null
+                    : availableHours(e, PtoData.pendingLeaveHours(new Set<Id>{ e.Id }));
+                detail.overBalanceHours = available != null && available < 0 ? -available : null;
             }
             return detail;
         } catch (Exception e) {
@@ -691,7 +700,13 @@ public with sharing class PtoController {
         info.managerName = e.Manager__r == null ? null : e.Manager__r.Name;
         info.hasManager = e.Manager__c != null;
         info.available = pending == null ? null : availableHours(e, pending);
+        info.accrualConfigured = accrualConfigured(e);
         return info;
+    }
+
+    // The timesheet rule Prevent_Insufficient_Absence_Hours only applies when accrual is set up.
+    private static Boolean accrualConfigured(Employee__c e) {
+        return e.Accrual_Start_Date__c != null && e.Accrual_Divisor__c != null && e.Accrual_Divisor__c > 0;
     }
 
     /**

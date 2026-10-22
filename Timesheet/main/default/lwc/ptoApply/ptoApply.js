@@ -327,7 +327,10 @@ export default class PtoApply extends LightningElement {
     }
 
     get overBalanceMessage() {
-        return `This goes over the leave balance by ${formatHours(this.totalHours - this.available)} hours. You can still submit.`;
+        const over = `This goes over the leave balance by ${formatHours(this.totalHours - this.available)} hours. You can still submit.`;
+        return this.loadedEmployee?.accrualConfigured
+            ? `${over} Your timesheet for that week may not be submitted or approved until your manager adds extra accrued hours to your balance.`
+            : over;
     }
 
     get noManager() {
