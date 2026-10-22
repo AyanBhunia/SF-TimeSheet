@@ -76,7 +76,7 @@ public without sharing class LeaveToLineItem {
         }
         if (timesheets == null) {
             timesheets = [
-                SELECT Id, Employee__c, Start_Date__c, End_Date__c
+                SELECT Id, Employee__c, Start_Date__c, End_Date__c, Status__c
                 FROM Timesheet__c
                 WHERE Employee__c IN :employeeIds
                 AND Start_Date__c <= :maxDate AND End_Date__c >= :minDate
@@ -111,11 +111,19 @@ public without sharing class LeaveToLineItem {
         List<Leave_Line_Item__c> updateLines = new List<Leave_Line_Item__c>();
         for (Leave_Line_Item__c l : lines) {
             Id employeeId = l.PTO_Request__r.Employee__c;
-            Id timesheetId = timesheetFor(timesheetsByEmployee.get(employeeId), l.Date__c);
-            if (timesheetId == null) {
+            Timesheet__c timesheet = timesheetFor(timesheetsByEmployee.get(employeeId), l.Date__c);
+            if (timesheet == null) {
                 setOutcome(outcome, l, LeaveValidator.SYNC_WAITING, null, null);
                 continue;
             }
+            // A submitted or approved week is never changed behind the approver's back. The day is flagged
+            // so HR sees it, and Retry sync adds it once the timesheet has been reopened.
+            if (timesheet.Status__c == 'Submitted' || timesheet.Status__c == 'Approved') {
+                setOutcome(outcome, l, LeaveValidator.SYNC_ERROR, null, 'The timesheet for this week is already '
+                    + timesheet.Status__c.toLowerCase() + '. Reopen it, then use Retry sync to add this leave day.');
+                continue;
+            }
+            Id timesheetId = timesheet.Id;
             Timesheet_Line_Item__c match = existing.get(itemKey(employeeId, l.Date__c, l.Absence_Category__c));
             if (match != null) {
                 if (match.Duration__c != l.Duration__c) {
@@ -180,13 +188,13 @@ public without sharing class LeaveToLineItem {
         ));
     }
 
-    private static Id timesheetFor(List<Timesheet__c> candidates, Date day) {
+    private static Timesheet__c timesheetFor(List<Timesheet__c> candidates, Date day) {
         if (candidates == null) {
             return null;
         }
         for (Timesheet__c ts : candidates) {
             if (ts.Start_Date__c <= day && day <= ts.End_Date__c) {
-                return ts.Id;
+                return ts;
             }
         }
         return null;

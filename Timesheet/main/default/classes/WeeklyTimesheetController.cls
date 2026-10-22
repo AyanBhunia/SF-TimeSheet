@@ -116,6 +116,100 @@ public with sharing class WeeklyTimesheetController {
         return result;
     }
 
+    public class SaveResult {
+        @AuraEnabled public Boolean success;
+        @AuraEnabled public String message;
+        @AuraEnabled public Integer keptTimerRows; // rows left in place because a timer runs on them
+
+        SaveResult(Boolean success, String message, Integer keptTimerRows) {
+            this.success = success;
+            this.message = message;
+            this.keptTimerRows = keptTimerRows;
+        }
+    }
+
+    /**
+     * @description Saves the weekly grid in one transaction: the rows removed from the grid are deleted, then the
+     *              rest is upserted. Any failure rolls everything back, so a rejected row can never leave the
+     *              week half saved. A deleted row must still have the hours the grid loaded (a timer save or a
+     *              leave approval changed it otherwise), and a row with a running timer is never deleted.
+     * @param deletes rows to delete: Id and the Duration__c the grid loaded
+     */
+    @AuraEnabled
+    public static SaveResult saveWeek(List<Timesheet_Line_Item__c> upserts, List<Timesheet_Line_Item__c> deletes) {
+        upserts = upserts == null ? new List<Timesheet_Line_Item__c>() : upserts;
+        deletes = deletes == null ? new List<Timesheet_Line_Item__c>() : deletes;
+        if (upserts.isEmpty() && deletes.isEmpty()) {
+            return new SaveResult(true, null, 0);
+        }
+
+        Savepoint sp = Database.setSavepoint();
+        try {
+            // System mode on purpose: this only narrows what is deleted, and must work without FLS on Timer_Data__c.
+            Map<Id, Timesheet_Line_Item__c> current = new Map<Id, Timesheet_Line_Item__c>();
+            Set<Id> timesheetIds = new Set<Id>();
+            for (Timesheet_Line_Item__c item : upserts) {
+                if (item.Timesheet__c != null) {
+                    timesheetIds.add(item.Timesheet__c);
+                }
+            }
+            for (Timesheet_Line_Item__c row : [
+                SELECT Id, Duration__c, Timer_Data__c, Timesheet__c, Project__c, Activity__c, Date__c, Project__r.Name
+                FROM Timesheet_Line_Item__c
+                WHERE (Id IN :deletes OR (Timesheet__c IN :timesheetIds AND Timer_Data__c != null))
+                WITH SYSTEM_MODE
+            ]) {
+                current.put(row.Id, row);
+            }
+
+            // A new row for a project + activity + day that already has a running timer would be a duplicate.
+            for (Timesheet_Line_Item__c item : upserts) {
+                for (Timesheet_Line_Item__c row : current.values()) {
+                    if (row.Timer_Data__c != null && item.Id != row.Id && item.Timesheet__c == row.Timesheet__c
+                        && item.Project__c == row.Project__c && item.Activity__c == row.Activity__c
+                        && item.Date__c == row.Date__c) {
+                        return failed(sp, 'A timer is running on ' + row.Project__r.Name + ' / ' + row.Activity__c + ' for '
+                            + row.Date__c.format() + '. Save or discard the timer first, then save the timesheet again. Nothing was saved.');
+                    }
+                }
+            }
+
+            List<Timesheet_Line_Item__c> toDelete = new List<Timesheet_Line_Item__c>();
+            Integer kept = 0;
+            for (Timesheet_Line_Item__c item : deletes) {
+                Timesheet_Line_Item__c row = current.get(item.Id);
+                if (row == null) {
+                    continue; // already gone
+                }
+                if (row.Timer_Data__c != null) {
+                    kept++;
+                    continue;
+                }
+                Decimal now = row.Duration__c == null ? 0 : row.Duration__c;
+                Decimal loaded = item.Duration__c == null ? 0 : item.Duration__c;
+                if (now != loaded) {
+                    return failed(sp, 'A row was changed elsewhere after you opened the timesheet (for example by the timer or an approved leave). Reload the timesheet and try again. Nothing was saved.');
+                }
+                toDelete.add(row);
+            }
+            if (!toDelete.isEmpty()) {
+                delete as user toDelete;
+            }
+            if (!upserts.isEmpty()) {
+                SObjectAccessDecision decision = Security.stripInaccessible(AccessType.CREATABLE, upserts, true);
+                upsert decision.getRecords();
+            }
+            return new SaveResult(true, null, kept);
+        } catch (Exception e) {
+            return failed(sp, (e instanceof DmlException ? ((DmlException) e).getDmlMessage(0) : e.getMessage()) + ' Nothing was saved.');
+        }
+    }
+
+    private static SaveResult failed(Savepoint sp, String message) {
+        Database.rollback(sp);
+        return new SaveResult(false, message, 0);
+    }
+
     @AuraEnabled
     public static String deleteTimesheetLineItems(List<Timesheet_Line_Item__c> lineItemIds) {
         System.debug('begin deleteTimesheetLineItems: '+lineItemIds);

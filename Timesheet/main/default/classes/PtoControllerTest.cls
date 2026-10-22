@@ -432,6 +432,38 @@ private class PtoControllerTest {
     }
 
     @isTest
+    static void leaveIsNotWrittenToASubmittedWeekUntilItIsReopened() {
+        assertClosedWeekHoldsLeave('Submitted');
+    }
+
+    @isTest
+    static void leaveIsNotWrittenToAnApprovedWeekUntilItIsReopened() {
+        assertClosedWeekHoldsLeave('Approved');
+    }
+
+    private static void assertClosedWeekHoldsLeave(String closed) {
+        update new Timesheet__c(Id = timesheet().Id, Status__c = closed);
+        Id requestId = submitAsEmployee(new List<Map<String, Object>>{ day(0, PLANNED, 8) }, null);
+        System.runAs(user('PtoHr')) {
+            PtoController.approveRequests(new List<Id>{ requestId });
+        }
+
+        Leave_Line_Item__c line = [SELECT Sync_Status__c, Sync_Error__c FROM Leave_Line_Item__c WHERE Date__c = :WEEK_START];
+        Assert.areEqual(LeaveValidator.SYNC_ERROR, line.Sync_Status__c, closed + ' week is flagged');
+        Assert.isTrue(line.Sync_Error__c.containsIgnoreCase('already ' + closed.toLowerCase()), line.Sync_Error__c);
+        Assert.areEqual(0, [SELECT COUNT() FROM Timesheet_Line_Item__c WHERE Date__c = :WEEK_START], closed + ' timesheet is untouched');
+
+        // HR reopens the week and retries
+        update new Timesheet__c(Id = timesheet().Id, Status__c = 'New');
+        PtoController.ActionResult retry;
+        System.runAs(user('PtoHr')) {
+            retry = PtoController.retrySync(requestId);
+        }
+        Assert.areEqual(1, retry.processed, 'Day is added after the reopen: ' + retry.syncErrors);
+        Assert.areEqual(1, [SELECT COUNT() FROM Timesheet_Line_Item__c WHERE Date__c = :WEEK_START]);
+    }
+
+    @isTest
     static void retryOnlyForApprovedRequests() {
         Id requestId = submitAsEmployee(new List<Map<String, Object>>{ day(0, PLANNED, 8) }, null);
         System.runAs(user('PtoHr')) {

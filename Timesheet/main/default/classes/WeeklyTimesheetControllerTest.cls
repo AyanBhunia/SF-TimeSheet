@@ -207,6 +207,109 @@ public class WeeklyTimesheetControllerTest {
         }
     }
 
+    // ---------------------------------------------------------------- saveWeek (one transaction)
+
+    private static Timesheet_Line_Item__c newGridRow(Timesheet_Line_Item__c base, String activity, Date day, Decimal hours) {
+        return new Timesheet_Line_Item__c(
+            Timesheet__c = base.Timesheet__c, Project__c = base.Project__c, Activity__c = activity,
+            Date__c = day, Duration__c = hours, Type__c = 'Attendance'
+        );
+    }
+
+    @isTest
+    static void testSaveWeekDeletesAndUpsertsTogether() {
+        User adminUser = createAdminUser('Admin', 'User');
+        insert adminUser;
+        assignpermissionSetForAdmin(adminUser);
+        System.runAs(adminUser){
+            Timesheet_Line_Item__c old = [SELECT Id, Timesheet__c, Project__c, Date__c, Duration__c FROM Timesheet_Line_Item__c LIMIT 1];
+            WeeklyTimesheetController.SaveResult res = WeeklyTimesheetController.saveWeek(
+                new List<Timesheet_Line_Item__c>{ newGridRow(old, 'Meeting', old.Date__c, 3) },
+                new List<Timesheet_Line_Item__c>{ new Timesheet_Line_Item__c(Id = old.Id, Duration__c = old.Duration__c) }
+            );
+            System.assertEquals(true, res.success, 'saved: ' + res.message);
+            System.assertEquals(0, [SELECT COUNT() FROM Timesheet_Line_Item__c WHERE Id = :old.Id]);
+            System.assertEquals(1, [SELECT COUNT() FROM Timesheet_Line_Item__c WHERE Activity__c = 'Meeting']);
+        }
+    }
+
+    @isTest
+    static void testSaveWeekRollsBackDeletesWhenTheUpsertFails() {
+        User adminUser = createAdminUser('Admin', 'User');
+        insert adminUser;
+        assignpermissionSetForAdmin(adminUser);
+        System.runAs(adminUser){
+            Timesheet_Line_Item__c old = [SELECT Id, Timesheet__c, Project__c, Date__c, Duration__c FROM Timesheet_Line_Item__c LIMIT 1];
+            Timesheet_Line_Item__c bad = newGridRow(old, 'Meeting', old.Date__c, 3);
+            bad.Type__c = 'Bogus'; // rejected by the picklist
+            WeeklyTimesheetController.SaveResult res = WeeklyTimesheetController.saveWeek(
+                new List<Timesheet_Line_Item__c>{ bad },
+                new List<Timesheet_Line_Item__c>{ new Timesheet_Line_Item__c(Id = old.Id, Duration__c = old.Duration__c) }
+            );
+            System.assertEquals(false, res.success);
+            System.assertEquals(1, [SELECT COUNT() FROM Timesheet_Line_Item__c WHERE Id = :old.Id], 'The delete must be undone');
+        }
+    }
+
+    @isTest
+    static void testSaveWeekRefusesToDeleteARowChangedSinceItWasLoaded() {
+        User adminUser = createAdminUser('Admin', 'User');
+        insert adminUser;
+        assignpermissionSetForAdmin(adminUser);
+        System.runAs(adminUser){
+            Timesheet_Line_Item__c old = [SELECT Id, Duration__c FROM Timesheet_Line_Item__c LIMIT 1];
+            WeeklyTimesheetController.SaveResult res = WeeklyTimesheetController.saveWeek(
+                null,
+                new List<Timesheet_Line_Item__c>{ new Timesheet_Line_Item__c(Id = old.Id, Duration__c = 0) } // grid loaded it as 0h
+            );
+            System.assertEquals(false, res.success);
+            System.assertEquals(1, [SELECT COUNT() FROM Timesheet_Line_Item__c WHERE Id = :old.Id]);
+        }
+    }
+
+    @isTest
+    static void testSaveWeekKeepsARunningTimerRow() {
+        User adminUser = createAdminUser('Admin', 'User');
+        insert adminUser;
+        assignpermissionSetForAdmin(adminUser);
+        System.runAs(adminUser){
+            Timesheet_Line_Item__c item = [SELECT Id, Duration__c FROM Timesheet_Line_Item__c LIMIT 1];
+            item.Timer_Data__c = '{"startMs":1,"pausedMs":0}';
+            update item;
+            WeeklyTimesheetController.SaveResult res = WeeklyTimesheetController.saveWeek(
+                null, new List<Timesheet_Line_Item__c>{ new Timesheet_Line_Item__c(Id = item.Id, Duration__c = item.Duration__c) });
+            System.assertEquals(true, res.success);
+            System.assertEquals(1, res.keptTimerRows);
+            System.assertEquals(1, [SELECT COUNT() FROM Timesheet_Line_Item__c WHERE Id = :item.Id]);
+        }
+    }
+
+    @isTest
+    static void testSaveWeekRefusesANewRowOnARunningTimersDay() {
+        User adminUser = createAdminUser('Admin', 'User');
+        insert adminUser;
+        assignpermissionSetForAdmin(adminUser);
+        System.runAs(adminUser){
+            Timesheet_Line_Item__c timerRow = [SELECT Id, Timesheet__c, Project__c, Activity__c, Date__c, Duration__c FROM Timesheet_Line_Item__c LIMIT 1];
+            timerRow.Timer_Data__c = '{"startMs":1,"pausedMs":0}';
+            update timerRow;
+            Timesheet_Line_Item__c other = newGridRow(timerRow, 'Meeting', timerRow.Date__c.addDays(-1), 2);
+            insert other;
+            WeeklyTimesheetController.SaveResult res = WeeklyTimesheetController.saveWeek(
+                new List<Timesheet_Line_Item__c>{ newGridRow(timerRow, timerRow.Activity__c, timerRow.Date__c, 4) },
+                new List<Timesheet_Line_Item__c>{ new Timesheet_Line_Item__c(Id = other.Id, Duration__c = other.Duration__c) }
+            );
+            System.assertEquals(false, res.success);
+            System.assert(res.message.contains('timer is running'), res.message);
+            System.assertEquals(1, [SELECT COUNT() FROM Timesheet_Line_Item__c WHERE Id = :other.Id], 'Nothing may be deleted');
+        }
+    }
+
+    @isTest
+    static void testSaveWeekWithNothingToDoSucceeds() {
+        System.assertEquals(true, WeeklyTimesheetController.saveWeek(null, null).success);
+    }
+
     private static User createAdminUser(String firstName, String lastName){
         Profile p = [Select Id, Name from Profile where Name = 'System Administrator' LIMIT 1];
         
