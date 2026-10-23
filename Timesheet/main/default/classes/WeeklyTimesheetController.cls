@@ -125,7 +125,20 @@ public with sharing class WeeklyTimesheetController {
         }
 
         try {
-            delete as user lineItemIds;
+            // The weekly grid deletes rows it shows with 0 hours; never delete a row with a running timer.
+            // System mode on purpose: this only narrows what gets deleted, and must work without FLS on Timer_Data__c.
+            Map<Id, Timesheet_Line_Item__c> runningTimers = new Map<Id, Timesheet_Line_Item__c>([
+                SELECT Id FROM Timesheet_Line_Item__c
+                WHERE Id IN :lineItemIds AND Timer_Data__c != null
+                WITH SYSTEM_MODE
+            ]);
+            List<Timesheet_Line_Item__c> toDelete = new List<Timesheet_Line_Item__c>();
+            for (Timesheet_Line_Item__c item : lineItemIds) {
+                if (!runningTimers.containsKey(item.Id)) {
+                    toDelete.add(item);
+                }
+            }
+            delete as user toDelete;
         } catch(Exception e) {
             return 'Error: ' + e.getMessage();
         }

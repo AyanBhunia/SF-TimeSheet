@@ -1,5 +1,9 @@
 import { LightningElement, api, track, wire } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import LightningConfirm from 'lightning/confirm';
+
+// Must match SYNC_CHANNEL in timesheetTimer.
+const TIMER_SYNC_CHANNEL = 'timesheet-timer-sync';
 import { refreshApex } from '@salesforce/apex';
 import getWeeklyTimesheetItems from '@salesforce/apex/WeeklyTimesheetController.getWeeklyTimesheetItems';
 import getProjects from '@salesforce/apex/WeeklyTimesheetController.getProjects';
@@ -94,6 +98,18 @@ export default class TestLineItem extends LightningElement {
 
     previousRecordIDs;
 
+    // Unsaved grid edits, and whether the timer changed line items while they were pending.
+    isDirty = false;
+    timerChangedWhileEditing = false;
+    reloadRequestId = 0;
+    timerChannel;
+
+    disconnectedCallback() {
+        if (this.timerChannel) {
+            this.timerChannel.close();
+        }
+    }
+
     wiredTimesheetResult;
     error;
 
@@ -175,6 +191,12 @@ export default class TestLineItem extends LightningElement {
     }
 
     connectedCallback() {
+        // The timer (utility bar, other tabs) announces its changes on this channel.
+        if (typeof BroadcastChannel !== 'undefined') {
+            this.timerChannel = new BroadcastChannel(TIMER_SYNC_CHANNEL);
+            this.timerChannel.onmessage = event => this.handleTimerChange(event.data);
+        }
+
         const fetchPromise = new Promise((resolve, reject) => {
             this.fetchTimesheetData(this.recordId, result => {
                 // console.log('timesheet data',JSON.stringify(result));
@@ -386,6 +408,31 @@ export default class TestLineItem extends LightningElement {
         // calculate totals
         this.calculateTotals();
 
+        // A copied timesheet is unsaved; a fresh load from the server is not.
+        this.isDirty = !includeId;
+        if (includeId) {
+            this.timerChangedWhileEditing = false;
+        }
+    }
+
+    reloadGrid() {
+        // Only the latest reload may apply its result.
+        const requestId = ++this.reloadRequestId;
+        this.fetchTimesheetData(this.recordId, result => {
+            if (requestId !== this.reloadRequestId) return;
+            this.wiredTimesheetResult = result;
+            this.processTimesheetData(result, true);
+        });
+    }
+
+    // Reload so a later grid Save does not overwrite the timer's hours. With unsaved
+    // edits, warn only when the timer changed hours or removed a row (save, discard).
+    handleTimerChange(message) {
+        if (!this.isDirty) {
+            this.reloadGrid();
+        } else if (message && message.affectsHours) {
+            this.timerChangedWhileEditing = true;
+        }
     }
 
     getBlankData(type) {
@@ -422,6 +469,7 @@ export default class TestLineItem extends LightningElement {
     }
 
     handleProjectChange(event) {
+        this.isDirty = true;
         const rowIndex = event.target.dataset.rowIndex;
         const fieldName = event.target.name;
         const newValue = event.target.value;
@@ -491,6 +539,7 @@ export default class TestLineItem extends LightningElement {
     }
 
     handleDurationChange(event) {
+        this.isDirty = true;
         const rowIndex = event.target.dataset.rowIndex;
         const dayIndex = event.target.dataset.dayIndex;
         const dataFor = event.target.getAttribute('data-for'); // "project" or "absence"
@@ -545,6 +594,7 @@ export default class TestLineItem extends LightningElement {
     }
 
     handleDescriptionChange(event) {
+        this.isDirty = true;
         const rowIndex = parseInt(event.target.dataset.rowIndex);
         const dayIndex = parseInt(event.target.dataset.dayIndex);
         const newValue = event.target.value;
@@ -560,6 +610,7 @@ export default class TestLineItem extends LightningElement {
     }
 
     handleDeleteRow(event) {
+        this.isDirty = true;
         const rowIndex = parseInt(event.target.dataset.rowIndex);
         const type = event.target.dataset.type;
 
@@ -590,6 +641,7 @@ export default class TestLineItem extends LightningElement {
     }
 
     handleAbsenceChange(event) {
+        this.isDirty = true;
         const rowIndex = event.target.dataset.rowIndex;
         const newValue = event.target.value;
 
@@ -618,6 +670,16 @@ export default class TestLineItem extends LightningElement {
         currentRow.absenceName = newValue;
     }
 
+    handleAddProject() {
+        this.isDirty = true;
+        this.addNewProject();
+    }
+
+    handleAddAbsence() {
+        this.isDirty = true;
+        this.addNewAbsence();
+    }
+
     addNewProject() {
         const newProject = this.getBlankData("Attendance");
         this.projectsList.push(newProject);
@@ -628,7 +690,19 @@ export default class TestLineItem extends LightningElement {
         this.absenceList.push(newAbsence);
     }
 
-    handleSave(){
+    async handleSave() {
+        if (this.timerChangedWhileEditing) {
+            const confirmed = await LightningConfirm.open({
+                label: 'Timer changed this timesheet',
+                message: 'The timer changed this timesheet after you started editing. Saving now can overwrite or remove the hours it logged. Save anyway?',
+                theme: 'warning'
+            });
+            if (!confirmed) return;
+        }
+        this.saveGrid();
+    }
+
+    saveGrid() {
         let upsertList = [];
         let deleteList;
         let currentRecordIDs = new Set();
@@ -705,15 +779,16 @@ export default class TestLineItem extends LightningElement {
             .then(res => {
                 if (res && res !== 'Success') throw new Error(res);
                 this.showToast('Success', 'Records saved', 'success');
+                // Open timers show the line item's hours, so let them reload.
+                if (this.timerChannel) {
+                    this.timerChannel.postMessage({ changed: true, source: 'grid' });
+                }
             })
             .catch(e => {
                 this.showToast('Error', e.message, 'error')
             })
             .finally(() => {
-                this.fetchTimesheetData(this.recordId, result => {
-                    this.wiredTimesheetResult = result;
-                    this.processTimesheetData(this.wiredTimesheetResult,true);
-                });
+                this.reloadGrid();
             })
         );
         
@@ -772,7 +847,7 @@ export default class TestLineItem extends LightningElement {
     }
 
     handleCancel() {
-        this.processTimesheetData(this.wiredTimesheetResult,true);
+        this.reloadGrid();
 
         this.template.querySelectorAll('lightning-combobox[data-id="prevTimesheet"]').forEach(cb => {
             cb.value = undefined;

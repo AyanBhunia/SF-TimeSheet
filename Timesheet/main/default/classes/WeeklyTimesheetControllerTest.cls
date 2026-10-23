@@ -180,6 +180,22 @@ public class WeeklyTimesheetControllerTest {
     }
 
     @isTest
+    static void testDeleteSkipsRunningTimer() {
+        User adminUser = createAdminUser('Admin', 'User');
+        insert adminUser;
+
+        assignpermissionSetForAdmin(adminUser);
+        System.runAs(adminUser){
+            Timesheet_Line_Item__c item = [SELECT Id FROM Timesheet_Line_Item__c LIMIT 1];
+            item.Timer_Data__c = '{"startMs":1,"pausedMs":0}';
+            update item;
+            String result = WeeklyTimesheetController.deleteTimesheetLineItems(new List<Timesheet_Line_Item__c>{ item });
+            System.assertEquals('Success', result);
+            System.assertEquals(1, [SELECT COUNT() FROM Timesheet_Line_Item__c WHERE Id = :item.Id], 'A row with a running timer must not be deleted');
+        }
+    }
+
+    @isTest
     static void testDeleteTimesheetLineItemsEmptyList() {
         User adminUser = createAdminUser('Admin', 'User');
         insert adminUser;

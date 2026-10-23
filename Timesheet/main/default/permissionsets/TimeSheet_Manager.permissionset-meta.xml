@@ -61,6 +61,10 @@
         <enabled>true</enabled>
     </classAccesses>
     <classAccesses>
+        <apexClass>TimesheetTimerController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
         <apexClass>WeeklyTimesheetController</apexClass>
         <enabled>true</enabled>
     </classAccesses>
@@ -71,6 +75,10 @@
     <customPermissions>
         <enabled>true</enabled>
         <name>PTO_Approve_Team</name>
+    </customPermissions>
+    <customPermissions>
+        <enabled>true</enabled>
+        <name>Timesheet_Timer</name>
     </customPermissions>
     <fieldPermissions>
         <editable>false</editable>
@@ -360,6 +368,16 @@
     <fieldPermissions>
         <editable>true</editable>
         <field>Timesheet_Line_Item__c.Description__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Timesheet_Line_Item__c.Timer_Data__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Timesheet_Line_Item__c.Next_Notify_At__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomNotificationType xmlns="http://soap.sforce.com/2006/04/metadata">
+    <customNotifTypeName>Timesheet Timer Warning</customNotifTypeName>
+    <description>Bell notifications for Timesheet Timers: warnings before daily and max limit stops, and automatic stop alerts.</description>
+    <desktop>true</desktop>
+    <masterLabel>Timesheet Timer Warning</masterLabel>
+    <mobile>true</mobile>
+    <slack>false</slack>
+</CustomNotificationType>
