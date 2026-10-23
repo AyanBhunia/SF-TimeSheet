@@ -66,7 +66,7 @@ public with sharing class TimesheetLineItemTriggerHandler {
             if(rows.size() < 2){
                 continue;
             }
-            Decimal total = saved.containsKey(key) ? saved.get(key) : 0;
+            Decimal total = saved.get(key) == null ? 0 : saved.get(key);
             for(Timesheet_Line_Item__c row : rows){
                 total += row.Duration__c == null ? 0 : row.Duration__c;
             }
