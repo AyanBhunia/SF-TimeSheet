@@ -33,6 +33,7 @@
             </div>
 
             <div class="detail-body">
+                <p lwc:if={showOverBalance} class="detail-warning" role="alert">{overBalanceText}</p>
                 <dl class="detail-facts">
                     <dt>Approver</dt>
                     <dd class={approverClass}>{approverText}</dd>

@@ -10,7 +10,7 @@ public without sharing class PtoData {
     public static Employee__c currentEmployee() {
         List<Employee__c> rows = [
             SELECT Id, Name, Active__c, Manager__c, Manager__r.Name, User__c, User__r.IsActive, User__r.ManagerId,
-                Total_Absence_Hours_Available__c
+                Total_Absence_Hours_Available__c, Accrual_Start_Date__c, Accrual_Divisor__c
             FROM Employee__c
             WHERE User__c = :UserInfo.getUserId()
             ORDER BY Active__c DESC, CreatedDate DESC
@@ -22,7 +22,7 @@ public without sharing class PtoData {
     public static Employee__c employeeById(Id employeeId) {
         List<Employee__c> rows = [
             SELECT Id, Name, Active__c, Manager__c, Manager__r.Name, User__c, User__r.IsActive, User__r.ManagerId,
-                Total_Absence_Hours_Available__c
+                Total_Absence_Hours_Available__c, Accrual_Start_Date__c, Accrual_Divisor__c
             FROM Employee__c
             WHERE Id = :employeeId
             LIMIT 1
@@ -37,7 +37,7 @@ public without sharing class PtoData {
         Id me = UserInfo.getUserId();
         return [
             SELECT Id, Name, Active__c, Manager__c, Manager__r.Name, User__c, User__r.IsActive, User__r.ManagerId,
-                Total_Absence_Hours_Available__c
+                Total_Absence_Hours_Available__c, Accrual_Start_Date__c, Accrual_Divisor__c
             FROM Employee__c
             WHERE Active__c = true AND Manager__c = :me AND User__r.ManagerId = :me
             ORDER BY Name
@@ -48,7 +48,7 @@ public without sharing class PtoData {
     public static List<Employee__c> allActiveEmployees(Integer maxRows) {
         return [
             SELECT Id, Name, Active__c, Manager__c, Manager__r.Name, User__c, User__r.IsActive, User__r.ManagerId,
-                Total_Absence_Hours_Available__c
+                Total_Absence_Hours_Available__c, Accrual_Start_Date__c, Accrual_Divisor__c
             FROM Employee__c
             WHERE Active__c = true
             ORDER BY Name
@@ -57,7 +57,9 @@ public without sharing class PtoData {
     }
 
     /**
-     * @description Hours of leave days on Submitted (not yet approved) requests, per employee.
+     * @description Hours of leave that are not taken off the balance yet, per employee: days on Submitted
+     *              requests, and days on Approved requests whose week's timesheet is not Approved yet (the
+     *              balance only drops when that timesheet is approved).
      */
     public static Map<Id, Decimal> pendingLeaveHours(Set<Id> employeeIds) {
         Map<Id, Decimal> result = new Map<Id, Decimal>();
@@ -65,7 +67,9 @@ public without sharing class PtoData {
             SELECT PTO_Request__r.Employee__c employeeId, SUM(Duration__c) hours
             FROM Leave_Line_Item__c
             WHERE PTO_Request__r.Employee__c IN :employeeIds
-            AND PTO_Request__r.Status__c = :LeaveValidator.STATUS_SUBMITTED
+            AND (PTO_Request__r.Status__c = :LeaveValidator.STATUS_SUBMITTED
+                OR (PTO_Request__r.Status__c = :LeaveValidator.STATUS_APPROVED
+                    AND (Timesheet_Line_Item__c = null OR Timesheet_Line_Item__r.Timesheet__r.Status__c != 'Approved')))
             GROUP BY PTO_Request__r.Employee__c
         ]) {
             Decimal hours = (Decimal) ar.get('hours');

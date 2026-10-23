@@ -124,6 +124,18 @@ export default class PtoRequestDetail extends LightningElement {
         return this.request?.notes || '—';
     }
 
+    // Shown to the approver: approving leave that takes the balance below 0 can block the employee's timesheet.
+    get showOverBalance() {
+        return this.isApproveMode && Number(this.detail?.overBalanceHours) > 0;
+    }
+
+    get overBalanceText() {
+        const hours = Number(this.detail?.overBalanceHours) || 0;
+        return `With all their waiting and approved leave, ${this.request?.employeeName || 'this employee'} will be ${formatHours(hours)} h over their leave balance. `
+            + 'You can still approve this request, but their timesheet for the affected week may not be submitted or approved. '
+            + 'To fix that, add Extra Accrued Hours on their Employee record; the balance updates when their next timesheet is approved.';
+    }
+
     get hasDecision() {
         return !!this.request?.decisionNotes;
     }

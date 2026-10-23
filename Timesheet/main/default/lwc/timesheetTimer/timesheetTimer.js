@@ -96,10 +96,7 @@ export default class TimesheetTimer extends LightningElement {
 
     disconnectedCallback() {
         this.stopClock();
-        clearInterval(this.refreshInterval);
-        if (this.visibilityHandler) {
-            document.removeEventListener('visibilitychange', this.visibilityHandler);
-        }
+        this.stopReloading();
         if (this.syncChannel) {
             this.syncChannel.close();
         }
@@ -112,10 +109,28 @@ export default class TimesheetTimer extends LightningElement {
                 this.projectOptions = result.projects || [];
                 this.applyTimer(result.activeTimer);
             })
-            .catch(error => this.showError(error, 'Failed to load the timer'))
+            .catch(error => {
+                if (/No Employee record/i.test((error && error.body && error.body.message) || '')) {
+                    // Not an employee (e.g. an admin): nothing to track, so stay quiet and stop reloading.
+                    this.stopReloading();
+                    return;
+                }
+                this.showError(error, 'Failed to load the timer');
+            })
             .finally(() => {
                 this.isLoading = false;
             });
+    }
+
+    stopReloading() {
+        clearInterval(this.refreshInterval);
+        if (this.syncChannel) {
+            this.syncChannel.onmessage = null;
+        }
+        if (this.visibilityHandler) {
+            document.removeEventListener('visibilitychange', this.visibilityHandler);
+            this.visibilityHandler = null;
+        }
     }
 
     // Show the server's timer state (or the idle screen when null).

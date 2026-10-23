@@ -87,15 +87,18 @@ public with sharing class TimesheetTimerController {
             if (employeeId == null) {
                 throw error('No Employee record found for the current user.');
             }
+            Date today = Date.today();
+            Timesheet__c timesheet = timesheetFor(employeeId, today);
+            // Locking the timesheet makes two starts at once (two tabs, utility bar + phone) take turns, so the
+            // second one sees the first one's timer instead of creating a second row. It is the same row, and the
+            // same order, an approval locks, so the two cannot deadlock, and a submit racing this start is seen.
+            timesheet = lockedTimesheet(timesheet.Id);
             if (runningTimerCount() > 0) {
                 throw error('A timer is already running, so a new one was not started.');
             }
             if ([SELECT Id FROM Project_Employee__c WHERE Employee__c = :employeeId AND Project__c = :projectId AND Project__r.Active__c = true WITH SECURITY_ENFORCED LIMIT 1].isEmpty()) {
                 throw error('This project is not active or not assigned to you.');
             }
-
-            Date today = Date.today();
-            Timesheet__c timesheet = timesheetFor(employeeId, today);
 
             // The duplicate rule allows one row per project + activity + day, so reuse it.
             List<Timesheet_Line_Item__c> existing = [
@@ -208,7 +211,13 @@ public with sharing class TimesheetTimerController {
             if (description != null) {
                 row.Description__c = description;
             }
-            update Security.stripInaccessible(AccessType.UPDATABLE, new List<Timesheet_Line_Item__c>{ row }).getRecords();
+            try {
+                update Security.stripInaccessible(AccessType.UPDATABLE, new List<Timesheet_Line_Item__c>{ row }).getRecords();
+            } catch (DmlException rejected) {
+                // e.g. the day would pass the daily maximum because of other rows. The timer stays as it is.
+                throw error(rejected.getDmlMessage(0) + ' The timer measured ' + workedHours(state).setScale(2)
+                    + ' h. Type these hours into that project and activity row of the timesheet, then discard the timer.');
+            }
         } catch (Exception e) {
             throw error(messageOf(e));
         }
@@ -372,6 +381,13 @@ public with sharing class TimesheetTimerController {
         if (timesheetStatus == 'Submitted' || timesheetStatus == 'Approved') {
             throw error('This timesheet is already ' + timesheetStatus.toLowerCase() + ', so the timer cannot change it. Discard the timer instead.');
         }
+    }
+
+    // Locking queries cannot be ordered, so the timesheet is picked by timesheetFor first and locked by Id here.
+    private static Timesheet__c lockedTimesheet(Id timesheetId) {
+        Timesheet__c locked = [SELECT Id, Status__c FROM Timesheet__c WHERE Id = :timesheetId WITH SECURITY_ENFORCED FOR UPDATE];
+        assertEditable(locked.Status__c);
+        return locked;
     }
 
     private static Id currentEmployeeId() {

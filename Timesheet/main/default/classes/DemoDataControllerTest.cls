@@ -216,6 +216,22 @@ private class DemoDataControllerTest {
     }
 
     @IsTest
+    static void deleteAlsoRemovesPtoRequestsOfDemoEmployees() {
+        User hrAdmin = createUser('hradm');
+        System.runAs(hrAdmin) {
+            DemoDataController.createDemoEmployees(false);
+            Employee__c demoEmployee = [SELECT Id FROM Employee__c WHERE CreatedById = :hrAdmin.Id LIMIT 1];
+            insert new PTO_Request__c(Employee__c = demoEmployee.Id);
+            Assert.areEqual(1, [SELECT COUNT() FROM PTO_Request__c WHERE Employee__c = :demoEmployee.Id]);
+
+            DemoDataController.deleteDemoRecords();
+
+            Assert.areEqual(0, [SELECT COUNT() FROM Employee__c WHERE CreatedById = :hrAdmin.Id], 'Employees deleted');
+            Assert.areEqual(0, [SELECT COUNT() FROM PTO_Request__c WHERE Employee__c = :demoEmployee.Id], 'Their PTO request went too');
+        }
+    }
+
+    @IsTest
     static void isProductionOrgMatchesOrganization() {
         Organization org = [SELECT IsSandbox, TrialExpirationDate FROM Organization LIMIT 1];
         Assert.areEqual(!org.IsSandbox && org.TrialExpirationDate == null, DemoDataController.isProductionOrg(), 'Production check');
@@ -266,7 +282,7 @@ private class DemoDataControllerTest {
         Test.startTest();
         queries = Limits.getQueries();
         state = DemoDataController.createDemoLineItems();
-        Assert.isTrue(Limits.getQueries() - queries <= 25, 'createDemoLineItems: 3 queries plus the triggers, got ' + (Limits.getQueries() - queries));
+        Assert.isTrue(Limits.getQueries() - queries <= 34, 'createDemoLineItems: 3 queries plus the triggers (the running-timer check each time a week is closed, the same-day hours check once per batch), got ' + (Limits.getQueries() - queries));
         Test.stopTest();
         Assert.areEqual(employees * 22, countLineItems(state), '22 line items per employee');
         Assert.areEqual(3, state.projects.size(), 'Projects returned with Legacy deactivated');
@@ -384,7 +400,7 @@ private class DemoDataControllerTest {
         Id userId = UserInfo.getUserId();
         Integer queries = Limits.getQueries();
         DemoDataController.deleteDemoRecords();
-        Assert.isTrue(Limits.getQueries() - queries <= 8, 'deleteDemoRecords: 2 queries plus the Timesheet trigger, got ' + (Limits.getQueries() - queries));
+        Assert.isTrue(Limits.getQueries() - queries <= 9, 'deleteDemoRecords: 3 queries plus the Timesheet trigger, got ' + (Limits.getQueries() - queries));
 
         Assert.areEqual(0, [SELECT COUNT() FROM Employee__c WHERE CreatedById = :userId], 'Employees deleted');
         Assert.areEqual(0, [SELECT COUNT() FROM Project__c WHERE CreatedById = :userId], 'Projects deleted');
