@@ -30,13 +30,12 @@
                     <thead>
                         <tr class="slds-line-height_reset">
                             <th class="slds-text-title_caps">Activity Name</th>
-                            <th class="slds-text-title_caps">Monday</th>
-                            <th class="slds-text-title_caps">Tuesday</th>
-                            <th class="slds-text-title_caps">Wednesday</th>
-                            <th class="slds-text-title_caps">Thursday</th>
-                            <th class="slds-text-title_caps">Friday</th>
-                            <th class="slds-text-title_caps">Saturday</th>
-                            <th class="slds-text-title_caps">Sunday</th>
+                            <template for:each={dayHeaders} for:item="header">
+                                <th key={header.key} class="slds-text-title_caps">
+                                    {header.name}
+                                    <div class="slds-text-body_small">{header.label}</div>
+                                </th>
+                            </template>
                             <th class="slds-text-title_caps">Action</th>
                         </tr>
                     </thead>
@@ -45,9 +44,9 @@
                         <!-- Section Header for Billable Amounts -->
                         <tr class="slds-theme_shade duration_hours">
                             <td class="slds-text-title_bold">Billable Amount</td>
-                            <template for:each={billableAmounts} for:item="total" for:index="index">
-                                <td key={billableAmounts.index} class="slds-text-title_bold">
-                                    {total}
+                            <template for:each={billableCells} for:item="total">
+                                <td key={total.key} class="slds-text-title_bold">
+                                    {total.value}
                                 </td>
                             </template>
                             <td></td>
@@ -56,9 +55,9 @@
                         <!-- Section Header for Totals -->
                         <tr class="slds-theme_shade duration_hours">
                             <td class="slds-text-title_bold">Total Hours</td>
-                            <template for:each={grandTotals} for:item="total" for:index="index">
-                                <td key={grandTotals.index} class="slds-text-title_bold">
-                                    {total}
+                            <template for:each={grandCells} for:item="total">
+                                <td key={total.key} class="slds-text-title_bold">
+                                    {total.value}
                                 </td>
                             </template>
                             <td></td>
@@ -67,16 +66,16 @@
                         <!-- Section Header for Projects -->
                         <tr  class="duration_hours">
                             <td class="slds-text-title_bold slds-theme_shade slds-p-around_x-small">Projects Hours</td>
-                            <template for:each={projectsTotals} for:item="total" for:index="index">
-                                <td key={projectsTotals.index} class="slds-text-title_bold slds-theme_shade slds-p-around_x-small">
-                                    {total}
+                            <template for:each={projectCells} for:item="total">
+                                <td key={total.key} class="slds-text-title_bold slds-theme_shade slds-p-around_x-small">
+                                    {total.value}
                                 </td>
                             </template>
                             <td class="slds-theme_shade"></td>
                         </tr>
 
                         <template for:each={projectsList} for:item="row" for:index="index">
-                            <tr key={row.projectName} class="slds-hint-parent">
+                            <tr key={row.rowKey} class="slds-hint-parent">
                                 <td>
                                     <lightning-combobox name="projectName" variant="label-hidden" value={row.projectName}
                                         options={projectOptions} data-row-index={index}
@@ -90,7 +89,7 @@
                                 </td>
 
                                 <template for:each={row.dates} for:item="day" for:index="dayIndex">
-                                    <td key={day.name}>
+                                    <td key={day.date}>
                                         <div class="slds-grid slds-grid_vertical">
                                             <div class="slds-col">
                                                 <lightning-input type="number" title="Duration" value={day.dur}
@@ -117,16 +116,16 @@
                         <!-- Section Header for Absence -->
                         <tr  class="duration_hours">
                             <td class="slds-text-title_bold slds-theme_shade slds-p-around_x-small">Absence Hours</td>
-                            <template for:each={absenceTotals} for:item="total" for:index="index">
-                                <td key={absenceTotals.index} class="slds-text-title_bold slds-theme_shade slds-p-around_x-small">
-                                    {total}
+                            <template for:each={absenceCells} for:item="total">
+                                <td key={total.key} class="slds-text-title_bold slds-theme_shade slds-p-around_x-small">
+                                    {total.value}
                                 </td>
                             </template>
                             <td class="slds-theme_shade"></td>
                         </tr>
 
                         <template for:each={absenceList} for:item="row" for:index="index">
-                            <tr key={row.absenceName} class="slds-hint-parent">
+                            <tr key={row.rowKey} class="slds-hint-parent">
                                 <td>
                                     <lightning-combobox name="absenceName" variant="label-hidden" value={row.absenceName} 
                                         options={absenceOptions}
@@ -135,7 +134,7 @@
                                 </td>
                         
                                 <template for:each={row.dates} for:item="day" for:index="dayIndex">
-                                    <td key={day.name}>
+                                    <td key={day.date}>
                                         <div class="slds-grid slds-grid_vertical">
                                             <div class="slds-col">
                                                 <lightning-input type="number" title="Duration" value={day.dur} step="0.01" min="0" max="24" data-for="absence"

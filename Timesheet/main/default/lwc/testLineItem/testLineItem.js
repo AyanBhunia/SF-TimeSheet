@@ -115,8 +115,31 @@ export default class TestLineItem extends LightningElement {
     error;
 
     
-    dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    // Indexed by Date.getDay(). A timesheet can start on any weekday, so the columns follow dayList, not Monday.
+    dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     dayList=[];
+    rowSeq = 0; // gives every grid row its own template key
+
+    // Column headers: the weekday and date of each column of this timesheet.
+    get dayHeaders() {
+        return this.dayList.map(dateStr => {
+            const date = this.localDateFromServer(dateStr);
+            return {
+                key: dateStr,
+                name: this.dayNames[date.getDay()],
+                label: `${date.getDate()} ${date.toLocaleString('en-US', { month: 'short' })}`
+            };
+        });
+    }
+
+    // Totals rows as cells with a key per column (a template key cannot be the for:each index).
+    totalCells(totals) {
+        return totals.map((value, column) => ({ key: 'col' + column, value }));
+    }
+    get billableCells() { return this.totalCells(this.billableAmounts); }
+    get grandCells() { return this.totalCells(this.grandTotals); }
+    get projectCells() { return this.totalCells(this.projectsTotals); }
+    get absenceCells() { return this.totalCells(this.absenceTotals); }
 
     // Get object info to retrieve recordTypeId
     @wire(getObjectInfo, { objectApiName: TIMESHEET_LINE_ITEM_OBJECT })
@@ -354,9 +377,19 @@ export default class TestLineItem extends LightningElement {
         // console.log("data",JSON.stringify(data));
   
         data.forEach(item => {
-            // Use localDateFromServer to get a local-midnight Date object (no TZ shift)
-            const date = this.localDateFromServer(item.dbt__Date__c);
-            const dayIndex = date.getDay() === 0 ? 6 : date.getDay() - 1;
+            // This timesheet's rows go in the column with their date. Copied rows come from another week,
+            // so they go in the column with the same weekday.
+            let dayIndex;
+            if (includeId) {
+                dayIndex = this.dayList.indexOf(String(item.dbt__Date__c || '').split('T')[0]);
+            } else {
+                const weekday = this.localDateFromServer(item.dbt__Date__c)?.getDay();
+                dayIndex = this.dayList.findIndex(d => this.localDateFromServer(d).getDay() === weekday);
+            }
+            // Outside the grid's days: not shown, so Save never moves or deletes it.
+            if (dayIndex < 0) {
+                return;
+            }
 
             if(includeId){
                 this.previousRecordIDs.add(item.Id);
@@ -446,19 +479,20 @@ export default class TestLineItem extends LightningElement {
 
     getBlankData(type) {
         
-        const dates = this.dayNames.map((name, index) => {
+        const dates = this.dayList.map(date => {
             return {
                 id: null,
                 isdisable: true,
-                date: this.dayList[index],
-                name,
+                date,
                 dur: 0,
                 desc: ""
             };
         });
+        const rowKey = 'row_' + (++this.rowSeq);
 
         if (type === "Attendance") {
             return {
+                rowKey,
                 type: "Attendance",
                 projectName: "",
                 activityName: "",
@@ -470,6 +504,7 @@ export default class TestLineItem extends LightningElement {
             };
         } else {
             return {
+                rowKey,
                 type: "Absence",
                 absenceName: "",
                 dates
