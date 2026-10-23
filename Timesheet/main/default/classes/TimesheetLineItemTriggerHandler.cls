@@ -6,12 +6,80 @@ public with sharing class TimesheetLineItemTriggerHandler {
         updateEmployeeId(timesheetLineItems);
         updateBillableField(timesheetLineItems);
         LeaveValidator.checkLineItems(timesheetLineItems);
+        checkDayTotals(timesheetLineItems);
     }
 
     public static void beforeUpdate(List<Timesheet_Line_Item__c> timesheetLineItems){
         checkForDuplicateTimesheetLineItem(timesheetLineItems);
         updateBillableField(timesheetLineItems);
         LeaveValidator.checkLineItems(timesheetLineItems);
+        checkDayTotals(timesheetLineItems);
+    }
+
+    /**
+     * @description The Duration_Limit_RTF flow only sees rows already saved, so several rows of one employee and day
+     *              saved together (the weekly grid saves a whole week at once) can pass one by one and still exceed
+     *              the daily maximum. For days with two or more rows in this save, the rows of the save plus the
+     *              rows already saved are added up; above the maximum every row of that day is flagged, and the
+     *              Duration_Validation rule shows its usual message. A single row per day is left to the flow.
+     */
+    public static void checkDayTotals(List<Timesheet_Line_Item__c> timesheetLineItems){
+        Map<String, List<Timesheet_Line_Item__c>> byDay = new Map<String, List<Timesheet_Line_Item__c>>();
+        for(Timesheet_Line_Item__c item : timesheetLineItems){
+            if(item.Employee__c == null || item.Date__c == null){
+                continue;
+            }
+            String key = dayKey(item.Employee__c, item.Date__c);
+            if(!byDay.containsKey(key)){
+                byDay.put(key, new List<Timesheet_Line_Item__c>());
+            }
+            byDay.get(key).add(item);
+        }
+        Set<Id> employeeIds = new Set<Id>();
+        Set<Date> dates = new Set<Date>();
+        for(List<Timesheet_Line_Item__c> rows : byDay.values()){
+            if(rows.size() > 1){
+                employeeIds.add(rows[0].Employee__c);
+                dates.add(rows[0].Date__c);
+            }
+        }
+        if(employeeIds.isEmpty()){
+            return;
+        }
+
+        Set<Id> savingIds = new Set<Id>();
+        for(Timesheet_Line_Item__c item : timesheetLineItems){
+            if(item.Id != null){
+                savingIds.add(item.Id);
+            }
+        }
+        Map<String, Decimal> saved = new Map<String, Decimal>();
+        for(AggregateResult ar : [SELECT Employee__c employeeId, Date__c day, SUM(Duration__c) hours
+                                  FROM Timesheet_Line_Item__c
+                                  WHERE Employee__c IN :employeeIds AND Date__c IN :dates AND Id NOT IN :savingIds
+                                  GROUP BY Employee__c, Date__c]){
+            saved.put(dayKey((Id) ar.get('employeeId'), (Date) ar.get('day')), (Decimal) ar.get('hours'));
+        }
+        Decimal max = LeaveValidator.dailyMax();
+        for(String key : byDay.keySet()){
+            List<Timesheet_Line_Item__c> rows = byDay.get(key);
+            if(rows.size() < 2){
+                continue;
+            }
+            Decimal total = saved.containsKey(key) ? saved.get(key) : 0;
+            for(Timesheet_Line_Item__c row : rows){
+                total += row.Duration__c == null ? 0 : row.Duration__c;
+            }
+            if(total > max){
+                for(Timesheet_Line_Item__c row : rows){
+                    row.Hours_Limit_Exceeded__c = true;
+                }
+            }
+        }
+    }
+
+    private static String dayKey(Id employeeId, Date day){
+        return employeeId + '|' + String.valueOf(day);
     }
     
     public static void updateEmployeeId(List<Timesheet_Line_Item__c> timesheetLineItems){

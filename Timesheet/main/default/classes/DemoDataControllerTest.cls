@@ -282,7 +282,7 @@ private class DemoDataControllerTest {
         Test.startTest();
         queries = Limits.getQueries();
         state = DemoDataController.createDemoLineItems();
-        Assert.isTrue(Limits.getQueries() - queries <= 29, 'createDemoLineItems: 3 queries plus the triggers (and the running-timer check each time a week is closed), got ' + (Limits.getQueries() - queries));
+        Assert.isTrue(Limits.getQueries() - queries <= 34, 'createDemoLineItems: 3 queries plus the triggers (the running-timer check each time a week is closed, the same-day hours check once per batch), got ' + (Limits.getQueries() - queries));
         Test.stopTest();
         Assert.areEqual(employees * 22, countLineItems(state), '22 line items per employee');
         Assert.areEqual(3, state.projects.size(), 'Projects returned with Legacy deactivated');

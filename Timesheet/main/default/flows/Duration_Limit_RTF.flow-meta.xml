@@ -74,9 +74,9 @@
         <locationY>0</locationY>
         <assignmentItems>
             <assignToReference>dur_Coll</assignToReference>
-            <operator>Assign</operator>
+            <operator>Add</operator>
             <value>
-                <elementReference>NewDayTotal</elementReference>
+                <elementReference>$Record.Duration__c</elementReference>
             </value>
         </assignmentItems>
         <connector>
@@ -168,12 +168,6 @@
         </rules>
     </decisions>
     <environments>Default</environments>
-    <formulas>
-        <name>NewDayTotal</name>
-        <dataType>Number</dataType>
-        <expression>BLANKVALUE({!dur_Coll}, 0) + {!$Record.Duration__c}</expression>
-        <scale>2</scale>
-    </formulas>
     <interviewLabel>Duration Limit RTF {!$Flow.CurrentDateTime}</interviewLabel>
     <label>Duration Limit RTF</label>
     <loops>
