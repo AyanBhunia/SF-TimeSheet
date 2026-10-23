@@ -226,7 +226,7 @@ public class WeeklyTimesheetControllerTest {
             WeeklyTimesheetController.SaveResult res = WeeklyTimesheetController.saveWeek(
                 new List<Timesheet_Line_Item__c>{ newGridRow(old, 'Meeting', old.Date__c, 3) },
                 new List<Timesheet_Line_Item__c>{ new Timesheet_Line_Item__c(Id = old.Id, Duration__c = old.Duration__c) }
-            );
+            , null);
             System.assertEquals(true, res.success, 'saved: ' + res.message);
             System.assertEquals(0, [SELECT COUNT() FROM Timesheet_Line_Item__c WHERE Id = :old.Id]);
             System.assertEquals(1, [SELECT COUNT() FROM Timesheet_Line_Item__c WHERE Activity__c = 'Meeting']);
@@ -245,7 +245,7 @@ public class WeeklyTimesheetControllerTest {
             WeeklyTimesheetController.SaveResult res = WeeklyTimesheetController.saveWeek(
                 new List<Timesheet_Line_Item__c>{ bad },
                 new List<Timesheet_Line_Item__c>{ new Timesheet_Line_Item__c(Id = old.Id, Duration__c = old.Duration__c) }
-            );
+            , null);
             System.assertEquals(false, res.success);
             System.assertEquals(1, [SELECT COUNT() FROM Timesheet_Line_Item__c WHERE Id = :old.Id], 'The delete must be undone');
         }
@@ -261,7 +261,7 @@ public class WeeklyTimesheetControllerTest {
             WeeklyTimesheetController.SaveResult res = WeeklyTimesheetController.saveWeek(
                 null,
                 new List<Timesheet_Line_Item__c>{ new Timesheet_Line_Item__c(Id = old.Id, Duration__c = 0) } // grid loaded it as 0h
-            );
+            , null);
             System.assertEquals(false, res.success);
             System.assertEquals(1, [SELECT COUNT() FROM Timesheet_Line_Item__c WHERE Id = :old.Id]);
         }
@@ -277,7 +277,7 @@ public class WeeklyTimesheetControllerTest {
             item.Timer_Data__c = '{"startMs":1,"pausedMs":0}';
             update item;
             WeeklyTimesheetController.SaveResult res = WeeklyTimesheetController.saveWeek(
-                null, new List<Timesheet_Line_Item__c>{ new Timesheet_Line_Item__c(Id = item.Id, Duration__c = item.Duration__c) });
+                null, new List<Timesheet_Line_Item__c>{ new Timesheet_Line_Item__c(Id = item.Id, Duration__c = item.Duration__c) }, null);
             System.assertEquals(true, res.success);
             System.assertEquals(1, res.keptTimerRows);
             System.assertEquals(1, [SELECT COUNT() FROM Timesheet_Line_Item__c WHERE Id = :item.Id]);
@@ -298,16 +298,76 @@ public class WeeklyTimesheetControllerTest {
             WeeklyTimesheetController.SaveResult res = WeeklyTimesheetController.saveWeek(
                 new List<Timesheet_Line_Item__c>{ newGridRow(timerRow, timerRow.Activity__c, timerRow.Date__c, 4) },
                 new List<Timesheet_Line_Item__c>{ new Timesheet_Line_Item__c(Id = other.Id, Duration__c = other.Duration__c) }
-            );
+            , null);
             System.assertEquals(false, res.success);
             System.assert(res.message.contains('timer is running'), res.message);
             System.assertEquals(1, [SELECT COUNT() FROM Timesheet_Line_Item__c WHERE Id = :other.Id], 'Nothing may be deleted');
         }
     }
 
+    private static void assertClosedTimesheetRefusesChanges(String status) {
+        User adminUser = createAdminUser('Admin', 'User');
+        insert adminUser;
+        assignpermissionSetForAdmin(adminUser);
+        System.runAs(adminUser){
+            Timesheet_Line_Item__c row = [SELECT Id, Timesheet__c, Project__c, Date__c, Duration__c FROM Timesheet_Line_Item__c LIMIT 1];
+            update new Timesheet__c(Id = row.Timesheet__c, Status__c = status);
+
+            Timesheet_Line_Item__c edited = new Timesheet_Line_Item__c(Id = row.Id, Duration__c = 40);
+            WeeklyTimesheetController.SaveResult editResult = WeeklyTimesheetController.saveWeek(
+                new List<Timesheet_Line_Item__c>{ edited }, null, null);
+            System.assertEquals(false, editResult.success, 'Editing a ' + status + ' timesheet is refused');
+            System.assert(editResult.message.contains('already ' + status.toLowerCase()), editResult.message);
+
+            WeeklyTimesheetController.SaveResult deleteResult = WeeklyTimesheetController.saveWeek(
+                null, new List<Timesheet_Line_Item__c>{ new Timesheet_Line_Item__c(Id = row.Id, Duration__c = row.Duration__c) }, null);
+            System.assertEquals(false, deleteResult.success, 'Deleting from a ' + status + ' timesheet is refused');
+
+            System.assertEquals(row.Duration__c, [SELECT Duration__c FROM Timesheet_Line_Item__c WHERE Id = :row.Id].Duration__c);
+
+            update new Timesheet__c(Id = row.Timesheet__c, Status__c = 'New');
+            System.assertEquals(true, WeeklyTimesheetController.saveWeek(
+                new List<Timesheet_Line_Item__c>{ new Timesheet_Line_Item__c(Id = row.Id, Timesheet__c = row.Timesheet__c, Project__c = row.Project__c,
+                    Activity__c = 'Testing', Date__c = row.Date__c, Duration__c = 4, Type__c = 'Attendance') }, null, null).success, 'Allowed again once reopened');
+        }
+    }
+
+    @isTest
+    static void testSaveWeekRefusesASubmittedTimesheet() {
+        assertClosedTimesheetRefusesChanges('Submitted');
+    }
+
+    @isTest
+    static void testSaveWeekRefusesAnApprovedTimesheet() {
+        assertClosedTimesheetRefusesChanges('Approved');
+    }
+
+    @isTest
+    static void testSaveWeekRefusesAnEditOfARowChangedSinceItWasLoaded() {
+        User adminUser = createAdminUser('Admin', 'User');
+        insert adminUser;
+        assignpermissionSetForAdmin(adminUser);
+        System.runAs(adminUser){
+            Timesheet_Line_Item__c row = [SELECT Id, Timesheet__c, Project__c, Date__c, Duration__c FROM Timesheet_Line_Item__c LIMIT 1];
+            // The grid loaded the row with 2 h; the timer saved more hours meanwhile (now 8 h).
+            Timesheet_Line_Item__c edit = new Timesheet_Line_Item__c(Id = row.Id, Timesheet__c = row.Timesheet__c, Project__c = row.Project__c,
+                Activity__c = 'Testing', Date__c = row.Date__c, Duration__c = 3, Type__c = 'Attendance');
+            WeeklyTimesheetController.SaveResult stale = WeeklyTimesheetController.saveWeek(
+                new List<Timesheet_Line_Item__c>{ edit }, null, new Map<Id, Decimal>{ row.Id => 2 });
+            System.assertEquals(false, stale.success);
+            System.assert(stale.message.contains('changed elsewhere'), stale.message);
+            System.assertEquals(row.Duration__c, [SELECT Duration__c FROM Timesheet_Line_Item__c WHERE Id = :row.Id].Duration__c, 'The newer hours stay');
+
+            WeeklyTimesheetController.SaveResult current = WeeklyTimesheetController.saveWeek(
+                new List<Timesheet_Line_Item__c>{ edit }, null, new Map<Id, Decimal>{ row.Id => row.Duration__c });
+            System.assertEquals(true, current.success, 'Saved when the grid is up to date: ' + current.message);
+            System.assertEquals(3, [SELECT Duration__c FROM Timesheet_Line_Item__c WHERE Id = :row.Id].Duration__c);
+        }
+    }
+
     @isTest
     static void testSaveWeekWithNothingToDoSucceeds() {
-        System.assertEquals(true, WeeklyTimesheetController.saveWeek(null, null).success);
+        System.assertEquals(true, WeeklyTimesheetController.saveWeek(null, null, null).success);
     }
 
     private static User createAdminUser(String firstName, String lastName){

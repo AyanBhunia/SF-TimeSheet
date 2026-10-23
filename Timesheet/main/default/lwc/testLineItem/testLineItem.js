@@ -97,6 +97,7 @@ export default class TestLineItem extends LightningElement {
 
     previousRecordIDs;
     previousDurations = new Map(); // hours each loaded row had, so the server can tell if it changed since
+    previousSignatures = new Map(); // what each loaded row looked like, so only edited rows are sent on Save
 
     // Unsaved grid edits, and whether the timer changed line items while they were pending.
     isDirty = false;
@@ -344,6 +345,7 @@ export default class TestLineItem extends LightningElement {
         if (includeId) {
             this.previousRecordIDs = new Set();
             this.previousDurations = new Map();
+            this.previousSignatures = new Map();
         }
 
         let attendanceData = {};
@@ -359,6 +361,11 @@ export default class TestLineItem extends LightningElement {
             if(includeId){
                 this.previousRecordIDs.add(item.Id);
                 this.previousDurations.set(item.Id, item.dbt__Duration__c || 0);
+                this.previousSignatures.set(item.Id, this.rowSignature({
+                    type: item.dbt__Type__c, project: item.dbt__Project__c, activity: item.dbt__Activity__c,
+                    absence: item.dbt__Absence_Category__c, date: item.dbt__Date__c,
+                    duration: item.dbt__Duration__c, description: item.dbt__Description__c
+                }));
             }
 
             // Helper to update the date data
@@ -704,6 +711,14 @@ export default class TestLineItem extends LightningElement {
         this.saveGrid();
     }
 
+    // The parts of a row the user can change, as one string, to tell edited rows from untouched ones.
+    rowSignature(row) {
+        return [
+            row.type || '', row.project || '', row.activity || '', row.absence || '',
+            String(row.date || '').slice(0, 10), Number(row.duration) || 0, row.description || ''
+        ].join('|');
+    }
+
     saveGrid() {
         let upsertList = [];
         let deleteList = [];
@@ -770,6 +785,23 @@ export default class TestLineItem extends LightningElement {
             return; // never save a half-built list
         }
 
+        // Rows nobody edited are not sent: saving them again would put old hours over what the timer or a leave
+        // approval wrote since the grid was opened. Edited rows are sent with the hours they were loaded with, so
+        // the server can refuse the save when they changed meanwhile.
+        const loadedHours = {};
+        upsertList = upsertList.filter(row => {
+            if (!row.Id) return true;
+            const unchanged = this.previousSignatures.get(row.Id) === this.rowSignature({
+                type: row.dbt__Type__c, project: row.dbt__Project__c, activity: row.dbt__Activity__c,
+                absence: row.dbt__Absence_Category__c, date: row.dbt__Date__c,
+                duration: row.dbt__Duration__c, description: row.dbt__Description__c
+            });
+            if (!unchanged) {
+                loadedHours[row.Id] = this.previousDurations.get(row.Id) || 0;
+            }
+            return !unchanged;
+        });
+
         if (upsertList.length === 0 && deleteList.length === 0) {
             this.showToast('Success', 'Records saved', 'success');
             this.reloadGrid();
@@ -778,6 +810,7 @@ export default class TestLineItem extends LightningElement {
 
         // One server call, one transaction: either the whole week is saved or nothing is.
         saveWeek({
+            loadedHours,
             upserts: upsertList,
             deletes: deleteList.map(id => ({
                 sobjectType: 'dbt__Timesheet_Line_Item__c',
