@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Flow xmlns="http://soap.sforce.com/2006/04/metadata">
     <actionCalls>
-        <description>Fetches all assignments of the permission set using ALL ROWS so that expired assignments (hidden from Get Records but still blocking a new insert) are returned as well.</description>
+        <description>Fetches the week&apos;s users&apos; assignments of the permission set using ALL ROWS so that expired assignments (hidden from Get Records but still blocking a new insert) are returned as well. Output goes to a named variable: the automatic output of an Apex action cannot be filtered and looped in a packaged flow.</description>
         <name>Get_PS_Assignments</name>
         <label>Get PS Assignments</label>
         <locationX>0</locationX>
@@ -11,16 +11,61 @@
         <connector>
             <targetReference>Loop_User_Ids</targetReference>
         </connector>
+        <faultConnector>
+            <targetReference>Capture_Fault</targetReference>
+        </faultConnector>
         <flowTransactionModel>CurrentTransaction</flowTransactionModel>
         <inputParameters>
-            <name>permissionSetIds</name>
+            <name>permissionSetId</name>
             <value>
                 <elementReference>Get_Permission_set.Id</elementReference>
             </value>
         </inputParameters>
+        <inputParameters>
+            <name>userIds</name>
+            <value>
+                <elementReference>User_Ids</elementReference>
+            </value>
+        </inputParameters>
         <nameSegment>GetPermissionSetAssignments</nameSegment>
         <offset>0</offset>
-        <storeOutputAutomatically>true</storeOutputAutomatically>
+        <outputParameters>
+            <assignToReference>Existing_Assignments</assignToReference>
+            <name>assignments</name>
+        </outputParameters>
+        <storeOutputAutomatically>false</storeOutputAutomatically>
+    </actionCalls>
+    <actionCalls>
+        <description>Inserts and updates the assignments with partial success: a user who cannot receive the permission set fails alone. Failures are returned in Error_Message.</description>
+        <name>Save_Assignments</name>
+        <label>Save Assignments</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <actionName>SavePermissionSetAssignments</actionName>
+        <actionType>apex</actionType>
+        <faultConnector>
+            <targetReference>Capture_Fault</targetReference>
+        </faultConnector>
+        <flowTransactionModel>CurrentTransaction</flowTransactionModel>
+        <inputParameters>
+            <name>toInsert</name>
+            <value>
+                <elementReference>PSAs_ToInsert</elementReference>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>toUpdate</name>
+            <value>
+                <elementReference>PSAs_ToUpdate</elementReference>
+            </value>
+        </inputParameters>
+        <nameSegment>SavePermissionSetAssignments</nameSegment>
+        <offset>0</offset>
+        <outputParameters>
+            <assignToReference>Error_Message</assignToReference>
+            <name>errors</name>
+        </outputParameters>
+        <storeOutputAutomatically>false</storeOutputAutomatically>
     </actionCalls>
     <apiVersion>64.0</apiVersion>
     <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
@@ -40,6 +85,20 @@
         <connector>
             <targetReference>Loop_Pending_Timesheet_Records</targetReference>
         </connector>
+    </assignments>
+    <assignments>
+        <description>Fault path: keeps the error for the debug log and ends the flow without an unhandled fault (no error email).</description>
+        <name>Capture_Fault</name>
+        <label>Capture Fault</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>Error_Message</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>$Flow.FaultMessage</elementReference>
+            </value>
+        </assignmentItems>
     </assignments>
     <assignments>
         <description>Creates a new assignment for a user who has none.</description>
@@ -118,7 +177,7 @@
         <locationY>0</locationY>
         <assignNextValueToReference>currentItem_Filter_User_Assignment</assignNextValueToReference>
         <collectionProcessorType>FilterCollectionProcessor</collectionProcessorType>
-        <collectionReference>Get_PS_Assignments</collectionReference>
+        <collectionReference>Existing_Assignments</collectionReference>
         <conditionLogic>and</conditionLogic>
         <conditions>
             <leftValueReference>currentItem_Filter_User_Assignment.AssigneeId</leftValueReference>
@@ -164,82 +223,17 @@
         </rules>
     </decisions>
     <decisions>
-        <description>Filters only when the permission set has assignments; otherwise every user needs a new assignment.</description>
-        <name>Has_Existing_Assignments</name>
-        <label>Has Existing Assignments?</label>
-        <locationX>0</locationX>
-        <locationY>0</locationY>
-        <defaultConnector>
-            <targetReference>Set_Assignment_To_Insert</targetReference>
-        </defaultConnector>
-        <defaultConnectorLabel>None</defaultConnectorLabel>
-        <rules>
-            <name>Assignments_Present</name>
-            <conditionLogic>and</conditionLogic>
-            <conditions>
-                <leftValueReference>Get_PS_Assignments</leftValueReference>
-                <operator>IsNull</operator>
-                <rightValue>
-                    <booleanValue>false</booleanValue>
-                </rightValue>
-            </conditions>
-            <conditions>
-                <leftValueReference>Get_PS_Assignments</leftValueReference>
-                <operator>IsEmpty</operator>
-                <rightValue>
-                    <booleanValue>false</booleanValue>
-                </rightValue>
-            </conditions>
-            <connector>
-                <targetReference>Filter_User_Assignment</targetReference>
-            </connector>
-            <label>Present</label>
-        </rules>
-    </decisions>
-    <decisions>
-        <name>Has_Assignments_To_Insert</name>
-        <label>Has Assignments To Insert?</label>
+        <name>Has_Assignments_To_Save</name>
+        <label>Has Assignments To Save?</label>
         <locationX>0</locationX>
         <locationY>0</locationY>
         <defaultConnectorLabel>No</defaultConnectorLabel>
         <rules>
-            <name>Insert_Present</name>
-            <conditionLogic>and</conditionLogic>
-            <conditions>
-                <leftValueReference>PSAs_ToInsert</leftValueReference>
-                <operator>IsNull</operator>
-                <rightValue>
-                    <booleanValue>false</booleanValue>
-                </rightValue>
-            </conditions>
+            <name>Save_Present</name>
+            <conditionLogic>or</conditionLogic>
             <conditions>
                 <leftValueReference>PSAs_ToInsert</leftValueReference>
                 <operator>IsEmpty</operator>
-                <rightValue>
-                    <booleanValue>false</booleanValue>
-                </rightValue>
-            </conditions>
-            <connector>
-                <targetReference>Insert_Permission_Set_Assignments</targetReference>
-            </connector>
-            <label>Yes</label>
-        </rules>
-    </decisions>
-    <decisions>
-        <name>Has_Assignments_To_Update</name>
-        <label>Has Assignments To Update?</label>
-        <locationX>0</locationX>
-        <locationY>0</locationY>
-        <defaultConnector>
-            <targetReference>Has_Assignments_To_Insert</targetReference>
-        </defaultConnector>
-        <defaultConnectorLabel>No</defaultConnectorLabel>
-        <rules>
-            <name>Update_Present</name>
-            <conditionLogic>and</conditionLogic>
-            <conditions>
-                <leftValueReference>PSAs_ToUpdate</leftValueReference>
-                <operator>IsNull</operator>
                 <rightValue>
                     <booleanValue>false</booleanValue>
                 </rightValue>
@@ -252,7 +246,7 @@
                 </rightValue>
             </conditions>
             <connector>
-                <targetReference>Update_Permission_Set_Assignments</targetReference>
+                <targetReference>Save_Assignments</targetReference>
             </connector>
             <label>Yes</label>
         </rules>
@@ -389,7 +383,7 @@
     <interviewLabel>In-app Guidence using STF {!$Flow.CurrentDateTime}</interviewLabel>
     <label>In-app Guidence using STF</label>
     <loops>
-        <description>Loops the matched assignment (at most one) so its Id can be read.</description>
+        <description>Loops the matched assignment (at most one per user and permission set) so its Id can be read.</description>
         <name>Loop_Existing_Assignment</name>
         <label>Loop Existing Assignment</label>
         <locationX>0</locationX>
@@ -425,10 +419,10 @@
         <collectionReference>User_Ids</collectionReference>
         <iterationOrder>Asc</iterationOrder>
         <nextValueConnector>
-            <targetReference>Has_Existing_Assignments</targetReference>
+            <targetReference>Filter_User_Assignment</targetReference>
         </nextValueConnector>
         <noMoreValuesConnector>
-            <targetReference>Has_Assignments_To_Update</targetReference>
+            <targetReference>Has_Assignments_To_Save</targetReference>
         </noMoreValuesConnector>
     </loops>
     <processMetadataValues>
@@ -450,15 +444,8 @@
         </value>
     </processMetadataValues>
     <processType>AutoLaunchedFlow</processType>
-    <recordCreates>
-        <name>Insert_Permission_Set_Assignments</name>
-        <label>Insert Permission Set Assignments</label>
-        <locationX>0</locationX>
-        <locationY>0</locationY>
-        <inputReference>PSAs_ToInsert</inputReference>
-    </recordCreates>
     <recordLookups>
-        <description>Only the package's permission set (dbt namespace), first record only.</description>
+        <description>Only the package&apos;s permission set (dbt namespace), first record only.</description>
         <name>Get_Permission_set</name>
         <label>Get Permission set</label>
         <locationX>0</locationX>
@@ -467,6 +454,9 @@
         <connector>
             <targetReference>Permission_Set_Found</targetReference>
         </connector>
+        <faultConnector>
+            <targetReference>Capture_Fault</targetReference>
+        </faultConnector>
         <filterLogic>and</filterLogic>
         <filters>
             <field>Name</field>
@@ -487,6 +477,7 @@
         <storeOutputAutomatically>true</storeOutputAutomatically>
     </recordLookups>
     <recordLookups>
+        <description>New, non-demo timesheets whose period overlaps this week (Monday to Sunday).</description>
         <name>Get_This_Week_Timesheets</name>
         <label>Get This Week Timesheets</label>
         <locationX>0</locationX>
@@ -495,19 +486,22 @@
         <connector>
             <targetReference>Timesheet_record_present</targetReference>
         </connector>
+        <faultConnector>
+            <targetReference>Capture_Fault</targetReference>
+        </faultConnector>
         <filterLogic>and</filterLogic>
         <filters>
-            <field>CreatedDate</field>
-            <operator>GreaterThanOrEqualTo</operator>
-            <value>
-                <elementReference>StartOfWeek</elementReference>
-            </value>
-        </filters>
-        <filters>
-            <field>CreatedDate</field>
+            <field>Start_Date__c</field>
             <operator>LessThanOrEqualTo</operator>
             <value>
                 <elementReference>EndOfWeek</elementReference>
+            </value>
+        </filters>
+        <filters>
+            <field>End_Date__c</field>
+            <operator>GreaterThanOrEqualTo</operator>
+            <value>
+                <elementReference>StartOfWeek</elementReference>
             </value>
         </filters>
         <filters>
@@ -528,16 +522,6 @@
         <object>Timesheet__c</object>
         <storeOutputAutomatically>true</storeOutputAutomatically>
     </recordLookups>
-    <recordUpdates>
-        <name>Update_Permission_Set_Assignments</name>
-        <label>Update Permission Set Assignments</label>
-        <locationX>0</locationX>
-        <locationY>0</locationY>
-        <connector>
-            <targetReference>Has_Assignments_To_Insert</targetReference>
-        </connector>
-        <inputReference>PSAs_ToUpdate</inputReference>
-    </recordUpdates>
     <start>
         <locationX>0</locationX>
         <locationY>0</locationY>
@@ -556,6 +540,22 @@
         <name>currentItem_Filter_User_Assignment</name>
         <dataType>SObject</dataType>
         <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <objectType>PermissionSetAssignment</objectType>
+    </variables>
+    <variables>
+        <description>Fault message, or the rows the save action could not save. Visible in the debug log.</description>
+        <name>Error_Message</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <name>Existing_Assignments</name>
+        <dataType>SObject</dataType>
+        <isCollection>true</isCollection>
         <isInput>false</isInput>
         <isOutput>false</isOutput>
         <objectType>PermissionSetAssignment</objectType>
