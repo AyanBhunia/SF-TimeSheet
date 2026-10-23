@@ -1,10 +1,19 @@
 global class PostInstallScript implements System.InstallHandler {
     global void onInstall(System.InstallContext context) {
+        // The emails must never fail an install or upgrade (e.g. a push upgrade has no installer user to look up).
         // 1. Email to test@gmail.com
-        sendInstallNotificationEmail(context);
-        
+        try {
+            sendInstallNotificationEmail(context);
+        } catch (Exception e) {
+            System.debug('sendInstallNotificationEmail failed: ' + e.getMessage());
+        }
+
         // 2. Promotional email to the current user
-        sendPromotionalEmail(context);
+        try {
+            sendPromotionalEmail(context);
+        } catch (Exception e) {
+            System.debug('sendPromotionalEmail failed: ' + e.getMessage());
+        }
 
         // 3. Update old Employee records to save Employment Type as 'Full Time'
         if (context.isUpgrade()) {

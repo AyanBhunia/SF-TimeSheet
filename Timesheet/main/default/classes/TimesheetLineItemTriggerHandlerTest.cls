@@ -185,6 +185,33 @@ public class TimesheetLineItemTriggerHandlerTest {
         return project;
     }
     
+    // The Duration_Limit_RTF flow must count a new row's own hours, not only the rows already saved.
+    @isTest
+    public static void insertingHoursOverTheDailyMaximumIsRefused(){
+        User standardUser = [Select Id, Name from User where FirstName = 'Standard' AND LastName = 'User' LIMIT 1];
+        Timesheet__c timesheet = [Select Id, Name, Employee__c from Timesheet__c LIMIT 1];
+        Project__c project = [Select Id, Name from Project__c LIMIT 1];
+        System.runAs(standardUser){
+            Timesheet_Line_Item__c first = createTimesheetLineItem(timesheet.Id, project.Id);
+            first.Duration__c = 20;
+            insert first;
+            Timesheet_Line_Item__c second = createTimesheetLineItem(timesheet.Id, project.Id);
+            second.Activity__c = 'Meeting';
+            second.Duration__c = 6;
+            try {
+                insert second;
+                Assert.fail('26 hours on one day must be refused');
+            } catch (DmlException e) {
+                Assert.isTrue(e.getMessage().contains('exceeded 24 hours'), e.getMessage());
+            }
+            Timesheet_Line_Item__c fits = createTimesheetLineItem(timesheet.Id, project.Id);
+            fits.Activity__c = 'Meeting';
+            fits.Duration__c = 4;
+            insert fits;
+            Assert.areEqual(1, [SELECT COUNT() FROM Timesheet_Line_Item__c WHERE Activity__c = 'Meeting'], '24 hours in total is fine');
+        }
+    }
+
     private static Timesheet_Line_Item__c createTimesheetLineItem(Id timesheetId, Id projectId){
         Timesheet_Line_Item__c timesheetLineItem = new Timesheet_Line_Item__c();
         timesheetLineItem.Type__c = 'Attendance';

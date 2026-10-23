@@ -346,6 +346,8 @@ public with sharing class DemoDataController {
             for (Employee__c emp : emps) {
                 timesheets.addAll(emp.Timesheet_Masters__r);
             }
+            // A PTO request restricts deleting its employee; its leave days go with it.
+            deleteRecords([SELECT Id FROM PTO_Request__c WHERE Employee__c IN :emps WITH USER_MODE]);
             deleteRecords(timesheets);
             deleteRecords(queryProjects());
             deleteRecords(emps);

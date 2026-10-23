@@ -83,7 +83,9 @@ public with sharing class TimesheetTimerController {
     @AuraEnabled
     public static Map<String, Object> startTimer(Id projectId, String activity) {
         try {
-            Id employeeId = currentEmployeeId();
+            // Locking the employee makes two starts at once (two tabs, utility bar + phone) take turns, so the
+            // second one sees the first one's timer instead of creating a second row.
+            Id employeeId = lockedEmployeeId();
             if (employeeId == null) {
                 throw error('No Employee record found for the current user.');
             }
@@ -208,7 +210,13 @@ public with sharing class TimesheetTimerController {
             if (description != null) {
                 row.Description__c = description;
             }
-            update Security.stripInaccessible(AccessType.UPDATABLE, new List<Timesheet_Line_Item__c>{ row }).getRecords();
+            try {
+                update Security.stripInaccessible(AccessType.UPDATABLE, new List<Timesheet_Line_Item__c>{ row }).getRecords();
+            } catch (DmlException rejected) {
+                // e.g. the day would pass the daily maximum because of other rows. The timer stays as it is.
+                throw error(rejected.getDmlMessage(0) + ' The timer measured ' + workedHours(state).setScale(2)
+                    + ' h. Enter these hours in the timesheet by hand, then discard the timer.');
+            }
         } catch (Exception e) {
             throw error(messageOf(e));
         }
@@ -372,6 +380,11 @@ public with sharing class TimesheetTimerController {
         if (timesheetStatus == 'Submitted' || timesheetStatus == 'Approved') {
             throw error('This timesheet is already ' + timesheetStatus.toLowerCase() + ', so the timer cannot change it. Discard the timer instead.');
         }
+    }
+
+    private static Id lockedEmployeeId() {
+        List<Employee__c> employees = [SELECT Id FROM Employee__c WHERE User__c = :UserInfo.getUserId() WITH SECURITY_ENFORCED LIMIT 1 FOR UPDATE];
+        return employees.isEmpty() ? null : employees[0].Id;
     }
 
     private static Id currentEmployeeId() {

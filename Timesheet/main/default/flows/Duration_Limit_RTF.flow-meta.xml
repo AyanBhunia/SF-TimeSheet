@@ -67,6 +67,22 @@
             </value>
         </assignmentItems>
     </assignments>
+    <assignments>
+        <name>Add_New_Record_Duration</name>
+        <label>Add New Record Duration</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>dur_Coll</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>NewDayTotal</elementReference>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Check_Duration_Value</targetReference>
+        </connector>
+    </assignments>
     <decisions>
         <name>Check_Duration_Value</name>
         <label>Check Duration Value</label>
@@ -98,6 +114,21 @@
             <targetReference>Check_Duration_Value</targetReference>
         </defaultConnector>
         <defaultConnectorLabel>Default Outcome</defaultConnectorLabel>
+        <rules>
+            <name>Record_is_new</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>$Record.Id</leftValueReference>
+                <operator>IsNull</operator>
+                <rightValue>
+                    <booleanValue>true</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Add_New_Record_Duration</targetReference>
+            </connector>
+            <label>Record is new</label>
+        </rules>
         <rules>
             <name>Triggered_record_has_prior_value</name>
             <conditionLogic>and</conditionLogic>
@@ -137,6 +168,12 @@
         </rules>
     </decisions>
     <environments>Default</environments>
+    <formulas>
+        <name>NewDayTotal</name>
+        <dataType>Number</dataType>
+        <expression>BLANKVALUE({!dur_Coll}, 0) + {!$Record.Duration__c}</expression>
+        <scale>2</scale>
+    </formulas>
     <interviewLabel>Duration Limit RTF {!$Flow.CurrentDateTime}</interviewLabel>
     <label>Duration Limit RTF</label>
     <loops>
@@ -196,6 +233,29 @@
         <storeOutputAutomatically>true</storeOutputAutomatically>
     </recordLookups>
     <recordLookups>
+        <name>Get_Parent_Timesheet</name>
+        <label>Get Parent Timesheet</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Get_TimeSheets</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>Id</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>$Record.Timesheet__c</elementReference>
+            </value>
+        </filters>
+        <getFirstRecordOnly>true</getFirstRecordOnly>
+        <object>Timesheet__c</object>
+        <queriedFields>Id</queriedFields>
+        <queriedFields>Employee__c</queriedFields>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </recordLookups>
+    <recordLookups>
         <name>Get_TimeSheets</name>
         <label>Get TimeSheets</label>
         <locationX>0</locationX>
@@ -216,7 +276,7 @@
             <field>Employee__c</field>
             <operator>EqualTo</operator>
             <value>
-                <elementReference>$Record.Timesheet__r.Employee__c</elementReference>
+                <elementReference>Get_Parent_Timesheet.Employee__c</elementReference>
             </value>
         </filters>
         <getFirstRecordOnly>false</getFirstRecordOnly>
@@ -233,7 +293,7 @@
         <locationX>0</locationX>
         <locationY>0</locationY>
         <connector>
-            <targetReference>Get_TimeSheets</targetReference>
+            <targetReference>Get_Parent_Timesheet</targetReference>
         </connector>
         <object>Timesheet_Line_Item__c</object>
         <recordTriggerType>CreateAndUpdate</recordTriggerType>

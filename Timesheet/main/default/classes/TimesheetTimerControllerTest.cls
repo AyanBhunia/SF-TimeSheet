@@ -326,6 +326,41 @@ private class TimesheetTimerControllerTest {
     }
 
     @isTest
+    static void timesheetCannotBeSubmittedOrApprovedWhileATimerRuns() {
+        Id lineItemId = start();
+        for (String status : new List<String>{ 'Submitted', 'Approved' }) {
+            try {
+                update new Timesheet__c(Id = timesheet().Id, Status__c = status);
+                Assert.fail('Expected the timesheet to stay open');
+            } catch (DmlException e) {
+                Assert.isTrue(e.getMessage().contains('timer is still running'), e.getMessage());
+            }
+        }
+        TimesheetTimerController.discardTimer(lineItemId);
+        update new Timesheet__c(Id = timesheet().Id, Status__c = 'Submitted');
+        Assert.areEqual('Submitted', [SELECT Status__c FROM Timesheet__c WHERE Id = :timesheet().Id].Status__c, 'Allowed once the timer is gone');
+    }
+
+    @isTest
+    static void rejectedSaveTellsToEnterTheHoursByHand() {
+        Id lineItemId = start();
+        Long now = Datetime.now().getTime();
+        setState(lineItemId, now - 5 * 3600000L, 0L, now, true); // paused after 5 h
+        insert new Timesheet_Line_Item__c(
+            Timesheet__c = timesheet().Id, Project__c = project().Id, Activity__c = 'Meeting',
+            Date__c = Date.today(), Duration__c = 20, Type__c = 'Attendance'
+        );
+        try {
+            TimesheetTimerController.saveTimer(lineItemId, null);
+            Assert.fail('Expected the 24 h day limit to refuse the save');
+        } catch (AuraHandledException e) {
+            assertFails('Enter these hours in the timesheet by hand', e);
+            assertFails('measured 5', e);
+        }
+        Assert.isNotNull(row(lineItemId).Timer_Data__c, 'The timer is kept so its hours are not lost');
+    }
+
+    @isTest
     static void startNeedsATimesheet() {
         delete [SELECT Id FROM Timesheet__c];
         try {
@@ -340,7 +375,11 @@ private class TimesheetTimerControllerTest {
     @isTest
     static void submittedTimesheetCannotChange() {
         Id lineItemId = start();
+        // Submitting with a running timer is refused now; this recreates a week that was closed some other way.
+        String timerData = row(lineItemId).Timer_Data__c;
+        update new Timesheet_Line_Item__c(Id = lineItemId, Timer_Data__c = null);
         update new Timesheet__c(Id = timesheet().Id, Status__c = 'Submitted');
+        update new Timesheet_Line_Item__c(Id = lineItemId, Timer_Data__c = timerData);
         try {
             TimesheetTimerController.saveTimer(lineItemId, null);
             Assert.fail('Expected an error');
