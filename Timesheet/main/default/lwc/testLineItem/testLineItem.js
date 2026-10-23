@@ -823,9 +823,6 @@ export default class TestLineItem extends LightningElement {
                     throw new Error((res && res.message) || 'The timesheet could not be saved.');
                 }
                 this.showToast('Success', 'Records saved', 'success');
-                if (res.keptTimerRows > 0) {
-                    this.showToast('Info', 'A row with a running timer was kept. Save or discard the timer to remove it.', 'info');
-                }
                 // Open timers show the line item's hours, so let them reload.
                 if (this.timerChannel) {
                     this.timerChannel.postMessage({ changed: true, source: 'grid' });

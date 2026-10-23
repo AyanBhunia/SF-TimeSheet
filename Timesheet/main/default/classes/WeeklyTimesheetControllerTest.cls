@@ -365,6 +365,65 @@ public class WeeklyTimesheetControllerTest {
         }
     }
 
+    // Runs as ordinary employees (Timesheet_User), so sharing and field access are really in play.
+    @isTest
+    static void testSaveWeekAsAnEmployeeOnlyTouchesTheirOwnRows() {
+        Profile standard = [SELECT Id FROM Profile WHERE Name = 'Standard User' LIMIT 1];
+        User one = new User(Alias = 'savone', LastName = 'SaveOne', Email = 'saveone@example.com',
+            Username = 'saveone' + Datetime.now().getTime() + '@example.com', ProfileId = standard.Id,
+            EmailEncodingKey = 'UTF-8', LanguageLocaleKey = 'en_US', LocaleSidKey = 'en_US', TimeZoneSidKey = 'America/Los_Angeles');
+        User two = new User(Alias = 'savtwo', LastName = 'SaveTwo', Email = 'savetwo@example.com',
+            Username = 'savetwo' + Datetime.now().getTime() + '@example.com', ProfileId = standard.Id,
+            EmailEncodingKey = 'UTF-8', LanguageLocaleKey = 'en_US', LocaleSidKey = 'en_US', TimeZoneSidKey = 'America/Los_Angeles');
+        Timesheet_Line_Item__c ownRow;
+        Timesheet_Line_Item__c otherRow;
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            insert new List<User>{ one, two };
+            PermissionSet employeeSet = [SELECT Id FROM PermissionSet WHERE Name = 'Timesheet_User'];
+            insert new List<PermissionSetAssignment>{
+                new PermissionSetAssignment(PermissionSetId = employeeSet.Id, AssigneeId = one.Id),
+                new PermissionSetAssignment(PermissionSetId = employeeSet.Id, AssigneeId = two.Id) };
+            Employee__c empOne = new Employee__c(Name = '-', First_Name__c = 'Save', Last_Name__c = 'One', User__c = one.Id, Email__c = 'saveone.emp@example.com', Employment_Type__c = 'Full Time', Active__c = true);
+            Employee__c empTwo = new Employee__c(Name = '-', First_Name__c = 'Save', Last_Name__c = 'Two', User__c = two.Id, Email__c = 'savetwo.emp@example.com', Employment_Type__c = 'Full Time', Active__c = true);
+            insert new List<Employee__c>{ empOne, empTwo };
+            Project__c project = new Project__c(Name = 'Save Project', Billable__c = 'Yes', Active__c = true);
+            insert project;
+            Timesheet__c sheetOne = new Timesheet__c(Name = 'Save One', Employee__c = empOne.Id, Start_Date__c = Date.today().addDays(-3), End_Date__c = Date.today().addDays(3), OwnerId = one.Id);
+            Timesheet__c sheetTwo = new Timesheet__c(Name = 'Save Two', Employee__c = empTwo.Id, Start_Date__c = Date.today().addDays(-3), End_Date__c = Date.today().addDays(3), OwnerId = two.Id);
+            insert new List<Timesheet__c>{ sheetOne, sheetTwo };
+            ownRow = new Timesheet_Line_Item__c(Timesheet__c = sheetOne.Id, Project__c = project.Id, Activity__c = 'Testing', Date__c = Date.today(), Duration__c = 2, Type__c = 'Attendance');
+            otherRow = new Timesheet_Line_Item__c(Timesheet__c = sheetTwo.Id, Project__c = project.Id, Activity__c = 'Testing', Date__c = Date.today(), Duration__c = 7.5, Type__c = 'Attendance');
+            insert new List<Timesheet_Line_Item__c>{ ownRow, otherRow };
+        }
+
+        System.runAs(one) {
+            // Another employee's row is not visible: the answer is the same for right and wrong hours, and nothing happens.
+            WeeklyTimesheetController.SaveResult rightHours = WeeklyTimesheetController.saveWeek(
+                null, new List<Timesheet_Line_Item__c>{ new Timesheet_Line_Item__c(Id = otherRow.Id, Duration__c = 7.5) }, null);
+            WeeklyTimesheetController.SaveResult wrongHours = WeeklyTimesheetController.saveWeek(
+                null, new List<Timesheet_Line_Item__c>{ new Timesheet_Line_Item__c(Id = otherRow.Id, Duration__c = 1) }, null);
+            System.assertEquals(rightHours.success, wrongHours.success, 'No way to tell the hours of a row that is not yours');
+            System.assertEquals(rightHours.message, wrongHours.message);
+
+            // Editing another employee's row by sending only its Id (no timesheet) must not change it either.
+            WeeklyTimesheetController.SaveResult tamper = WeeklyTimesheetController.saveWeek(
+                new List<Timesheet_Line_Item__c>{ new Timesheet_Line_Item__c(Id = otherRow.Id, Duration__c = 0.5, Description__c = 'Tampered') }, null, null);
+            System.assertEquals(false, tamper.success, 'Another employee\'s row cannot be edited: ' + tamper.message);
+
+            WeeklyTimesheetController.SaveResult edit = WeeklyTimesheetController.saveWeek(
+                new List<Timesheet_Line_Item__c>{ new Timesheet_Line_Item__c(Id = ownRow.Id, Timesheet__c = ownRow.Timesheet__c,
+                    Project__c = ownRow.Project__c, Activity__c = 'Testing', Date__c = ownRow.Date__c, Duration__c = 5, Type__c = 'Attendance') },
+                null, new Map<Id, Decimal>{ ownRow.Id => 2 });
+            System.assertEquals(true, edit.success, 'Own row can be edited: ' + edit.message);
+
+            WeeklyTimesheetController.SaveResult removal = WeeklyTimesheetController.saveWeek(
+                null, new List<Timesheet_Line_Item__c>{ new Timesheet_Line_Item__c(Id = ownRow.Id, Duration__c = 5) }, null);
+            System.assertEquals(true, removal.success, 'Own row can be removed: ' + removal.message);
+        }
+        System.assertEquals(0, [SELECT COUNT() FROM Timesheet_Line_Item__c WHERE Id = :ownRow.Id], 'Own row is gone');
+        System.assertEquals(7.5, [SELECT Duration__c FROM Timesheet_Line_Item__c WHERE Id = :otherRow.Id].Duration__c, 'The other employee\'s row is untouched');
+    }
+
     @isTest
     static void testSaveWeekWithNothingToDoSucceeds() {
         System.assertEquals(true, WeeklyTimesheetController.saveWeek(null, null, null).success);

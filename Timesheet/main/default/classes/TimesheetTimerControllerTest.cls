@@ -342,6 +342,31 @@ private class TimesheetTimerControllerTest {
     }
 
     @isTest
+    static void approvingASubmittedWeekIsNeverBlockedByALeftOverTimer() {
+        Id lineItemId = start();
+        // A week that was submitted while a timer existed (race, old data): the approver cannot clear the timer.
+        String timerData = row(lineItemId).Timer_Data__c;
+        update new Timesheet_Line_Item__c(Id = lineItemId, Timer_Data__c = null);
+        update new Timesheet__c(Id = timesheet().Id, Status__c = 'Submitted');
+        update new Timesheet_Line_Item__c(Id = lineItemId, Timer_Data__c = timerData);
+
+        update new Timesheet__c(Id = timesheet().Id, Status__c = 'Approved');
+        Assert.areEqual('Approved', [SELECT Status__c FROM Timesheet__c WHERE Id = :timesheet().Id].Status__c, 'The manager can approve');
+    }
+
+    @isTest
+    static void cannotStartOnASubmittedTimesheet() {
+        update new Timesheet__c(Id = timesheet().Id, Status__c = 'Submitted');
+        try {
+            start();
+            Assert.fail('Expected an error');
+        } catch (AuraHandledException e) {
+            assertFails('already submitted', e);
+        }
+        Assert.areEqual(0, [SELECT COUNT() FROM Timesheet_Line_Item__c WHERE Timer_Data__c != null], 'No timer row is created');
+    }
+
+    @isTest
     static void rejectedSaveTellsToEnterTheHoursByHand() {
         Id lineItemId = start();
         Long now = Datetime.now().getTime();
@@ -354,7 +379,7 @@ private class TimesheetTimerControllerTest {
             TimesheetTimerController.saveTimer(lineItemId, null);
             Assert.fail('Expected the 24 h day limit to refuse the save');
         } catch (AuraHandledException e) {
-            assertFails('Enter these hours in the timesheet by hand', e);
+            assertFails('Type these hours into that project and activity row', e);
             assertFails('measured 5', e);
         }
         Assert.isNotNull(row(lineItemId).Timer_Data__c, 'The timer is kept so its hours are not lost');

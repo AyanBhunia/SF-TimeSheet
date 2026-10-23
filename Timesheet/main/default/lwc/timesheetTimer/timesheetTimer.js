@@ -124,6 +124,9 @@ export default class TimesheetTimer extends LightningElement {
 
     stopReloading() {
         clearInterval(this.refreshInterval);
+        if (this.syncChannel) {
+            this.syncChannel.onmessage = null;
+        }
         if (this.visibilityHandler) {
             document.removeEventListener('visibilitychange', this.visibilityHandler);
             this.visibilityHandler = null;

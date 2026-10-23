@@ -3,12 +3,15 @@ trigger TimesheetTrigger on dbt__Timesheet__c (before insert, before update, aft
     if (Trigger.isBefore) {
 
         // A running timer's time is only added to its row when the timer is saved, and a submitted or
-        // approved timesheet can no longer take it. So the week cannot be closed while a timer runs.
+        // approved timesheet can no longer take it. So the week cannot be closed while a timer runs: it is checked
+        // when the week is submitted (or approved without having been submitted). Approving a submitted week is
+        // never blocked, because only the owner of a timer can save or discard it, and the approver cannot.
         if (Trigger.isUpdate) {
             Set<Id> closing = new Set<Id>();
             for (dbt__Timesheet__c ts : Trigger.new) {
                 String status = ts.dbt__Status__c;
-                if (status != Trigger.oldMap.get(ts.Id).dbt__Status__c && (status == 'Submitted' || status == 'Approved')) {
+                String oldStatus = Trigger.oldMap.get(ts.Id).dbt__Status__c;
+                if (status != oldStatus && (status == 'Submitted' || (status == 'Approved' && oldStatus != 'Submitted'))) {
                     closing.add(ts.Id);
                 }
             }

@@ -131,8 +131,8 @@ export default class PtoRequestDetail extends LightningElement {
 
     get overBalanceText() {
         const hours = Number(this.detail?.overBalanceHours) || 0;
-        return `${this.request?.employeeName || 'This employee'} will be ${formatHours(hours)} h over their leave balance after this request. `
-            + 'You can still approve it, but their timesheet for the affected week may not be submitted or approved. '
+        return `With all their waiting and approved leave, ${this.request?.employeeName || 'this employee'} will be ${formatHours(hours)} h over their leave balance. `
+            + 'You can still approve this request, but their timesheet for the affected week may not be submitted or approved. '
             + 'To fix that, add Extra Accrued Hours on their Employee record; the balance updates when their next timesheet is approved.';
     }
 
