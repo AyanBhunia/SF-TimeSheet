@@ -433,14 +433,17 @@ private class PtoControllerTest {
 
     // ---------------------------------------------------------------- balance
 
+    // In the package build org the running user's HR Admin access only applies inside runAs.
     private static void setUpAccrual(Decimal extraAccrued) {
-        update new Employee__c(
-            Id = employee('PtoEmp').Id,
-            Accrual_Start_Date__c = WEEK_START.addYears(-1),
-            Accrual_Divisor__c = 8,
-            Extra_Accrued_Hours__c = extraAccrued,
-            Total_Accrued_Hours__c = extraAccrued
-        );
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            update new Employee__c(
+                Id = employee('PtoEmp').Id,
+                Accrual_Start_Date__c = WEEK_START.addYears(-1),
+                Accrual_Divisor__c = 8,
+                Extra_Accrued_Hours__c = extraAccrued,
+                Total_Accrued_Hours__c = extraAccrued
+            );
+        }
     }
 
     private static Decimal availableAsEmployee() {
@@ -460,7 +463,7 @@ private class PtoControllerTest {
         }
         Assert.areEqual(2, availableAsEmployee(), 'Approved leave on an open week is still held back');
 
-        update new Timesheet__c(Id = timesheet().Id, Status__c = 'Approved');
+        System.runAs(new User(Id = UserInfo.getUserId())) { update new Timesheet__c(Id = timesheet().Id, Status__c = 'Approved'); }
         Assert.areEqual(2, availableAsEmployee(), 'Once the week is approved the balance itself has dropped, so it is counted once');
         Assert.areEqual(2, [SELECT Total_Absence_Hours_Available__c FROM Employee__c WHERE Id = :employee('PtoEmp').Id].Total_Absence_Hours_Available__c);
     }
@@ -501,7 +504,7 @@ private class PtoControllerTest {
     }
 
     private static void assertClosedWeekHoldsLeave(String closed) {
-        update new Timesheet__c(Id = timesheet().Id, Status__c = closed);
+        System.runAs(new User(Id = UserInfo.getUserId())) { update new Timesheet__c(Id = timesheet().Id, Status__c = closed); }
         Id requestId = submitAsEmployee(new List<Map<String, Object>>{ day(0, PLANNED, 8) }, null);
         System.runAs(user('PtoHr')) {
             PtoController.approveRequests(new List<Id>{ requestId });
@@ -513,7 +516,7 @@ private class PtoControllerTest {
         Assert.areEqual(0, [SELECT COUNT() FROM Timesheet_Line_Item__c WHERE Date__c = :WEEK_START], closed + ' timesheet is untouched');
 
         // HR reopens the week and retries
-        update new Timesheet__c(Id = timesheet().Id, Status__c = 'New');
+        System.runAs(new User(Id = UserInfo.getUserId())) { update new Timesheet__c(Id = timesheet().Id, Status__c = 'New'); }
         PtoController.ActionResult retry;
         System.runAs(user('PtoHr')) {
             retry = PtoController.retrySync(requestId);

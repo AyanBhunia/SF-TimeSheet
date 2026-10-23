@@ -377,6 +377,13 @@ public class WeeklyTimesheetControllerTest {
             EmailEncodingKey = 'UTF-8', LanguageLocaleKey = 'en_US', LocaleSidKey = 'en_US', TimeZoneSidKey = 'America/Los_Angeles');
         Timesheet_Line_Item__c ownRow;
         Timesheet_Line_Item__c otherRow;
+        // The setup below needs HR Admin access; in the package build org the running user only gets it inside runAs.
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            Id hrAdmin = [SELECT Id FROM PermissionSet WHERE Name = 'Timesheet_HR_Admin' LIMIT 1].Id;
+            if ([SELECT COUNT() FROM PermissionSetAssignment WHERE AssigneeId = :UserInfo.getUserId() AND PermissionSetId = :hrAdmin] == 0) {
+                insert new PermissionSetAssignment(AssigneeId = UserInfo.getUserId(), PermissionSetId = hrAdmin);
+            }
+        }
         System.runAs(new User(Id = UserInfo.getUserId())) {
             insert new List<User>{ one, two };
             PermissionSet employeeSet = [SELECT Id FROM PermissionSet WHERE Name = 'Timesheet_User'];
