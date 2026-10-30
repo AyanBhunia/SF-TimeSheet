@@ -1,0 +1,58 @@
+<template>
+    <div class="phone-timer">
+        <div class="phone-header">
+            <div class="phone-title">
+                <lightning-icon icon-name="utility:clock" size="small" alternative-text=""></lightning-icon>
+                <span>Timer</span>
+            </div>
+            <lightning-formatted-date-time value={today} weekday="short" month="short" day="numeric" class="phone-date"></lightning-formatted-date-time>
+        </div>
+
+        <template lwc:if={hasNoProjects}>
+            <div class="phone-empty">No active project is assigned to you.</div>
+        </template>
+
+        <template lwc:else>
+            <div class="phone-task">
+                <template lwc:if={showPicklists}>
+                    <lightning-combobox name="project" label="Project" value={selectedProject} placeholder="Select Project"
+                        options={projectOptions} onchange={handleProjectChange} disabled={inputsDisabled}></lightning-combobox>
+                    <lightning-combobox name="activity" label="Activity" value={selectedActivity} placeholder="Select Activity"
+                        options={activityOptions} onchange={handleActivityChange} disabled={inputsDisabled} class="slds-m-top_small"></lightning-combobox>
+                </template>
+                <template lwc:if={showTaskInfo}>
+                    <p class="phone-project">{activeProjectName}</p>
+                    <p class="phone-activity">{activeActivityName}</p>
+                </template>
+            </div>
+
+            <div class="phone-clock">
+                <span class={phoneTimeClass} role="timer">{formattedTime}</span>
+                <span class="phone-status">{statusText}</span>
+                <span class="phone-status">{baseText}</span>
+            </div>
+
+            <div class="phone-actions">
+                <template lwc:if={isPendingSave}>
+                    <lightning-textarea label="Description" value={description} onchange={handleDescriptionChange}
+                        placeholder="What did you work on?"></lightning-textarea>
+                    <button class="slds-button slds-button_brand phone-btn" onclick={handleSave} disabled={saveDisabled}>Save</button>
+                    <div class="phone-row">
+                        <button class="slds-button slds-button_outline-brand phone-btn" onclick={handleContinue} disabled={continueDisabled}>Continue</button>
+                        <button class="slds-button slds-button_neutral phone-btn" onclick={handleDiscard} disabled={isLoading}>Discard</button>
+                    </div>
+                </template>
+                <template lwc:elseif={isRunning}>
+                    <button class="slds-button slds-button_destructive phone-btn phone-btn_main" onclick={handlePause} disabled={isLoading}>Stop</button>
+                </template>
+                <template lwc:else>
+                    <button class="slds-button slds-button_brand phone-btn phone-btn_main" onclick={handleStart} disabled={startDisabled}>Start</button>
+                </template>
+            </div>
+        </template>
+
+        <template lwc:if={isLoading}>
+            <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+        </template>
+    </div>
+</template>

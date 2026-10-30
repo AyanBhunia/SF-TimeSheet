@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>61.0</apiVersion>
+    <isExposed>true</isExposed>
+    <targets>
+        <target>lightning__RecordPage</target>
+        <target>lightning__AppPage</target>
+        <target>lightning__HomePage</target>
+    </targets>
+    <targetConfigs>
+        <targetConfig targets="lightning__RecordPage,lightning__AppPage,lightning__HomePage">
+            <property name="configHelp" type="String" label="Configuration Help"
+                default="To change the fields layout please go to setup->custom metadata -> &quot;Dashboard Profile Config&quot; -> click on &quot;Manage Dashboard Profile Config&quot; -> open &quot;Default Value&quot; and edit as u desired."
+                description="To change the fields layout please go to setup->custom metadata -> &quot;Dashboard Profile Config&quot; -> click on &quot;Manage Dashboard Profile Config&quot; -> open &quot;Default Value&quot; and edit as u desired." />
+            <property name="column1Fields" type="String" label="Column 1 Fields (Deprecated)" description="This setting is deprecated. Please use Custom Metadata 'Dashboard Profile Config'." />
+            <property name="column2Fields" type="String" label="Column 2 Fields (Deprecated)" description="This setting is deprecated. Please use Custom Metadata 'Dashboard Profile Config'." />
+            <property name="column3Fields" type="String" label="Column 3 Fields (Deprecated)" description="This setting is deprecated. Please use Custom Metadata 'Dashboard Profile Config'." />
+            <property name="showNullFields" type="Boolean" label="Show Null Value Fields (Deprecated)" description="This setting is deprecated. Please use Custom Metadata 'Dashboard Profile Config'." default="false" />
+        </targetConfig>
+    </targetConfigs>
+</LightningComponentBundle>

@@ -1,0 +1,70 @@
+<template>
+    <div class="slds-m-around_x-small">
+        <div class="slds-grid slds-gutters profile-grid">
+            <template if:true={column1Data}>
+                <div class="slds-col profile-col">
+                    <template for:each={column1Data} for:item="field">
+                        <div key={field.label} class="field-row">
+                            <span class="field-label">
+                                {field.label}:
+                                <template if:true={field.helpText}>
+                                    <lightning-helptext content={field.helpText} class="slds-m-left_xx-small"></lightning-helptext>
+                                </template>
+                            </span>
+                            <span class="field-value">{field.value}</span>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Divider after Column 1 (if Column 2 exists) -->
+                <template if:true={column2Data}>
+                    <div class="vertical-divider"></div>
+                </template>
+            </template>
+
+            <template if:true={column2Data}>
+                <div class="slds-col profile-col">
+                    <template for:each={column2Data} for:item="field">
+                        <div key={field.label} class="field-row">
+                            <span class="field-label">
+                                {field.label}:
+                                <template if:true={field.helpText}>
+                                    <lightning-helptext content={field.helpText} class="slds-m-left_xx-small"></lightning-helptext>
+                                </template>
+                            </span>
+                            <span class="field-value">{field.value}</span>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Divider after Column 2 (if Column 3 exists) -->
+                <template if:true={column3Data}>
+                    <div class="vertical-divider"></div>
+                </template>
+            </template>
+
+            <template if:true={column3Data}>
+                <div class="slds-col profile-col">
+                    <template for:each={column3Data} for:item="field">
+                        <div key={field.label} class="field-row">
+                            <span class="field-label">
+                                {field.label}:
+                                <template if:true={field.helpText}>
+                                    <lightning-helptext content={field.helpText} class="slds-m-left_xx-small"></lightning-helptext>
+                                </template>
+                            </span>
+                            <span class="field-value">{field.value}</span>
+                        </div>
+                    </template>
+                </div>
+            </template>
+        </div>
+        
+        <!-- Button to update out-of-date custom metadata labels -->
+        <template if:true={showResetButton}>
+            <div class="slds-align_absolute-center slds-m-top_medium">
+                <lightning-button label="Reset to Default!" onclick={handleUpdateLabels} variant="brand"></lightning-button>
+            </div>
+        </template>
+    </div>
+</template>

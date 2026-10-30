@@ -1,0 +1,164 @@
+<template>
+  <div style="font-family: 'Open Sans', sans-serif">
+    <div
+      class="slds-box slds-theme_shade slds-text-title_bold slds-text-color_success"
+    >
+      {employeeName} ({startDate} to {endDate})
+    </div>
+    <lightning-messages></lightning-messages>
+    <lightning-card>
+      <div class="container slds-border_right slds-border_left">
+        <lightning-record-edit-form object-api-name="dbt__Timesheet_Line_Item__c">
+          <table
+            class="slds-table slds-table_bordered slds-no-row-hover slds-table_cell-buffer equal-column border-table"
+            role="grid"
+          >
+            <thead style="height: 2rem">
+              <tr>
+                <th colspan="1" style="width: 3rem">No.</th>
+                <th colspan="1" style="width: 9%">Type</th>
+                <th colspan="1" style="width: 15%">Date</th>
+                <th colspan="1" style="width: 10%">Project</th>
+                <th colspan="1" style="width: 10%">Activity</th>
+                <th colspan="1" style="width: 10%">Absence Category</th>
+                <th colspan="1" style="width: 6%">Duration</th>
+                <th colspan="1" style="width: 30%">Description</th>
+                <th colspan="1" style="width: 3rem"></th>
+              </tr>
+            </thead>
+
+            <tbody>
+              <template for:each={timeSheetLineItems} for:item="rec">
+                <tr key={rec} class="slds-hint-parent">
+                  <td class="index">
+                    <lightning-formatted-number
+                      value={rec.index}
+                    ></lightning-formatted-number>
+                  </td>
+                  <td>
+                    <lightning-input-field
+                      variant="label-hidden"
+                      name="dbt__Type__c"
+                      field-name="dbt__Type__c"
+                      data-id={rec.index}
+                      data-record-id={rec.Id}
+                      onchange={handleChange}
+                      value={rec.dbt__Type__c}
+                    ></lightning-input-field>
+                  </td>
+                  <td>
+                    <lightning-input-field
+                      variant="label-hidden"
+                      name="dbt__Date__c"
+                      field-name="dbt__Date__c"
+                      class="width50"
+                      data-id={rec.index}
+                      data-record-id={rec.Id}
+                      onchange={handleChange}
+                      value={rec.dbt__Date__c}
+                    ></lightning-input-field>
+                  </td>
+                  <td>
+                    <lightning-combobox
+                      variant="label-hidden"
+                      label="Project"
+                      name="dbt__Project__c"
+                      disabled={rec.isAbsence}
+                      placeholder="Select Project"
+                      data-id={rec.index}
+                      data-record-id={rec.Id}
+                      options={options}
+                      onchange={handleChange}
+                      value={rec.dbt__Project__c}
+                    ></lightning-combobox>
+                  </td>
+                  <td>
+                    <lightning-input-field
+                      variant="label-hidden"
+                      disabled={rec.isAbsence}
+                      name="dbt__Activity__c"
+                      field-name="dbt__Activity__c"
+                      data-id={rec.index}
+                      data-record-id={rec.Id}
+                      onchange={handleChange}
+                      value={rec.dbt__Activity__c}
+                    ></lightning-input-field>
+                  </td>
+                  <td>
+                    <lightning-input-field
+                      variant="label-hidden"
+                      disabled={rec.isAttendance}
+                      name="dbt__Absence_Category__c"
+                      field-name="dbt__Absence_Category__c"
+                      data-id={rec.index}
+                      data-record-id={rec.Id}
+                      onchange={handleChange}
+                      value={rec.dbt__Absence_Category__c}
+                    ></lightning-input-field>
+                  </td>
+                  <td>
+                    <lightning-input-field
+                      variant="label-hidden"
+                      name="dbt__Duration__c"
+                      field-name="dbt__Duration__c"
+                      data-id={rec.index}
+                      data-record-id={rec.Id}
+                      onchange={handleChange}
+                      value={rec.dbt__Duration__c}
+                    ></lightning-input-field>
+                  </td>
+                  <td>
+                    <lightning-input-field
+                      variant="label-hidden"
+                      name="dbt__Description__c"
+                      field-name="dbt__Description__c"
+                      data-id={rec.index}
+                      data-record-id={rec.Id}
+                      onchange={handleChange}
+                      value={rec.dbt__Description__c}
+                    ></lightning-input-field>
+                  </td>
+                  <td>
+                    <lightning-button-icon
+                      icon-name="utility:delete"
+                      alternative-text="Remove"
+                      title="Remove"
+                      data-id={rec.index}
+                      onclick={deleteItem}
+                      data-record-id={rec.Id}
+                    ></lightning-button-icon>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+          <div class="slds-p-left_small slds-p-vertical_small">
+            <lightning-button
+              variant="neutral"
+              label="Add"
+              title="Add"
+              icon-name="utility:add"
+              onclick={addNewRow}
+            ></lightning-button>
+          </div>
+          <footer class="slds-modal__footer" style="padding: 0.5rem 1rem">
+            <lightning-button
+              variant="neutral"
+              label="Cancel"
+              title="Cancel"
+              type="Cancel"
+              onclick={handleCancel}
+            ></lightning-button>
+            <lightning-button
+              icon-name="utility:save"
+              variant="brand"
+              label="Save"
+              title="Save"
+              onclick={update}
+            ></lightning-button>
+          </footer>
+        </lightning-record-edit-form>
+      </div>
+    </lightning-card>
+  </div>
+</template>

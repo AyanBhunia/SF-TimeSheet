@@ -1,0 +1,105 @@
+:host {
+    display: block;
+}
+
+/* Fills the first screen of the phone; the rest of the page follows on scroll. */
+.phone-timer {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100vh - 6rem);
+    padding: 1rem;
+    background-color: #ffffff;
+    border-radius: 0.5rem;
+}
+
+.phone-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.phone-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.phone-date,
+.phone-status,
+.phone-activity {
+    color: #706e6b;
+}
+
+.phone-empty {
+    margin: auto 0;
+    text-align: center;
+    color: #ba0517;
+    font-size: 1rem;
+}
+
+.phone-task {
+    margin-top: 1rem;
+    text-align: center;
+}
+
+.phone-project {
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.phone-clock {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem 0;
+}
+
+.phone-time {
+    font-size: 4rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 1px;
+    color: #2c3e50;
+}
+
+.phone-time.running {
+    color: #2e844a;
+}
+
+.phone-time.paused {
+    color: #a96404;
+}
+
+.phone-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.phone-row {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.phone-row .phone-btn {
+    flex: 1;
+}
+
+.phone-btn {
+    width: 100%;
+    margin: 0;
+    justify-content: center;
+    min-height: 3rem;
+    font-size: 1.125rem;
+}
+
+.phone-btn_main {
+    min-height: 4rem;
+    font-size: 1.5rem;
+    border-radius: 2rem;
+}

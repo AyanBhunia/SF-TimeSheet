@@ -1,0 +1,184 @@
+<template>
+    <div class="slds-box slds-theme_default">
+        <lightning-card title="Weekly Timesheet View">
+            <div class="slds-p-around_medium">
+
+                <div class="slds-grid slds-gutters">
+                    <div class="slds-col slds-p-top_x-small">
+                        <lightning-combobox data-id="prevTimesheet" name="Previous Timesheets" variant="label-hidden" options={prevTimesheets} onchange={prevTimesheet} placeholder="Select a previous Timesheet to copy">
+                        </lightning-combobox>
+                    </div>
+                    <div class="slds-col slds-p-top_x-small">
+                        <lightning-button label="Copy" onclick={handleCopy}></lightning-button>
+                    </div>
+                    <div class="slds-col slds-text-align_right">
+                        <lightning-button label="Refresh" onclick={handleCancel} variant="neutral" class="slds-m-right_x-small">
+                        </lightning-button>
+                        <lightning-button label="Save" onclick={handleSave} variant="brand" class="slds-m-right_x-small">
+                        </lightning-button>
+                    </div>
+                </div>
+
+                <template if:true={timerChangedWhileEditing}>
+                    <div class="slds-notify slds-notify_alert slds-alert_warning slds-m-bottom_small" role="alert">
+                        <h2 class="slds-p-right_small">The timer changed this timesheet. Reload to see its changes; reloading discards your unsaved edits.</h2>
+                        <lightning-button label="Reload" onclick={reloadGrid}></lightning-button>
+                    </div>
+                </template>
+
+                <table class="slds-table slds-table_bordered slds-table_cell-buffer">
+                    <thead>
+                        <tr class="slds-line-height_reset">
+                            <th class="slds-text-title_caps">Activity Name</th>
+                            <th class="slds-text-title_caps">Monday</th>
+                            <th class="slds-text-title_caps">Tuesday</th>
+                            <th class="slds-text-title_caps">Wednesday</th>
+                            <th class="slds-text-title_caps">Thursday</th>
+                            <th class="slds-text-title_caps">Friday</th>
+                            <th class="slds-text-title_caps">Saturday</th>
+                            <th class="slds-text-title_caps">Sunday</th>
+                            <th class="slds-text-title_caps">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+
+                        <!-- Section Header for Billable Amounts -->
+                        <tr class="slds-theme_shade duration_hours">
+                            <td class="slds-text-title_bold">Billable Amount</td>
+                            <template for:each={billableAmounts} for:item="total" for:index="index">
+                                <td key={billableAmounts.index} class="slds-text-title_bold">
+                                    {total}
+                                </td>
+                            </template>
+                            <td></td>
+                        </tr>
+
+                        <!-- Section Header for Totals -->
+                        <tr class="slds-theme_shade duration_hours">
+                            <td class="slds-text-title_bold">Total Hours</td>
+                            <template for:each={grandTotals} for:item="total" for:index="index">
+                                <td key={grandTotals.index} class="slds-text-title_bold">
+                                    {total}
+                                </td>
+                            </template>
+                            <td></td>
+                        </tr>
+
+                        <!-- Section Header for Projects -->
+                        <tr  class="duration_hours">
+                            <td class="slds-text-title_bold slds-theme_shade slds-p-around_x-small">Projects Hours</td>
+                            <template for:each={projectsTotals} for:item="total" for:index="index">
+                                <td key={projectsTotals.index} class="slds-text-title_bold slds-theme_shade slds-p-around_x-small">
+                                    {total}
+                                </td>
+                            </template>
+                            <td class="slds-theme_shade"></td>
+                        </tr>
+
+                        <template for:each={projectsList} for:item="row" for:index="index">
+                            <tr key={row.projectName} class="slds-hint-parent">
+                                <td>
+                                    <lightning-combobox name="projectName" variant="label-hidden" value={row.projectName}
+                                        options={projectOptions} data-row-index={index}
+                                        onchange={handleProjectChange} placeholder="Select a Project">
+                                    </lightning-combobox>
+
+                                    <lightning-combobox name="activityName" value={row.activityName}
+                                        options={row.activityOptions} data-row-index={index}
+                                        onchange={handleProjectChange} placeholder="Select an Activity">
+                                    </lightning-combobox>
+                                </td>
+
+                                <template for:each={row.dates} for:item="day" for:index="dayIndex">
+                                    <td key={day.name}>
+                                        <div class="slds-grid slds-grid_vertical">
+                                            <div class="slds-col">
+                                                <lightning-input type="number" title="Duration" value={day.dur}
+                                                    step="0.01" min="0" max="24" data-for="project"
+                                                    data-row-index={index} data-day-index={dayIndex} onchange={handleDurationChange} onkeydown={handleKeyDown}>
+                                                </lightning-input>
+                                            </div>
+                                            <div class="slds-col">
+                                                <lightning-textarea title="Description" value={day.desc} disabled={day.isdisable}  data-for="project" data-row-index={index} data-day-index={dayIndex} onchange={handleDescriptionChange}>
+                                                </lightning-textarea>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </template>
+
+                                <td>
+                                    <lightning-button-icon icon-name="utility:delete" alternative-text="Delete" class="slds-m-left_xx-small"
+                                        variant="border-filled" data-row-index={index} data-type="project" onclick={handleDeleteRow}>
+                                    </lightning-button-icon>
+                                </td>
+                            </tr>
+                        </template>
+
+                        <!-- Section Header for Absence -->
+                        <tr  class="duration_hours">
+                            <td class="slds-text-title_bold slds-theme_shade slds-p-around_x-small">Absence Hours</td>
+                            <template for:each={absenceTotals} for:item="total" for:index="index">
+                                <td key={absenceTotals.index} class="slds-text-title_bold slds-theme_shade slds-p-around_x-small">
+                                    {total}
+                                </td>
+                            </template>
+                            <td class="slds-theme_shade"></td>
+                        </tr>
+
+                        <template for:each={absenceList} for:item="row" for:index="index">
+                            <tr key={row.absenceName} class="slds-hint-parent">
+                                <td>
+                                    <lightning-combobox name="absenceName" variant="label-hidden" value={row.absenceName} 
+                                        options={absenceOptions}
+                                        data-row-index={index} onchange={handleAbsenceChange} placeholder="Select an Absence Catagory">
+                                    </lightning-combobox>
+                                </td>
+                        
+                                <template for:each={row.dates} for:item="day" for:index="dayIndex">
+                                    <td key={day.name}>
+                                        <div class="slds-grid slds-grid_vertical">
+                                            <div class="slds-col">
+                                                <lightning-input type="number" title="Duration" value={day.dur} step="0.01" min="0" max="24" data-for="absence"
+                                                    data-row-index={index} data-day-index={dayIndex} onchange={handleDurationChange} onkeydown={handleKeyDown}>
+                                                </lightning-input>
+                                            </div>
+                                            <div class="slds-col">
+                                                <lightning-textarea title="Description" value={day.desc} disabled={day.isdisable}  data-for="absence" data-row-index={index} data-day-index={dayIndex} onchange={handleDescriptionChange}>
+                                                </lightning-textarea>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </template>
+
+                                <td>
+                                    <lightning-button-icon icon-name="utility:delete" alternative-text="Delete" class="slds-m-left_xx-small"
+                                        variant="border-filled" data-row-index={index} data-type="absence" onclick={handleDeleteRow}>
+                                    </lightning-button-icon>
+                                </td>
+                            </tr>
+                        </template>
+
+                    </tbody>
+                </table>
+
+                <div class="slds-grid slds-grid_align-spread slds-p-top_medium">
+                    <!-- Left group -->
+                    <div class="slds-col">
+                        <lightning-button label="Add Project" onclick={handleAddProject} variant="neutral" class="slds-m-right_x-small">
+                        </lightning-button>
+                        <lightning-button label="Add Absence" onclick={handleAddAbsence} variant="neutral" class="slds-m-right_x-small">
+                        </lightning-button>
+                    </div>
+                
+                    <!-- Right group -->
+                    <div class="slds-col slds-text-align_right">
+                        <lightning-button label="Refresh" onclick={handleCancel} variant="neutral" class="slds-m-right_x-small">
+                        </lightning-button>
+                        <lightning-button label="Save" onclick={handleSave} variant="brand" class="slds-m-right_x-small">
+                        </lightning-button>
+                    </div>
+                </div>
+            </div>
+        </lightning-card>
+    </div>
+</template>

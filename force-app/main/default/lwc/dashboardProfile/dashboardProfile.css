@@ -1,0 +1,41 @@
+.vertical-divider {
+    width: 1px;
+    background-color: #dddbda;
+}
+
+.field-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.field-label {
+    font-weight: bold;
+    padding-right: 1rem;
+}
+
+.field-value {
+    text-align: right;
+}
+
+/* Phones: stack the columns instead of squeezing them side by side. */
+@media (max-width: 767px) {
+    .profile-grid {
+        flex-wrap: wrap;
+    }
+
+    .profile-col {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+
+    .profile-col + .profile-col,
+    .vertical-divider + .profile-col {
+        border-top: 1px solid #dddbda;
+        padding-top: 0.5rem;
+    }
+
+    .vertical-divider {
+        display: none;
+    }
+}

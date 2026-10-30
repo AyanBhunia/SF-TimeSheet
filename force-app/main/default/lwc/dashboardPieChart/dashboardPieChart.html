@@ -1,0 +1,22 @@
+<template>
+    <div class="slds-m-around_x-small">
+        <!-- Level Selector Buttons -->
+        <div data-id="levelSelector" class="slds-button-group">
+            <button class="slds-button slds-button_neutral" data-level="year">Year</button>
+            <button class="slds-button slds-button_neutral" data-level="month">Month</button>
+            <button class="slds-button slds-button_neutral" data-level="week">Week</button>
+            <button class="slds-button slds-button_neutral" data-level="day">Day</button>
+        </div>
+
+        <!-- Navigation Buttons -->
+        <div data-id="navigationButtons" class="slds-button-group slds-m-top_small">
+            <button class="slds-button slds-button_neutral" data-id="prevButton">Previous</button>
+            <button class="slds-button slds-button_neutral" data-id="nextButton">Next</button>
+        </div>
+
+        <!-- Chart Container -->
+        <div data-id="chartContainer" style="position: relative; height: 400px;" class="slds-m-top_medium">
+            <canvas></canvas>
+        </div>
+    </div>
+</template>

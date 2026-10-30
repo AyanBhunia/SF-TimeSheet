@@ -1,0 +1,79 @@
+<template>
+    <div class="slds-form-element">
+        <template if:true={label}>
+            <label class="slds-form-element__label">
+                <template if:true={required}>
+                    <abbr class="slds-required" title="required">*</abbr>
+                </template>
+                {label}
+            </label>
+        </template>
+
+        <div class="slds-form-element__control">
+            <div class="slds-input-has-icon slds-input-has-icon_right" onclick={handleWrapperClick}>
+                <input
+                    type="text"
+                    class="slds-input sd-input"
+                    value={displayValue}
+                    placeholder={placeholder}
+                    disabled={disabled}
+                    autocomplete="off"
+                    role="combobox"
+                    aria-autocomplete="list"
+                    aria-expanded={ariaExpanded}
+                    aria-label={ariaLabel}
+                    aria-invalid={ariaInvalid}
+                    onfocus={handleFocus}
+                    onblur={handleBlur}
+                    onclick={handleInputClick}
+                    oninput={handleInput}
+                    onkeydown={handleKeyDown}
+                />
+                <lightning-icon
+                    class="slds-input__icon slds-input__icon_right sd-icon"
+                    icon-name={iconName}
+                    size="x-small"
+                ></lightning-icon>
+            </div>
+        </div>
+
+        <template if:true={hasError}>
+            <div class="slds-form-element__help sd-error">{errorMessage}</div>
+        </template>
+
+        <template if:true={showPills}>
+            <div class="sd-pills">
+                <template for:each={selectedOptions} for:item="opt">
+                    <lightning-pill key={opt.key} label={opt.label} name={opt.value} onremove={handleRemovePill}></lightning-pill>
+                </template>
+            </div>
+        </template>
+
+        <!-- Fixed position so the list is never clipped by a scrolling table or modal; only the list scrolls -->
+        <template if:true={isOpen}>
+            <div class="sd-dropdown" role="listbox" aria-multiselectable={isMulti} onmousedown={handleDropdownMouseDown}>
+                <div class="sd-options">
+                    <template for:each={filteredOptions} for:item="opt">
+                        <div
+                            key={opt.key}
+                            class={opt.itemClass}
+                            role="option"
+                            aria-selected={opt.ariaSelected}
+                            data-value={opt.value}
+                            onclick={handleSelect}
+                            onmouseenter={handleOptionHover}
+                        >
+                            <span class="sd-option-label" title={opt.label}>{opt.label}</span>
+                            <template if:true={opt.isSelected}>
+                                <lightning-icon icon-name="utility:check" size="xx-small" class="sd-check"></lightning-icon>
+                            </template>
+                        </div>
+                    </template>
+                    <template if:false={hasFilteredOptions}>
+                        <div class="sd-no-results">No matching options found.</div>
+                    </template>
+                </div>
+            </div>
+        </template>
+    </div>
+</template>

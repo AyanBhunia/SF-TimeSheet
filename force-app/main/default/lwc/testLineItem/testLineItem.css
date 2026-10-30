@@ -1,0 +1,114 @@
+/* weeklyTimesheetView.css */
+:host .slds-box.slds-theme_default {
+/* Outer container styling (optional) */
+background-color: #ffffff;
+border-radius: 4px;
+box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+padding: 1rem;
+}
+
+:host .slds-table tbody tr {
+    height: 50px;
+    /* Set your desired row height */
+}
+
+/* Make the table fill the available width and fix column sizing */
+:host .slds-table {
+width: 100%;
+table-layout: fixed; /* Ensures columns remain equal widths */
+border-collapse: separate;
+border-spacing: 0;
+}
+
+:host .slds-table thead th {
+    text-transform: uppercase;
+    font-weight: 600;
+    color: #ffffff;
+    background-color: #1B5299;
+    text-align: center;
+    padding: 0.75rem;
+}
+
+/* Header row styling */
+:host .slds-table thead {
+    --slds-g-color-neutral-base-95: #1B5299;
+}
+
+
+
+/* Force Monday-Sunday columns to the same width.
+Example:
+- 20% for the first column (Activity Name),
+- 7 columns for Monday→Sunday at 10% each = 70%,
+- last column (Action) = 10%.
+Adjust if you prefer different widths. */
+:host .slds-table thead th:nth-child(1) {
+width: 20%;
+}
+:host .slds-table thead th:nth-child(n+2):nth-child(-n+8) {
+width: 10%; /* Monday to Sunday */
+}
+:host .slds-table thead th:last-child {
+width: 10%; /* Action column */
+}
+
+/* Table cell styling */
+:host .slds-table tbody td {
+background-color: #ffffff;
+padding: 0.75rem;
+vertical-align: middle;
+text-align: center; /* Center-align table cells by default */
+}
+
+/* Subtle row striping (optional) */
+:host .slds-table tbody tr:nth-child(even) td {
+background-color: #f7fafc;
+}
+/* Hover highlight (optional) */
+:host .slds-table tbody tr:hover td {
+    background-color: #eef3f8;
+}
+
+/* Section headers (Total, Projects, Absence) rows */
+:host tr.slds-theme_shade td {
+    background-color: #1b5299 !important;
+    color: White;
+    font-weight: 600;
+    text-align: center;
+}
+
+:host td.slds-theme_shade{
+    background-color: #767ca15e !important;
+}
+
+/* Center the numeric inputs */
+:host lightning-input[type="number"] .slds-form-element__control input {
+    text-align: center;
+}
+
+/* Style the description text areas (height = 30px, padding = 3px) */
+:host lightning-textarea[title="Description"] .slds-form-element__control textarea {
+height: 30px !important;
+padding: 3px !important;
+resize: none; /* Prevent user from manually resizing if you want it fixed */
+}
+
+/* Spacing for buttons at the bottom */
+:host .slds-p-top_medium {
+    margin-top: 1rem;
+    border-top: 1px solid #d8dde6;
+    padding-top: 1rem;
+}
+
+.duration_hours
+{
+    height: 40px !important;
+    text-align: center;
+    --slds-g-color-neutral-base-95: red;
+}
+
+.slds-table thead th {
+    position: sticky;
+    top: 8.5rem;
+    z-index: 1;
+}

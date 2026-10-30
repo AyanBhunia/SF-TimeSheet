@@ -1,0 +1,17 @@
+<template>
+    <div class="slds-m-around_x-small">
+        <lightning-combobox 
+        name="employeePicklist" 
+        value={selectedUserId} 
+        options={employees} 
+        onchange={handleChange}>
+        </lightning-combobox>
+        
+        <!-- Optionally display errors -->
+        <template if:true={error}>
+            <div class="slds-text-color_error">
+                <p>Error loading employees: {error}</p>
+            </div>
+        </template>
+    </div>
+</template>

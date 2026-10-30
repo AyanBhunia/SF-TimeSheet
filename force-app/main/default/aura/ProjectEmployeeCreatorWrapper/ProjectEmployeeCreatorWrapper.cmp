@@ -1,0 +1,14 @@
+<aura:component implements="lightning:isUrlAddressable" access="global">
+    <lightning:navigation aura:id="nav" />
+    <!-- Host for the Project Employee list button: list buttons can only open a URL, so this renders the LWC as a modal -->
+    <section role="dialog" tabindex="-1" aria-modal="true" aria-label="Assign Employees to Projects" class="slds-modal slds-fade-in-open slds-modal_medium">
+        <div class="slds-modal__container">
+            <lightning:buttonIcon iconName="utility:close" variant="bare-inverse" size="large"
+                                  class="slds-modal__close" alternativeText="Close" onclick="{!c.handleClose}" />
+            <div class="slds-modal__content">
+                <c:projectEmployeeCreator onclose="{!c.handleClose}" />
+            </div>
+        </div>
+    </section>
+    <div class="slds-backdrop slds-backdrop_open" role="presentation"></div>
+</aura:component>

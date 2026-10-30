@@ -1,0 +1,11 @@
+<template>
+	<div class="slds-m-around_medium">
+		<lightning-button label={generateButtonLabel} onclick={handleClick} disabled={isButtonDisabled} variant="brand">
+		</lightning-button>
+
+		<template if:true={isGeneratingPDF}>
+			<lightning-spinner alternative-text="Generating PDF" size="small" variant="brand">
+			</lightning-spinner>
+		</template>
+	</div>
+</template>

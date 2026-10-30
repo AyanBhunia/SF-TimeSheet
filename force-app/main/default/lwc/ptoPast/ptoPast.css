@@ -1,0 +1,8 @@
+.past-card {
+    position: relative;
+    min-height: 220px;
+}
+
+.past-employee {
+    min-width: 16rem;
+}

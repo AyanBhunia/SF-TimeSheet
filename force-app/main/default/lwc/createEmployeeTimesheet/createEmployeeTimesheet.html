@@ -1,0 +1,27 @@
+<template>
+    <lightning-card>
+        <div class="slds-m-around_medium">
+            <div class="slds-grid slds-gutters">
+                <div class="slds-col">
+                    <lightning-input type="date" label="Start Date" class="start-date" required></lightning-input>
+                </div>
+                <div class="slds-col">
+                    <lightning-input type="date" label="End Date" class="end-date" required></lightning-input>
+                </div>
+            </div>
+            <div class="slds-m-top_medium slds-align_absolute-center">
+                <lightning-button 
+                    label={generateButtonLabel}
+                    onclick={handleClick}
+                    disabled={isButtonDisabled}
+                    variant="brand">
+                </lightning-button>
+            </div>
+
+            <template if:true={isGeneratingPDF}>
+                <lightning-spinner alternative-text="Generating PDF" size="small" variant="brand">
+                </lightning-spinner>
+            </template>
+        </div>
+    </lightning-card>
+</template>
