@@ -1,8 +1,10 @@
 # To create package version run this
 # Before this change package version and ansector version
 sfdx force:package:version:create --package Timesheet --installation-key-bypass -v pbo --json --code-coverage --post-install-script PostInstallScript --wait 30
+sf package version create --package Timesheet --installation-key-bypass --target-dev-hub PBO --code-coverage --post-install-script PostInstallScript --wait 30 --json
 
 sfdx force:package:version:create --package TimesheetUnlocked --installation-key-bypass -v pbo --json --wait 30
+sf package version create --package TimesheetUnlocked --installation-key-bypass --target-dev-hub PBO  --wait 30 --json
 
 # then promote the package version
 sf package version promote --package <package_version_id>
