@@ -36,7 +36,6 @@
             </value>
         </inputParameters>
         <nameSegment>emailSimple</nameSegment>
-        <offset>0</offset>
     </actionCalls>
     <actionCalls>
         <name>Employee_Notification</name>
@@ -80,7 +79,6 @@
             </value>
         </inputParameters>
         <nameSegment>customNotificationAction</nameSegment>
-        <offset>0</offset>
     </actionCalls>
     <actionCalls>
         <name>Manager_Email_Alert</name>
@@ -124,7 +122,6 @@
             </value>
         </inputParameters>
         <nameSegment>emailSimple</nameSegment>
-        <offset>0</offset>
     </actionCalls>
     <actionCalls>
         <name>Manager_Notification</name>
@@ -168,10 +165,8 @@
             </value>
         </inputParameters>
         <nameSegment>customNotificationAction</nameSegment>
-        <offset>0</offset>
     </actionCalls>
     <apiVersion>62.0</apiVersion>
-    <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
     <assignments>
         <name>Add_Employee_to_the_collection_Update</name>
         <label>Add Employee to the collection Update</label>
@@ -538,6 +533,13 @@
                 <stringValue>Full Time</stringValue>
             </value>
         </filters>
+        <filters>
+            <field>Is_Demo__c</field>
+            <operator>EqualTo</operator>
+            <value>
+                <booleanValue>false</booleanValue>
+            </value>
+        </filters>
         <getFirstRecordOnly>false</getFirstRecordOnly>
         <object>Employee__c</object>
         <sortField>Id</sortField>
@@ -632,7 +634,9 @@
             <targetReference>Get_Default_Values_From_Metadata_type</targetReference>
         </connector>
         <schedule>
+            <dayOfMonthToRun>0</dayOfMonthToRun>
             <frequency>Daily</frequency>
+            <frequencyNumber>0</frequencyNumber>
             <startDate>2025-01-29</startDate>
             <startTime>00:00:00.000Z</startTime>
         </schedule>

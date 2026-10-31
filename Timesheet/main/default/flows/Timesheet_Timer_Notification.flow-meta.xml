@@ -14,9 +14,10 @@
                 <elementReference>$Record.Id</elementReference>
             </value>
         </inputParameters>
+        <nameSegment>TimesheetTimerNotificationService</nameSegment>
     </actionCalls>
     <apiVersion>64.0</apiVersion>
-    <description>Waits until a running timer's next notification is due (Next Notify At, set by the Timer) and sends it. Pausing, saving or discarding the timer clears the field and cancels the wait.</description>
+    <description>Waits until a running timer&apos;s next notification is due (Next Notify At, set by the Timer) and sends it. Pausing, saving or discarding the timer clears the field and cancels the wait.</description>
     <environments>Default</environments>
     <interviewLabel>Timesheet Timer Notification {!$Flow.CurrentDateTime}</interviewLabel>
     <label>Timesheet Timer Notification</label>

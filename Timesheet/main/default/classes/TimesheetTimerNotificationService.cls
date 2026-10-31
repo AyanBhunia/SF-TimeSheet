@@ -27,7 +27,7 @@ public without sharing class TimesheetTimerNotificationService {
         List<Timesheet_Line_Item__c> changed = new List<Timesheet_Line_Item__c>();
 
         for (Timesheet_Line_Item__c item : [
-            SELECT Id, Duration__c, Timer_Data__c, Next_Notify_At__c, Employee__r.User__c
+            SELECT Id, Timesheet__c, Duration__c, Timer_Data__c, Next_Notify_At__c, Employee__r.User__c
             FROM Timesheet_Line_Item__c
             WHERE Id IN :lineItemIds AND Timer_Data__c != null AND Next_Notify_At__c != null
             FOR UPDATE
@@ -73,13 +73,14 @@ public without sharing class TimesheetTimerNotificationService {
     private static Boolean notify(Timesheet_Line_Item__c item, Integer stage) {
         Id recipient = item.Employee__r?.User__c;
         Id typeId = notificationTypeId();
-        if (recipient == null || typeId == null || forceNotificationFailure) {
+        if (recipient == null || item.Timesheet__c == null ||
+            typeId == null || forceNotificationFailure) {
             System.debug(LoggingLevel.WARN, 'Timer notification ' + stage + ' not sent for ' + item.Id + ': no recipient or notification type.');
             return false;
         }
         Messaging.CustomNotification notification = new Messaging.CustomNotification();
         notification.setNotificationTypeId(typeId);
-        notification.setTargetId(item.Id);
+        notification.setTargetId(item.Timesheet__c);
         notification.setTitle(stage == 2 || stage == 4 ? 'Timesheet Timer Stopped' : 'Timesheet Timer Warning');
         notification.setBody(bodyOf(stage));
         try {

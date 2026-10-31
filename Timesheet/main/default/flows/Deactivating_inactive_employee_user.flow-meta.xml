@@ -36,10 +36,8 @@
             </value>
         </inputParameters>
         <nameSegment>emailSimple</nameSegment>
-        <offset>0</offset>
     </actionCalls>
     <apiVersion>64.0</apiVersion>
-    <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
     <decisions>
         <name>Check_If_Last_Working_Date_is_Today</name>
         <label>Check If Last Working Date is Today</label>
@@ -50,10 +48,17 @@
             <name>Last_Working_Date_is_Today</name>
             <conditionLogic>and</conditionLogic>
             <conditions>
-                <leftValueReference>$Record.dbt__Last_Working_Date__c</leftValueReference>
+                <leftValueReference>$Record.Last_Working_Date__c</leftValueReference>
                 <operator>LessThanOrEqualTo</operator>
                 <rightValue>
                     <elementReference>CheckingLastWorkingDate</elementReference>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>$Record.Is_Demo__c</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
                 </rightValue>
             </conditions>
             <connector>
@@ -244,7 +249,6 @@ Salesforce Automation System</text>
         <dataType>String</dataType>
         <isCollection>true</isCollection>
         <scale>0</scale>
-        <storeOutputAutomatically>true</storeOutputAutomatically>
         <transformValues>
             <transformValueActions>
                 <transformType>Map</transformType>
@@ -265,7 +269,6 @@ Salesforce Automation System</text>
         <dataType>String</dataType>
         <isCollection>true</isCollection>
         <scale>0</scale>
-        <storeOutputAutomatically>true</storeOutputAutomatically>
         <transformValues>
             <transformValueActions>
                 <transformType>Map</transformType>

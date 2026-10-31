@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Package xmlns="http://soap.sforce.com/2006/04/metadata">
     <types>
+        <members>DemoDataController</members>
+        <members>DemoDataControllerTest</members>
+        <members>EmployeeAccrualUpdater</members>
+        <members>EmployeeAccrualUpdaterTest</members>
         <members>EmployeeTriggerHandler</members>
         <members>EmployeeTriggerHandlerTest</members>
         <members>GetDashboardManagerEmployeeDetails</members>
@@ -11,27 +15,54 @@
         <members>GetDashboardTimesheetLineItemsTest</members>
         <members>GetEmployeeDetails</members>
         <members>GetEmployeeDetailsTest</members>
+        <members>GetPermissionSetAssignments</members>
         <members>GetRangeOfTimesheetsLineItems</members>
         <members>GetRangeOfTimesheetsLineItemsTest</members>
         <members>GetTimesheet</members>
         <members>GetTimesheetLineItems</members>
         <members>GetTimesheetLineItemsTest</members>
         <members>GetTimesheetTest</members>
+        <members>LeaveToLineItem</members>
+        <members>LeaveValidator</members>
+        <members>PermissionSetAssignmentActionsTest</members>
+        <members>PostInstallScript</members>
+        <members>PostInstallScriptTest</members>
         <members>ProjectController</members>
         <members>ProjectControllerTest</members>
+        <members>ProjectEmployeeController</members>
+        <members>ProjectEmployeeControllerTest</members>
+        <members>PtoController</members>
+        <members>PtoControllerTest</members>
+        <members>PtoData</members>
+        <members>PtoNotifier</members>
+        <members>PtoRequestService</members>
+        <members>SavePermissionSetAssignments</members>
+        <members>TimesheetAccrualBatch</members>
+        <members>TimesheetAccrualBatchTest</members>
         <members>TimesheetLineItemController</members>
         <members>TimesheetLineItemLwcController</members>
         <members>TimesheetLineItemLwcControllerTest</members>
         <members>TimesheetLineItemTriggerHandler</members>
         <members>TimesheetLineItemTriggerHandlerTest</members>
+        <members>TimesheetTimerController</members>
+        <members>TimesheetTimerControllerTest</members>
+        <members>TimesheetTimerNotificationService</members>
+        <members>TimesheetTimerNotificationTest</members>
         <members>WeeklyTimesheetController</members>
         <members>WeeklyTimesheetControllerTest</members>
         <name>ApexClass</name>
     </types>
     <types>
         <members>EmployeeTrigger</members>
+        <members>LeaveLineItemTrigger</members>
+        <members>PtoRequestTrigger</members>
         <members>TimesheetLineItemTrigger</members>
+        <members>TimesheetTrigger</members>
         <name>ApexTrigger</name>
+    </types>
+    <types>
+        <members>ProjectEmployeeCreatorWrapper</members>
+        <name>AuraDefinitionBundle</name>
     </types>
     <types>
         <members>Employee__c.Emp_CL</members>
@@ -46,6 +77,12 @@
     </types>
     <types>
         <members>Charge_Code__c.Description__c</members>
+        <members>Dashboard_Profile_Config__mdt.Column_1_Fields__c</members>
+        <members>Dashboard_Profile_Config__mdt.Column_2_Fields__c</members>
+        <members>Dashboard_Profile_Config__mdt.Column_3_Fields__c</members>
+        <members>Dashboard_Profile_Config__mdt.Show_Null_Fields__c</members>
+        <members>Employee__c.Accrual_Divisor__c</members>
+        <members>Employee__c.Accrual_Start_Date__c</members>
         <members>Employee__c.Active__c</members>
         <members>Employee__c.Address__c</members>
         <members>Employee__c.Client_Manager__c</members>
@@ -53,15 +90,42 @@
         <members>Employee__c.Date_of_Birth__c</members>
         <members>Employee__c.Email__c</members>
         <members>Employee__c.Employment_Type__c</members>
+        <members>Employee__c.Extra_Absence_Hours__c</members>
+        <members>Employee__c.Extra_Accrued_Hours__c</members>
         <members>Employee__c.First_Name__c</members>
         <members>Employee__c.Hire_Date__c</members>
+        <members>Employee__c.Is_Demo__c</members>
         <members>Employee__c.Last_Name__c</members>
         <members>Employee__c.Last_Working_Date__c</members>
         <members>Employee__c.Manager__c</members>
         <members>Employee__c.Middle_Name__c</members>
         <members>Employee__c.No_of_Vacations_Taken__c</members>
         <members>Employee__c.Phone_Number__c</members>
+        <members>Employee__c.Total_Absence_Hours_Available__c</members>
+        <members>Employee__c.Total_Absence_Hours__c</members>
+        <members>Employee__c.Total_Accrued_Hours__c</members>
         <members>Employee__c.User__c</members>
+        <members>Leave_Line_Item__c.Absence_Category__c</members>
+        <members>Leave_Line_Item__c.Date__c</members>
+        <members>Leave_Line_Item__c.Duration__c</members>
+        <members>Leave_Line_Item__c.PTO_Request__c</members>
+        <members>Leave_Line_Item__c.Sync_Error__c</members>
+        <members>Leave_Line_Item__c.Sync_Status__c</members>
+        <members>Leave_Line_Item__c.Timesheet_Line_Item__c</members>
+        <members>Leave_Line_Item__c.Unique_Key__c</members>
+        <members>PTO_Request__c.Approver__c</members>
+        <members>PTO_Request__c.Day_Count__c</members>
+        <members>PTO_Request__c.Decided_By__c</members>
+        <members>PTO_Request__c.Decided_On__c</members>
+        <members>PTO_Request__c.Decision_Notes__c</members>
+        <members>PTO_Request__c.Employee__c</members>
+        <members>PTO_Request__c.End_Date__c</members>
+        <members>PTO_Request__c.Notes__c</members>
+        <members>PTO_Request__c.PTO_Tab_Link__c</members>
+        <members>PTO_Request__c.Start_Date__c</members>
+        <members>PTO_Request__c.Status__c</members>
+        <members>PTO_Request__c.Sync_Error_Count__c</members>
+        <members>PTO_Request__c.Total_Hours__c</members>
         <members>Project_Activity__c.Project__c</members>
         <members>Project_Charge_code__c.Charge_Code__c</members>
         <members>Project_Charge_code__c.Description__c</members>
@@ -75,8 +139,15 @@
         <members>Project__c.Active__c</members>
         <members>Project__c.Billable__c</members>
         <members>Project__c.End_Date__c</members>
+        <members>Project__c.Is_Demo__c</members>
         <members>Project__c.Start_Date__c</members>
         <members>Timesheet_Default_Value__mdt.Accrued_Vacation_Days__c</members>
+        <members>Timesheet_Default_Value__mdt.Max_Holiday_Hours__c</members>
+        <members>Timesheet_Default_Value__mdt.Max_On_Duty_Hours__c</members>
+        <members>Timesheet_Default_Value__mdt.Max_PTO_Planned_Hours__c</members>
+        <members>Timesheet_Default_Value__mdt.Max_PTO_Unplanned_Hours__c</members>
+        <members>Timesheet_Default_Value__mdt.Max_Permission_Hours__c</members>
+        <members>Timesheet_Default_Value__mdt.Max_Sick_Leave_Hours__c</members>
         <members>Timesheet_Default_Value__mdt.Maximum_Working_Hrs_Per_Day__c</members>
         <members>Timesheet_Default_Value__mdt.Working_Days_per_Week__c</members>
         <members>Timesheet_Default_Value__mdt.Working_Hours_Per_Day__c</members>
@@ -89,14 +160,19 @@
         <members>Timesheet_Line_Item__c.Duration__c</members>
         <members>Timesheet_Line_Item__c.Employee__c</members>
         <members>Timesheet_Line_Item__c.Hours_Limit_Exceeded__c</members>
+        <members>Timesheet_Line_Item__c.Next_Notify_At__c</members>
         <members>Timesheet_Line_Item__c.Project_Employee__c</members>
         <members>Timesheet_Line_Item__c.Project__c</members>
+        <members>Timesheet_Line_Item__c.Timer_Data__c</members>
         <members>Timesheet_Line_Item__c.Timesheet__c</members>
         <members>Timesheet_Line_Item__c.Type__c</members>
         <members>Timesheet__c.Absence_Hours__c</members>
+        <members>Timesheet__c.Accrued_Hours__c</members>
         <members>Timesheet__c.Billable_Hours__c</members>
         <members>Timesheet__c.Employee__c</members>
         <members>Timesheet__c.End_Date__c</members>
+        <members>Timesheet__c.Holiday_Hours__c</members>
+        <members>Timesheet__c.Is_Demo__c</members>
         <members>Timesheet__c.Manager__c</members>
         <members>Timesheet__c.Met_Weekly_Hours__c</members>
         <members>Timesheet__c.Non_Billable_Hours__c</members>
@@ -109,16 +185,22 @@
         <name>CustomField</name>
     </types>
     <types>
+        <members>Dashboard_Profile_Config.Default_Value</members>
         <members>Timesheet_Default_Value.Default_Values</members>
         <name>CustomMetadata</name>
     </types>
     <types>
+        <members>PTO_Request_Update</members>
         <members>Time_Sheet_Vacation_Notification</members>
+        <members>Timesheet_Timer_Notification</members>
         <name>CustomNotificationType</name>
     </types>
     <types>
         <members>Charge_Code__c</members>
+        <members>Dashboard_Profile_Config__mdt</members>
         <members>Employee__c</members>
+        <members>Leave_Line_Item__c</members>
+        <members>PTO_Request__c</members>
         <members>Project_Activity__c</members>
         <members>Project_Charge_code__c</members>
         <members>Project_Employee__c</members>
@@ -129,13 +211,17 @@
         <name>CustomObject</name>
     </types>
     <types>
+        <members>PTO_Admin_All</members>
+        <members>PTO_Approve_Team</members>
         <members>Timesheet_Guidance_Access</members>
+        <members>Timesheet_Timer</members>
         <name>CustomPermission</name>
     </types>
     <types>
         <members>Charge_Code__c</members>
         <members>Employee__c</members>
         <members>Overview</members>
+        <members>PTO</members>
         <members>Project_Charge_code__c</members>
         <members>Project_Employee__c</members>
         <members>Project__c</members>
@@ -146,6 +232,14 @@
         <members>TimeSheetDashboard/</members>
         <members>TimeSheetDashboard/WqdvzsrKNcNuYbwCVCHzkfRSczlJJN</members>
         <name>Dashboard</name>
+    </types>
+    <types>
+        <members>PTO_Emails</members>
+        <members>PTO_Emails/PTO_Approval_Request</members>
+        <members>PTO_Emails/PTO_Approved</members>
+        <members>PTO_Emails/PTO_Rejected</members>
+        <members>PTO_Emails/PTO_Submit_Receipt</members>
+        <name>EmailTemplate</name>
     </types>
     <types>
         <members>Approval_Request_Record_Page</members>
@@ -170,6 +264,7 @@
         <members>Timesheet_Line_Item_Type_RTF</members>
         <members>Timesheet_Remainder_STF</members>
         <members>Timesheet_Submission_Follow_up_Email</members>
+        <members>Timesheet_Timer_Notification</members>
         <members>Timesheets_Creation_STF</members>
         <members>Update_Project_Charge_Code_Name_RTF</members>
         <members>Updating_Billable_Amount</members>
@@ -177,6 +272,7 @@
     </types>
     <types>
         <members>Charge_Code__c-Charge Code Layout</members>
+        <members>Dashboard_Profile_Config__mdt-Dashboard Profile Config Layout</members>
         <members>Employee__c-Employee Layout</members>
         <members>Project_Charge_code__c-Project-Charge code Layout</members>
         <members>Project_Employee__c-Project Employee Layout</members>
@@ -195,9 +291,23 @@
         <members>dashboardProfile</members>
         <members>dashboardSharedData</members>
         <members>dashboardWeeklyChart</members>
+        <members>demoDataModel</members>
+        <members>demoDataPrompt</members>
+        <members>demoDataSetupModal</members>
+        <members>projectEmployeeCreator</members>
+        <members>ptoApp</members>
+        <members>ptoApply</members>
+        <members>ptoApprove</members>
+        <members>ptoConfirmModal</members>
+        <members>ptoOverview</members>
+        <members>ptoPast</members>
+        <members>ptoRequestDetail</members>
+        <members>ptoTable</members>
         <members>relatedTimesheets</members>
+        <members>searchableDropdown</members>
         <members>testLineItem</members>
         <members>timesheetLineItemsLWC</members>
+        <members>timesheetTimer</members>
         <name>LightningComponentBundle</name>
     </types>
     <types>
@@ -232,6 +342,7 @@
         <name>Prompt</name>
     </types>
     <types>
+        <members>Project__c.Assign_Employees</members>
         <members>Timesheet__c.Custom_New</members>
         <name>QuickAction</name>
     </types>
@@ -249,6 +360,10 @@
         <name>Report</name>
     </types>
     <types>
+        <members>PTO_Request__c.Approver__c</members>
+        <name>SharingReason</name>
+    </types>
+    <types>
         <members>dbtLogo</members>
         <members>jsChart</members>
         <members>jsChartMatrix</members>
@@ -264,9 +379,11 @@
         <members>Timesheet_Line_Item__c.Eight_hour_limit_for_out_of_office</members>
         <members>Timesheet_Line_Item__c.Project_and_Activity_validation</members>
         <members>Timesheet_Line_Item__c.Validate_Timesheet_Line_Item_Date</members>
+        <members>Timesheet__c.Prevent_Insufficient_Absence_Hours</members>
         <name>ValidationRule</name>
     </types>
     <types>
+        <members>Project_Employee__c.Create_Project_Employees_List_Button</members>
         <members>Timesheet_Line_Item__c.Custom_New</members>
         <name>WebLink</name>
     </types>
