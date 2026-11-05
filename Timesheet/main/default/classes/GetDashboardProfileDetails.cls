@@ -150,7 +150,7 @@ public with sharing class GetDashboardProfileDetails {
         String col2 = 'ClientManager,ClientManagerEmail,Projects,TotalEmpAccruedHours,TotalEmpAbsenceHours,TotalAbsenceHoursAvailable';
         String col3 = 'AllBillableHours,AllNonBillableHours,AllAbsenceHours,AllHours,VacationsTaken';
         
-        String namespace = 'dbt__';
+        String namespace = '';
         
         Metadata.CustomMetadata customMetadata = new Metadata.CustomMetadata();
         customMetadata.fullName = namespace + 'Dashboard_Profile_Config.' + namespace + 'Default_Value';

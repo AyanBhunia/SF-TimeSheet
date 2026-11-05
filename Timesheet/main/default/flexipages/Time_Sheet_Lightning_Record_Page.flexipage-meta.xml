@@ -116,7 +116,7 @@
         <itemInstances>
             <fieldInstance>
                 <fieldItem>Record.Billable_Amount__c</fieldItem>
-                <identifier>Recorddbt__Billable_Amount__cField</identifier>
+                <identifier>RecordBillable_Amount__cField</identifier>
             </fieldInstance>
         </itemInstances>
         <name>Facet-24f41968-ad1f-485b-9ff7-e72149260eca</name>

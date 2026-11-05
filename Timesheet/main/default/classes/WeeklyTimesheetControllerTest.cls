@@ -386,7 +386,7 @@ public class WeeklyTimesheetControllerTest {
         }
         System.runAs(new User(Id = UserInfo.getUserId())) {
             insert new List<User>{ one, two };
-            PermissionSet employeeSet = [SELECT Id FROM PermissionSet WHERE Name = 'Timesheet_User'];
+            PermissionSet employeeSet = [SELECT Id FROM PermissionSet WHERE Name = 'Timesheet_User' LIMIT 1];
             insert new List<PermissionSetAssignment>{
                 new PermissionSetAssignment(PermissionSetId = employeeSet.Id, AssigneeId = one.Id),
                 new PermissionSetAssignment(PermissionSetId = employeeSet.Id, AssigneeId = two.Id) };
@@ -463,7 +463,7 @@ public class WeeklyTimesheetControllerTest {
                             Id, 
                             Name 
                             FROM PermissionSet 
-                            WHERE Name = 'Timesheet_HR_Admin'];
+                            WHERE Name = 'Timesheet_HR_Admin' LIMIT 1];
         System.runAs(user){
             PermissionSetAssignment psa = new PermissionSetAssignment();
         	psa.PermissionSetId = ps.Id;

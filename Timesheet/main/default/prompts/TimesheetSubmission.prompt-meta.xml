@@ -3,7 +3,7 @@
     <masterLabel>Timesheet Submission</masterLabel>
     <promptVersions>
         <actionButtonLabel>Submit Now</actionButtonLabel>
-        <actionButtonLink>/lightning/o/dbt__Timesheet__c/list?filterName=dbt__This_Week_Timesheets</actionButtonLink>
+        <actionButtonLink>/lightning/o/Timesheet__c/list?filterName=This_Week_Timesheets</actionButtonLink>
         <body>&lt;p&gt;Ensure you submit your timesheet by Friday at 5 PM to prevent payment delays.&lt;/p&gt;</body>
         <customApplication>Timesheet</customApplication>
         <delayDays>1</delayDays>

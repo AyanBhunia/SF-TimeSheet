@@ -9,5 +9,5 @@
     <openType>replace</openType>
     <protected>false</protected>
     <requireRowSelection>false</requireRowSelection>
-    <url>/lightning/cmp/dbt__ProjectEmployeeCreatorWrapper</url>
+    <url>/lightning/cmp/ProjectEmployeeCreatorWrapper</url>
 </WebLink>

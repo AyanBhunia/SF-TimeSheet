@@ -184,8 +184,8 @@ export default class CreateEmployeeTimesheet extends LightningElement {
     async fetchEmployeeData() {
         try {
             const employee = await getEmployee({ recID: this.recordId });
-            this.Client = employee.dbt__Project_Employees__r
-                ?.map(el => el.dbt__Project_Name__c)
+            this.Client = employee.Project_Employees__r
+                ?.map(el => el.Project_Name__c)
                 .join(', ') || '';
             return employee;
         } catch (error) {
@@ -236,7 +236,7 @@ export default class CreateEmployeeTimesheet extends LightningElement {
         while (dateCursor <= endDateLocal) {
             const yyyyMmDd = this.formatYMD(dateCursor);
             tempLineItems.push({
-                dbt__Date__c: yyyyMmDd,
+                Date__c: yyyyMmDd,
                 duration: "0",
                 Day: this.weekdays[dateCursor.getDay()]
             });
@@ -247,12 +247,12 @@ export default class CreateEmployeeTimesheet extends LightningElement {
 
         // Normalize incoming items to YYYY-MM-DD before matching
         const normalizedItems = (lineItems || []).map(item => ({
-            ymd: this.extractYMDFromSFDate(item.dbt__Date__c),
+            ymd: this.extractYMDFromSFDate(item.Date__c),
             duration: item.duration != null ? String(item.duration) : "0"
         }));
 
         tempLineItems.forEach(row => {
-            const match = normalizedItems.find(it => it.ymd === row.dbt__Date__c);
+            const match = normalizedItems.find(it => it.ymd === row.Date__c);
             if (match) {
                 row.duration = match.duration;
             }
@@ -270,7 +270,7 @@ export default class CreateEmployeeTimesheet extends LightningElement {
     addTotalRow() {
         this.TimesheetLineItems.push({
             Day: "Total",
-            dbt__Date__c: this.totalDays.toString(),
+            Date__c: this.totalDays.toString(),
             duration: this.totalDuration.toString()
         });
     }
@@ -331,8 +331,8 @@ export default class CreateEmployeeTimesheet extends LightningElement {
      */
     addHeader(doc) {
         const contractorName = this.Employee?.Name || "Unknown Contractor";
-        const clientmanagerName = this.Employee?.dbt__Client_Manager__r?.Name || "Unknown Manager";
-        const clientmanagerEmail = this.Employee?.dbt__Client_Manager_email__c || "No Email Provided";
+        const clientmanagerName = this.Employee?.Client_Manager__r?.Name || "Unknown Manager";
+        const clientmanagerEmail = this.Employee?.Client_Manager_email__c || "No Email Provided";
 
         const pic = new Image();
         pic.src = imageLogo;
@@ -362,12 +362,12 @@ export default class CreateEmployeeTimesheet extends LightningElement {
         const footer = [this.TimesheetLineItems.pop()];
         const columns = [
             { header: "Day", dataKey: "Day" },
-            { header: "Date", dataKey: "dbt__Date__c" },
+            { header: "Date", dataKey: "Date__c" },
             { header: "Hours_Worked", dataKey: "duration" }
         ];
         const rows = this.TimesheetLineItems.map(row => ({
             Day: row.Day,
-            dbt__Date__c: row.dbt__Date__c,
+            Date__c: row.Date__c,
             duration: row.duration,
         }));
 

@@ -15,7 +15,7 @@
             </value>
         </assignmentItems>
         <assignmentItems>
-            <assignToReference>$Record.dbt__Manager__c</assignToReference>
+            <assignToReference>$Record.Manager__c</assignToReference>
             <operator>Assign</operator>
             <value>
                 <elementReference>$Record.User__r.ManagerId</elementReference>
@@ -33,7 +33,7 @@
     <formulas>
         <name>FName_MName_LName</name>
         <dataType>String</dataType>
-        <expression>{!$Record.dbt__First_Name__c}+ &apos; &apos; + {!$Record.dbt__Middle_Name__c} + &apos; &apos; +{!$Record.dbt__Last_Name__c}</expression>
+        <expression>{!$Record.First_Name__c}+ &apos; &apos; + {!$Record.Middle_Name__c} + &apos; &apos; +{!$Record.Last_Name__c}</expression>
     </formulas>
     <interviewLabel>Employee Name RTF {!$Flow.CurrentDateTime}</interviewLabel>
     <label>Employee Name RTF</label>

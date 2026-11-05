@@ -19,7 +19,7 @@
     }
   ],
   "name": "SF-TimeSheet",
-  "namespace": "dbt",
+  "namespace": "",
   "sfdcLoginUrl": "https://login.salesforce.com",
   "sourceApiVersion": "64.0",
   "packageAliases": {

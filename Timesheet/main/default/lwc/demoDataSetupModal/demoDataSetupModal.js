@@ -495,11 +495,11 @@ export default class DemoDataSetupModal extends LightningModal {
     }
 
     get approvedEmailBody() {
-        return "{!dbt__Timesheet__c.dbt__Employee__c},\nYour {!dbt__Timesheet__c.Name} is Approved.\nComments : {!ApprovalRequest.Comments}";
+        return "{!Timesheet__c.Employee__c},\nYour {!Timesheet__c.Name} is Approved.\nComments : {!ApprovalRequest.Comments}";
     }
 
     get rejectedEmailBody() {
-        return "{!dbt__Timesheet__c.dbt__Employee__c},\nYour {!dbt__Timesheet__c.Name} is Rejected.\nComments : {!ApprovalRequest.Comments}";
+        return "{!Timesheet__c.Employee__c},\nYour {!Timesheet__c.Name} is Rejected.\nComments : {!ApprovalRequest.Comments}";
     }
 
     handleCopy(event) {

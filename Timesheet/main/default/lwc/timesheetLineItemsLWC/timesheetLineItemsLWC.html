@@ -8,7 +8,7 @@
     <lightning-messages></lightning-messages>
     <lightning-card>
       <div class="container slds-border_right slds-border_left">
-        <lightning-record-edit-form object-api-name="dbt__Timesheet_Line_Item__c">
+        <lightning-record-edit-form object-api-name="Timesheet_Line_Item__c">
           <table
             class="slds-table slds-table_bordered slds-no-row-hover slds-table_cell-buffer equal-column border-table"
             role="grid"
@@ -38,84 +38,84 @@
                   <td>
                     <lightning-input-field
                       variant="label-hidden"
-                      name="dbt__Type__c"
-                      field-name="dbt__Type__c"
+                      name="Type__c"
+                      field-name="Type__c"
                       data-id={rec.index}
                       data-record-id={rec.Id}
                       onchange={handleChange}
-                      value={rec.dbt__Type__c}
+                      value={rec.Type__c}
                     ></lightning-input-field>
                   </td>
                   <td>
                     <lightning-input-field
                       variant="label-hidden"
-                      name="dbt__Date__c"
-                      field-name="dbt__Date__c"
+                      name="Date__c"
+                      field-name="Date__c"
                       class="width50"
                       data-id={rec.index}
                       data-record-id={rec.Id}
                       onchange={handleChange}
-                      value={rec.dbt__Date__c}
+                      value={rec.Date__c}
                     ></lightning-input-field>
                   </td>
                   <td>
                     <lightning-combobox
                       variant="label-hidden"
                       label="Project"
-                      name="dbt__Project__c"
+                      name="Project__c"
                       disabled={rec.isAbsence}
                       placeholder="Select Project"
                       data-id={rec.index}
                       data-record-id={rec.Id}
                       options={options}
                       onchange={handleChange}
-                      value={rec.dbt__Project__c}
+                      value={rec.Project__c}
                     ></lightning-combobox>
                   </td>
                   <td>
                     <lightning-input-field
                       variant="label-hidden"
                       disabled={rec.isAbsence}
-                      name="dbt__Activity__c"
-                      field-name="dbt__Activity__c"
+                      name="Activity__c"
+                      field-name="Activity__c"
                       data-id={rec.index}
                       data-record-id={rec.Id}
                       onchange={handleChange}
-                      value={rec.dbt__Activity__c}
+                      value={rec.Activity__c}
                     ></lightning-input-field>
                   </td>
                   <td>
                     <lightning-input-field
                       variant="label-hidden"
                       disabled={rec.isAttendance}
-                      name="dbt__Absence_Category__c"
-                      field-name="dbt__Absence_Category__c"
+                      name="Absence_Category__c"
+                      field-name="Absence_Category__c"
                       data-id={rec.index}
                       data-record-id={rec.Id}
                       onchange={handleChange}
-                      value={rec.dbt__Absence_Category__c}
+                      value={rec.Absence_Category__c}
                     ></lightning-input-field>
                   </td>
                   <td>
                     <lightning-input-field
                       variant="label-hidden"
-                      name="dbt__Duration__c"
-                      field-name="dbt__Duration__c"
+                      name="Duration__c"
+                      field-name="Duration__c"
                       data-id={rec.index}
                       data-record-id={rec.Id}
                       onchange={handleChange}
-                      value={rec.dbt__Duration__c}
+                      value={rec.Duration__c}
                     ></lightning-input-field>
                   </td>
                   <td>
                     <lightning-input-field
                       variant="label-hidden"
-                      name="dbt__Description__c"
-                      field-name="dbt__Description__c"
+                      name="Description__c"
+                      field-name="Description__c"
                       data-id={rec.index}
                       data-record-id={rec.Id}
                       onchange={handleChange}
-                      value={rec.dbt__Description__c}
+                      value={rec.Description__c}
                     ></lightning-input-field>
                   </td>
                   <td>

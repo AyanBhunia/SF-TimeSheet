@@ -8,16 +8,16 @@ const columns = [
             target: '_blank'
         }
     },
-    { label: 'Type', fieldName: 'dbt__Type__c', type: 'text' },
-    { label: 'Date', fieldName: 'dbt__Date__c', type: 'date' },
-    { label: 'Duration', fieldName: 'dbt__Duration__c', type: 'number' },
+    { label: 'Type', fieldName: 'Type__c', type: 'text' },
+    { label: 'Date', fieldName: 'Date__c', type: 'date' },
+    { label: 'Duration', fieldName: 'Duration__c', type: 'number' },
     {
         label: 'Project', fieldName: 'projectUrl', type: 'url', typeAttributes: {
             label: { fieldName: 'projectName' },
             target: '_blank'
         }
     },
-    { label: 'Absence Category', fieldName: 'dbt__Absence_Category__c', type: 'text' }
+    { label: 'Absence Category', fieldName: 'Absence_Category__c', type: 'text' }
 ];
 
 export default class RelatedTimesheets extends LightningElement {
@@ -34,9 +34,9 @@ export default class RelatedTimesheets extends LightningElement {
             this.timesheets = data.map(row => {
 
                 nameUrl = `/${row.Id}`;
-                if (row.dbt__Project__c != null) {
-                    projectUrl = `/${row.dbt__Project__c}`;
-                    projectName = row.dbt__Project__r.Name;
+                if (row.Project__c != null) {
+                    projectUrl = `/${row.Project__c}`;
+                    projectName = row.Project__r.Name;
                 } else {
                     projectUrl = null;
                     projectName = null;

@@ -276,7 +276,7 @@ private class ProjectEmployeeControllerTest {
     }
 
     private static Project__c project(String name) {
-        return [SELECT Id FROM Project__c WHERE Name = :name];
+        return [SELECT Id FROM Project__c WHERE Name = :name LIMIT 1];
     }
 
     private static Employee__c employee(String lastName) {

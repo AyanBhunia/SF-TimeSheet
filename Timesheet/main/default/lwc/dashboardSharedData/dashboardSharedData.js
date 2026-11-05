@@ -133,7 +133,7 @@ function processData(abc) {
     }
 
     // Get reference date for week calculations (use last element like original code but normalize to UTC)
-    const minDate = parseToUTCDate(abc[abc.length - 1].dbt__Date__c);
+    const minDate = parseToUTCDate(abc[abc.length - 1].Date__c);
     const startOfFirstWeek = getMondayUTC(minDate);
 
     /**
@@ -151,9 +151,9 @@ function processData(abc) {
 
     // Process each timesheet entry
     // A project the viewer cannot see has no name; show it as "Other projects" instead of "undefined".
-    abc.forEach(({ dbt__Type__c, dbt__Date__c, Name = 'Other projects', duration }) => {
+    abc.forEach(({ Type__c, Date__c, Name = 'Other projects', duration }) => {
         // Parse and anchor date to UTC midnight to avoid local timezone shifts
-        const dateUTC = parseToUTCDate(dbt__Date__c);
+        const dateUTC = parseToUTCDate(Date__c);
 
         // Extract date components using UTC methods
         const year = dateUTC.getUTCFullYear();
@@ -202,7 +202,7 @@ function processData(abc) {
         yearData.duration += duration;
 
         // Process attendance entries
-        if (dbt__Type__c === "Attendance") {
+        if (Type__c === "Attendance") {
             // Update attendance totals
             dayData.attendance += duration;
             weekData.attendance += duration;
@@ -216,7 +216,7 @@ function processData(abc) {
             yearData.projects.set(Name, (yearData.projects.get(Name) || 0) + duration);
         } 
         // Process absence entries
-        else if (dbt__Type__c === "Absence") {
+        else if (Type__c === "Absence") {
             dayData.absence += duration;
             weekData.absence += duration;
             monthData.absence += duration;

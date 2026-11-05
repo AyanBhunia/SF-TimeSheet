@@ -144,7 +144,7 @@
                     <value>none</value>
                 </fieldInstanceProperties>
                 <fieldItem>Record.Accrual_Start_Date__c</fieldItem>
-                <identifier>Recorddbt__Accrual_Start_Date__cField</identifier>
+                <identifier>RecordAccrual_Start_Date__cField</identifier>
             </fieldInstance>
         </itemInstances>
         <itemInstances>
@@ -154,7 +154,7 @@
                     <value>none</value>
                 </fieldInstanceProperties>
                 <fieldItem>Record.Total_Absence_Hours__c</fieldItem>
-                <identifier>Recorddbt__Total_Absence_Hours__cField</identifier>
+                <identifier>RecordTotal_Absence_Hours__cField</identifier>
             </fieldInstance>
         </itemInstances>
         <itemInstances>
@@ -164,7 +164,7 @@
                     <value>none</value>
                 </fieldInstanceProperties>
                 <fieldItem>Record.Total_Absence_Hours_Available__c</fieldItem>
-                <identifier>Recorddbt__Total_Absence_Hours_Available__cField</identifier>
+                <identifier>RecordTotal_Absence_Hours_Available__cField</identifier>
             </fieldInstance>
         </itemInstances>
         <name>Facet-e9cc82ed-d71f-49d2-97f4-2c7d97e866c6</name>
