@@ -31,8 +31,8 @@
             <lightning-accordion allow-multiple-sections-open active-section-name={activeSections}>
                 <template for:each={invoices} for:item="inv" for:index="invIdx">
                     <lightning-accordion-section
-                        key={inv.accountId}
-                        name={inv.accountId}
+                        key={inv.invoiceKey}
+                        name={inv.invoiceKey}
                         label={inv.sectionLabel}>
 
                         <!-- Invoice Header Fields Card -->

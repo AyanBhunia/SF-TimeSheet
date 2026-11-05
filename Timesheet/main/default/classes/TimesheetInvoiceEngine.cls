@@ -2,6 +2,12 @@ public with sharing class TimesheetInvoiceEngine {
 
     public class EngineException extends Exception {}
 
+    // Paths are relative to dbt__Timesheet_Line_Item__c.
+    public static final String DEFAULT_CUSTOMER_FIELD = 'dbt__Project__r.Account__c';
+    private static final String KEY_SEPARATOR = '\u001F';
+    private static final Integer MAX_PATH_HOPS = 5;
+    private static final Integer MAX_GROUP_LABEL_LENGTH = 200;
+
     public class FetchRequest {
         @InvocableVariable(required=true label='Start Date')
         public Date startDate;
@@ -17,6 +23,9 @@ public with sharing class TimesheetInvoiceEngine {
 
         @InvocableVariable(label='Customer Account Filter')
         public Id accountIdFilter;
+
+        @InvocableVariable(label='Customer Account Field' description='Path from Timesheet Line Item to the Account lookup that receives the invoice. Default: dbt__Project__r.Account__c. Employee customer: dbt__Timesheet__r.dbt__Employee__r.Account__c')
+        public String customerAccountField;
     }
 
     public class FetchResponse {
@@ -31,6 +40,9 @@ public with sharing class TimesheetInvoiceEngine {
 
         @InvocableVariable(label='Total Line Item Count')
         public Integer totalLineItemCount;
+
+        @InvocableVariable(label='Lines Skipped - No Customer')
+        public Integer skippedNoCustomerCount;
     }
 
     public class PreviewRequest {
@@ -52,8 +64,11 @@ public with sharing class TimesheetInvoiceEngine {
         @InvocableVariable(label='Only Billable Items')
         public Boolean onlyBillable;
 
-        @InvocableVariable(label='Comma-Separated Merge Key Fields')
-        public String mergeKeyFields; // Default: 'dbt__Project__c,dbt__Employee__c,dbt__Activity__c,dbt__Billable__c'
+        @InvocableVariable(label='Customer Account Field' description='Path from Timesheet Line Item to the Account lookup that receives the invoice. Default: dbt__Project__r.Account__c. Employee customer: dbt__Timesheet__r.dbt__Employee__r.Account__c')
+        public String customerAccountField;
+
+        @InvocableVariable(label='Invoice Grouping Key Fields' description='Optional comma-separated paths from Timesheet Line Item. One invoice per customer and distinct key value, e.g. dbt__Timesheet__r.dbt__Employee__c,dbt__Project__c')
+        public String invoiceGroupingKeyFields;
 
         @InvocableVariable(label='Default Payment Terms (Days)')
         public Integer dueDaysOffset; // Default: 30
@@ -131,6 +146,7 @@ public with sharing class TimesheetInvoiceEngine {
         res.eligibleLineItemIds = new List<String>();
         res.totalEligibleHours = 0;
         res.totalLineItemCount = 0;
+        res.skippedNoCustomerCount = 0;
 
         if (req == null || req.startDate == null || req.endDate == null) {
             return res;
@@ -153,31 +169,36 @@ public with sharing class TimesheetInvoiceEngine {
         Id accountFilter = req.accountIdFilter;
         Date sDate = req.startDate;
         Date eDate = req.endDate;
+        FieldPath customerPath = resolveCustomerPath(req.customerAccountField);
 
         // Base query for candidate line items
         String queryStr = 'SELECT Id, dbt__Date__c, dbt__Duration__c, dbt__Timesheet__c, ' +
-                          'dbt__Project__c, dbt__Project__r.Account__c, dbt__Billable__c ' +
+                          'dbt__Project__c, dbt__Billable__c, ' + customerPath.path + ' ' +
                           'FROM dbt__Timesheet_Line_Item__c ' +
                           'WHERE dbt__Date__c >= :sDate AND dbt__Date__c <= :eDate ' +
                           'AND dbt__Timesheet__r.dbt__Status__c IN :statusList ' +
                           'AND dbt__Type__c != \'Absence\' ' +
                           'AND dbt__Absence_Category__c = null ' +
-                          'AND dbt__Project__c != null ' +
-                          'AND dbt__Project__r.Account__c != null ';
+                          'AND dbt__Project__c != null ';
 
         if (onlyBillable) {
             queryStr += 'AND dbt__Billable__c = \'Yes\' ';
         }
 
-        if (accountFilter != null) {
-            queryStr += 'AND dbt__Project__r.Account__c = :accountFilter ';
-        }
 
         List<dbt__Timesheet_Line_Item__c> candidateItems = Database.query(queryStr);
         Set<Id> eligibleTimesheetIds = new Set<Id>();
 
         for (dbt__Timesheet_Line_Item__c tli : candidateItems) {
             if (!alreadyInvoicedIds.contains(tli.Id)) {
+                Object customerId = customerPath.getValue(tli);
+                if (customerId == null) {
+                    res.skippedNoCustomerCount++;
+                    continue;
+                }
+                if (accountFilter != null && (Id)customerId != accountFilter) {
+                    continue;
+                }
                 res.eligibleLineItemIds.add(String.valueOf(tli.Id));
                 eligibleTimesheetIds.add(tli.dbt__Timesheet__c);
                 Decimal duration = tli.dbt__Duration__c != null ? tli.dbt__Duration__c : 0;
@@ -199,20 +220,85 @@ public with sharing class TimesheetInvoiceEngine {
         return res;
     }
 
-    // Dynamic Composite Merge Key Builder
-    public static String buildCompositeMergeKey(dbt__Timesheet_Line_Item__c tli, List<String> keyFieldNames) {
-        List<String> keyParts = new List<String>();
-        for (String fieldName : keyFieldNames) {
-            String cleanField = fieldName.trim();
-            Object val = null;
-            try {
-                val = tli.get(cleanField);
-            } catch (Exception e) {
-                // If not directly on line item, continue
+    // Validates a line-item field path against the schema. Nothing reaches dynamic SOQL
+    // unless every segment exists, so a bad path fails loudly instead of grouping as null.
+    private static FieldPath resolvePath(String rawPath) {
+        String path = rawPath == null ? '' : rawPath.trim();
+        List<String> parts = path.split('\\.');
+        if (String.isBlank(path) || parts.size() > MAX_PATH_HOPS + 1) {
+            throw new EngineException('Invalid invoice field path: "' + path + '"');
+        }
+
+        Schema.DescribeSObjectResult current = dbt__Timesheet_Line_Item__c.SObjectType.getDescribe();
+        for (Integer i = 0; i < parts.size() - 1; i++) {
+            Schema.DescribeFieldResult relField = null;
+            for (Schema.SObjectField f : current.fields.getMap().values()) {
+                Schema.DescribeFieldResult d = f.getDescribe();
+                if (parts[i].equalsIgnoreCase(d.getRelationshipName())) {
+                    relField = d;
+                    break;
+                }
             }
+            if (relField == null || relField.getReferenceTo().size() != 1) {
+                throw new EngineException('Invalid invoice field path: "' + path + '" - unknown relationship "' + parts[i] + '" on ' + current.getName());
+            }
+            current = relField.getReferenceTo()[0].getDescribe();
+        }
+
+        Schema.SObjectField leaf = current.fields.getMap().get(parts[parts.size() - 1].toLowerCase());
+        if (leaf == null) {
+            throw new EngineException('Invalid invoice field path: "' + path + '" - unknown field "' + parts[parts.size() - 1] + '" on ' + current.getName());
+        }
+
+        Schema.DescribeFieldResult leafDescribe = leaf.getDescribe();
+        FieldPath result = new FieldPath(path, leafDescribe);
+        List<Schema.SObjectType> targets = leafDescribe.getReferenceTo();
+        if (targets.size() == 1 && leafDescribe.getRelationshipName() != null
+                && targets[0].getDescribe().fields.getMap().containsKey('name')) {
+            List<String> nameParts = parts.clone();
+            nameParts[nameParts.size() - 1] = leafDescribe.getRelationshipName();
+            nameParts.add('Name');
+            result.namePath = String.join(nameParts, '.');
+        }
+        return result;
+    }
+
+    private static FieldPath resolveCustomerPath(String rawPath) {
+        FieldPath customerPath = resolvePath(String.isNotBlank(rawPath) ? rawPath : DEFAULT_CUSTOMER_FIELD);
+        List<Schema.SObjectType> targets = customerPath.describe.getReferenceTo();
+        if (targets.size() != 1 || targets[0] != Account.SObjectType) {
+            throw new EngineException('Customer Account Field must be a lookup to Account: "' + customerPath.path + '"');
+        }
+        return customerPath;
+    }
+
+    private static List<FieldPath> resolveGroupingPaths(String rawFields) {
+        List<FieldPath> paths = new List<FieldPath>();
+        if (String.isBlank(rawFields)) {
+            return paths;
+        }
+        for (String rawField : rawFields.split(',')) {
+            paths.add(resolvePath(rawField));
+        }
+        return paths;
+    }
+
+    // The customer always leads the key: one invoice can only ever bill one customer.
+    public static String buildInvoiceKey(dbt__Timesheet_Line_Item__c tli, Id customerId, List<FieldPath> groupingPaths) {
+        List<String> keyParts = new List<String>{ String.valueOf(customerId) };
+        for (FieldPath groupingPath : groupingPaths) {
+            Object val = groupingPath.getValue(tli);
             keyParts.add(val != null ? String.valueOf(val) : 'NULL');
         }
-        return String.join(keyParts, '|');
+        return String.join(keyParts, KEY_SEPARATOR);
+    }
+
+    private static String buildGroupLabel(dbt__Timesheet_Line_Item__c tli, List<FieldPath> groupingPaths) {
+        List<String> labels = new List<String>();
+        for (FieldPath groupingPath : groupingPaths) {
+            labels.add(groupingPath.getDisplayValue(tli));
+        }
+        return String.join(labels, ' / ').abbreviate(MAX_GROUP_LABEL_LENGTH);
     }
 
     // Step 2: In-Memory Preview Generation
@@ -247,33 +333,31 @@ public with sharing class TimesheetInvoiceEngine {
         // use ALL eligible timesheets (include all eligible line items without filtering by timesheet)
         Boolean useAllTimesheets = selectedTsIds.isEmpty();
 
-        // Query full details of eligible line items
-        List<dbt__Timesheet_Line_Item__c> lineItems;
-        if (useAllTimesheets) {
-            lineItems = [
-                SELECT Id, dbt__Date__c, dbt__Duration__c, dbt__Activity__c, dbt__Billable__c,
-                       dbt__Project__c, dbt__Project__r.Name, dbt__Project__r.Account__c,
-                       dbt__Project__r.Account__r.Name, dbt__Project__r.Account__r.BillingStreet,
-                       dbt__Project__r.Account__r.BillingCity, dbt__Project__r.Account__r.BillingState,
-                       dbt__Project__r.Account__r.BillingPostalCode, dbt__Project__r.Account__r.BillingCountry,
-                       dbt__Timesheet__c, dbt__Timesheet__r.dbt__Employee__c, dbt__Timesheet__r.dbt__Employee__r.Name
-                FROM dbt__Timesheet_Line_Item__c
-                WHERE Id IN :eligibleIds
-                ORDER BY dbt__Date__c ASC
-            ];
-        } else {
-            lineItems = [
-                SELECT Id, dbt__Date__c, dbt__Duration__c, dbt__Activity__c, dbt__Billable__c,
-                       dbt__Project__c, dbt__Project__r.Name, dbt__Project__r.Account__c,
-                       dbt__Project__r.Account__r.Name, dbt__Project__r.Account__r.BillingStreet,
-                       dbt__Project__r.Account__r.BillingCity, dbt__Project__r.Account__r.BillingState,
-                       dbt__Project__r.Account__r.BillingPostalCode, dbt__Project__r.Account__r.BillingCountry,
-                       dbt__Timesheet__c, dbt__Timesheet__r.dbt__Employee__c, dbt__Timesheet__r.dbt__Employee__r.Name
-                FROM dbt__Timesheet_Line_Item__c
-                WHERE Id IN :eligibleIds AND dbt__Timesheet__c IN :selectedTsIds
-                ORDER BY dbt__Date__c ASC
-            ];
+        FieldPath customerPath = resolveCustomerPath(req.customerAccountField);
+        List<FieldPath> groupingPaths = resolveGroupingPaths(req.invoiceGroupingKeyFields);
+
+        // Query full details of eligible line items. Paths were validated by resolvePath.
+        Map<String, String> selectFields = new Map<String, String>();
+        for (String baseField : new List<String>{
+            'Id', 'dbt__Date__c', 'dbt__Duration__c', 'dbt__Activity__c', 'dbt__Billable__c',
+            'dbt__Project__c', 'dbt__Project__r.Name',
+            'dbt__Timesheet__c', 'dbt__Timesheet__r.dbt__Employee__c', 'dbt__Timesheet__r.dbt__Employee__r.Name'
+        }) {
+            selectFields.put(baseField.toLowerCase(), baseField);
         }
+        selectFields.put(customerPath.path.toLowerCase(), customerPath.path);
+        for (FieldPath groupingPath : groupingPaths) {
+            selectFields.put(groupingPath.path.toLowerCase(), groupingPath.path);
+            if (groupingPath.namePath != null) {
+                selectFields.put(groupingPath.namePath.toLowerCase(), groupingPath.namePath);
+            }
+        }
+
+        String lineQuery = 'SELECT ' + String.join(selectFields.values(), ', ') +
+                           ' FROM dbt__Timesheet_Line_Item__c WHERE Id IN :eligibleIds' +
+                           (useAllTimesheets ? '' : ' AND dbt__Timesheet__c IN :selectedTsIds') +
+                           ' ORDER BY dbt__Date__c ASC';
+        List<dbt__Timesheet_Line_Item__c> lineItems = Database.query(lineQuery);
 
         if (lineItems.isEmpty()) {
             res.previewJson = '[]';
@@ -302,40 +386,40 @@ public with sharing class TimesheetInvoiceEngine {
         Integer dueOffset = req.dueDaysOffset != null ? req.dueDaysOffset : 30;
         String defaultStatus = String.isNotBlank(req.defaultInvoiceStatus) ? req.defaultInvoiceStatus : 'Confirmed';
         String descTemplate = String.isNotBlank(req.descriptionTemplate) ? req.descriptionTemplate : '{Project} - {Employee} ({Activity})';
-        List<String> mergeKeyFields = String.isNotBlank(req.mergeKeyFields)
-            ? req.mergeKeyFields.split(',')
-            : new List<String>{'dbt__Project__c', 'dbt__Activity__c', 'dbt__Billable__c'};
 
-        // Group Line Items by Account
-        Map<Id, List<dbt__Timesheet_Line_Item__c>> accountToLines = new Map<Id, List<dbt__Timesheet_Line_Item__c>>();
-        Map<Id, Account> accountInfoMap = new Map<Id, Account>();
+
+        // Group Line Items by invoice key (customer + optional grouping fields)
+        Map<String, InvoiceGroup> invoiceGroups = new Map<String, InvoiceGroup>();
+        Set<Id> customerIds = new Set<Id>();
 
         for (dbt__Timesheet_Line_Item__c tli : lineItems) {
-            Id accId = tli.dbt__Project__r.Account__c;
+            Id accId = (Id)customerPath.getValue(tli);
             if (accId == null) continue;
 
-            if (!accountToLines.containsKey(accId)) {
-                accountToLines.put(accId, new List<dbt__Timesheet_Line_Item__c>());
-                Account acc = new Account(
-                    Id = accId,
-                    Name = tli.dbt__Project__r.Account__r.Name,
-                    BillingStreet = tli.dbt__Project__r.Account__r.BillingStreet,
-                    BillingCity = tli.dbt__Project__r.Account__r.BillingCity,
-                    BillingState = tli.dbt__Project__r.Account__r.BillingState,
-                    BillingPostalCode = tli.dbt__Project__r.Account__r.BillingPostalCode,
-                    BillingCountry = tli.dbt__Project__r.Account__r.BillingCountry
-                );
-                accountInfoMap.put(accId, acc);
+            String invoiceKey = buildInvoiceKey(tli, accId, groupingPaths);
+            if (!invoiceGroups.containsKey(invoiceKey)) {
+                invoiceGroups.put(invoiceKey, new InvoiceGroup(invoiceKey, accId, buildGroupLabel(tli, groupingPaths)));
+                customerIds.add(accId);
             }
-            accountToLines.get(accId).add(tli);
+            invoiceGroups.get(invoiceKey).lines.add(tli);
         }
+
+        Map<Id, Account> accountInfoMap = new Map<Id, Account>([
+            SELECT Id, Name, BillingStreet, BillingCity, BillingState, BillingPostalCode, BillingCountry
+            FROM Account
+            WHERE Id IN :customerIds
+        ]);
 
         // Build In-Memory Preview Intermediate Invoices and Lines
         List<Map<String, Object>> previewDtoList = new List<Map<String, Object>>();
 
-        for (Id accId : accountToLines.keySet()) {
+        for (InvoiceGroup invoiceGroup : invoiceGroups.values()) {
+            Id accId = invoiceGroup.accountId;
             Account acc = accountInfoMap.get(accId);
-            List<dbt__Timesheet_Line_Item__c> accLines = accountToLines.get(accId);
+            if (acc == null) {
+                throw new EngineException('You do not have access to customer Account ' + accId);
+            }
+            List<dbt__Timesheet_Line_Item__c> accLines = invoiceGroup.lines;
 
             // Intermediate Invoice Header
             Intermediate_Invoice__c inv = new Intermediate_Invoice__c();
@@ -354,6 +438,9 @@ public with sharing class TimesheetInvoiceEngine {
             if (String.isNotBlank(acc.BillingCountry)) addrParts.add(acc.BillingCountry);
             inv.Billing_Address__c = String.join(addrParts, ', ');
             inv.Memo__c = 'Timesheet billing for ' + req.startDate.format() + ' - ' + req.endDate.format();
+            if (String.isNotBlank(invoiceGroup.label)) {
+                inv.Memo__c += ' (' + invoiceGroup.label + ')';
+            }
 
             // Merge Lines for this Account
             // Composite Key -> Merged Wrapper
@@ -453,6 +540,8 @@ public with sharing class TimesheetInvoiceEngine {
 
             // DTO Header for LWC
             Map<String, Object> invDto = new Map<String, Object>();
+            invDto.put('invoiceKey', invoiceGroup.key);
+            invDto.put('groupLabel', invoiceGroup.label);
             invDto.put('accountId', accId);
             invDto.put('accountName', acc.Name);
             invDto.put('invoiceDate', String.valueOf(inv.Invoice_Date__c));
@@ -584,6 +673,50 @@ public with sharing class TimesheetInvoiceEngine {
         }
 
         return res;
+    }
+
+    private class InvoiceGroup {
+        public String key;
+        public Id accountId;
+        public String label;
+        public List<dbt__Timesheet_Line_Item__c> lines = new List<dbt__Timesheet_Line_Item__c>();
+
+        public InvoiceGroup(String key, Id accountId, String label) {
+            this.key = key;
+            this.accountId = accountId;
+            this.label = label;
+        }
+    }
+
+    public class FieldPath {
+        public String path;
+        public String namePath;
+        public Schema.DescribeFieldResult describe;
+
+        public FieldPath(String path, Schema.DescribeFieldResult describe) {
+            this.path = path;
+            this.describe = describe;
+        }
+
+        public Object getValue(SObject record) {
+            return read(record, path);
+        }
+
+        public String getDisplayValue(SObject record) {
+            Object val = namePath != null ? read(record, namePath) : null;
+            if (val == null) val = getValue(record);
+            return val != null ? String.valueOf(val) : 'None';
+        }
+
+        private Object read(SObject record, String fieldPath) {
+            List<String> parts = fieldPath.split('\\.');
+            SObject current = record;
+            for (Integer i = 0; i < parts.size() - 1; i++) {
+                current = current.getSObject(parts[i]);
+                if (current == null) return null;
+            }
+            return current.get(parts[parts.size() - 1]);
+        }
     }
 
     private class MergedLineWrapper {

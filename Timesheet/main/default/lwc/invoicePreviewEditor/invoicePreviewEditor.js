@@ -63,19 +63,25 @@ export default class InvoicePreviewEditor extends LightningElement {
 
                 return {
                     ...inv,
+                    invoiceKey: inv.invoiceKey || inv.accountId,
                     lines: formattedLines,
                     totalAmount: Math.round(invTotal * 100) / 100,
                     totalAmountFormatted: (Math.round(invTotal * 100) / 100).toFixed(2),
-                    sectionLabel: `${inv.accountName} (Proposed Total: $${invTotal.toFixed(2)})`
+                    sectionLabel: this.buildSectionLabel(inv, invTotal)
                 };
             });
 
-            this.activeSections = this.invoices.map(inv => inv.accountId);
+            this.activeSections = this.invoices.map(inv => inv.invoiceKey);
             this.recalculateGrandTotal();
         } catch (err) {
             console.error('Error parsing previewJson in invoicePreviewEditor:', err);
             this.invoices = [];
         }
+    }
+
+    buildSectionLabel(inv, total) {
+        const name = inv.groupLabel ? `${inv.accountName} - ${inv.groupLabel}` : inv.accountName;
+        return `${name} (Proposed Total: $${total.toFixed(2)})`;
     }
 
     handleHeaderChange(event) {
@@ -120,7 +126,7 @@ export default class InvoicePreviewEditor extends LightningElement {
         });
         inv.totalAmount = Math.round(subtotal * 100) / 100;
         inv.totalAmountFormatted = inv.totalAmount.toFixed(2);
-        inv.sectionLabel = `${inv.accountName} (Proposed Total: $${inv.totalAmountFormatted})`;
+        inv.sectionLabel = this.buildSectionLabel(inv, inv.totalAmount);
 
         // Trigger reactivity
         this.invoices = [...this.invoices];

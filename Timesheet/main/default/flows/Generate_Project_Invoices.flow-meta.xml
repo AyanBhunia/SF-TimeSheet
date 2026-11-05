@@ -70,6 +70,12 @@
                 <stringValue>Submitted,Approved</stringValue>
             </value>
         </inputParameters>
+        <inputParameters>
+            <name>customerAccountField</name>
+            <value>
+                <elementReference>varCustomerAccountField</elementReference>
+            </value>
+        </inputParameters>
         <nameSegment>TimesheetInvoiceFetchAction</nameSegment>
         <offset>0</offset>
         <outputParameters>
@@ -87,6 +93,10 @@
         <outputParameters>
             <assignToReference>varTotalLineItemCount</assignToReference>
             <name>totalLineItemCount</name>
+        </outputParameters>
+        <outputParameters>
+            <assignToReference>varSkippedNoCustomerCount</assignToReference>
+            <name>skippedNoCustomerCount</name>
         </outputParameters>
     </actionCalls>
     <actionCalls>
@@ -144,6 +154,18 @@
             <name>defaultInvoiceStatus</name>
             <value>
                 <stringValue>Draft</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>customerAccountField</name>
+            <value>
+                <elementReference>varCustomerAccountField</elementReference>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>invoiceGroupingKeyFields</name>
+            <value>
+                <elementReference>varInvoiceGroupingKeyFields</elementReference>
             </value>
         </inputParameters>
         <nameSegment>TimesheetInvoicePreviewAction</nameSegment>
@@ -272,7 +294,7 @@
         </connector>
         <fields>
             <name>Filter_Help_Text</name>
-            <fieldText>&lt;p&gt;&lt;strong&gt;Timesheet-to-Intermediate Invoice Generation Wizard&lt;/strong&gt;&lt;/p&gt;&lt;p&gt;Select the timesheet date window to process. Submitted and Approved timesheet lines will be aggregated by Customer Account into candidate intermediate invoices.&lt;/p&gt;</fieldText>
+            <fieldText>&lt;p&gt;&lt;strong&gt;Timesheet-to-Intermediate Invoice Generation Wizard&lt;/strong&gt;&lt;/p&gt;&lt;p&gt;Select the timesheet date window to process. Submitted and Approved timesheet lines will be aggregated by customer and grouping key into candidate intermediate invoices.&lt;/p&gt;</fieldText>
             <fieldType>DisplayText</fieldType>
             <styleProperties>
                 <verticalAlignment>
@@ -347,7 +369,7 @@
         <allowPause>false</allowPause>
         <fields>
             <name>No_Items_Message</name>
-            <fieldText>&lt;p&gt;&lt;strong style=&quot;color: rgb(194, 57, 52); font-size: 14px;&quot;&gt;No Eligible Timesheets Found&lt;/strong&gt;&lt;/p&gt;&lt;p&gt;No un-invoiced, submitted or approved timesheet lines were found for the selected date range.&lt;/p&gt;&lt;p&gt;Please click &lt;strong&gt;Previous&lt;/strong&gt; to adjust the date range or filters.&lt;/p&gt;</fieldText>
+            <fieldText>&lt;p&gt;&lt;strong style=&quot;color: rgb(194, 57, 52); font-size: 14px;&quot;&gt;No Eligible Timesheets Found&lt;/strong&gt;&lt;/p&gt;&lt;p&gt;No un-invoiced, submitted or approved timesheet lines were found for the selected date range.&lt;/p&gt;&lt;p&gt;&lt;strong&gt;{!varSkippedNoCustomerCount}&lt;/strong&gt; un-invoiced line item(s) were skipped because they have no customer Account.&lt;/p&gt;&lt;p&gt;Please click &lt;strong&gt;Previous&lt;/strong&gt; to adjust the date range or filters.&lt;/p&gt;</fieldText>
             <fieldType>DisplayText</fieldType>
             <styleProperties>
                 <verticalAlignment>
@@ -410,7 +432,7 @@
         </connector>
         <fields>
             <name>Summary_Banner</name>
-            <fieldText>&lt;div style=&quot;background: #f3f3f3; padding: 12px; border-radius: 4px; margin-bottom: 12px;&quot;&gt;&lt;p&gt;&lt;strong style=&quot;font-size: 14px;&quot;&gt;Candidate Timesheets Summary&lt;/strong&gt;&lt;/p&gt;&lt;p&gt;Found &lt;strong&gt;{!varTotalLineItemCount}&lt;/strong&gt; un-invoiced line items totaling &lt;strong&gt;{!varTotalEligibleHours}&lt;/strong&gt; hours across candidate timesheets.&lt;/p&gt;&lt;p style=&quot;color: #514f4d;&quot;&gt;Select the timesheets you want to include, then click &lt;strong&gt;Next&lt;/strong&gt; to generate a preview. If you don&apos;t select any rows, ALL candidate timesheets will be included.&lt;/p&gt;&lt;/div&gt;</fieldText>
+            <fieldText>&lt;div style=&quot;background: #f3f3f3; padding: 12px; border-radius: 4px; margin-bottom: 12px;&quot;&gt;&lt;p&gt;&lt;strong style=&quot;font-size: 14px;&quot;&gt;Candidate Timesheets Summary&lt;/strong&gt;&lt;/p&gt;&lt;p&gt;Found &lt;strong&gt;{!varTotalLineItemCount}&lt;/strong&gt; un-invoiced line items totaling &lt;strong&gt;{!varTotalEligibleHours}&lt;/strong&gt; hours across candidate timesheets.&lt;/p&gt;&lt;p&gt;&lt;strong&gt;{!varSkippedNoCustomerCount}&lt;/strong&gt; un-invoiced line item(s) were skipped because they have no customer Account.&lt;/p&gt;&lt;p style=&quot;color: #514f4d;&quot;&gt;Select the timesheets you want to include, then click &lt;strong&gt;Next&lt;/strong&gt; to generate a preview. If you don&apos;t select any rows, ALL candidate timesheets will be included.&lt;/p&gt;&lt;/div&gt;</fieldText>
             <fieldType>DisplayText</fieldType>
             <styleProperties>
                 <verticalAlignment>
@@ -497,6 +519,16 @@
         <isOutput>false</isOutput>
     </variables>
     <variables>
+        <name>varCustomerAccountField</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+        <value>
+            <stringValue>dbt__Project__r.Account__c</stringValue>
+        </value>
+    </variables>
+    <variables>
         <name>varEligibleLineItemIds</name>
         <dataType>String</dataType>
         <isCollection>true</isCollection>
@@ -523,11 +555,29 @@
         </value>
     </variables>
     <variables>
+        <name>varInvoiceGroupingKeyFields</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
         <name>varPreviewJson</name>
         <dataType>String</dataType>
         <isCollection>false</isCollection>
         <isInput>false</isInput>
         <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <name>varSkippedNoCustomerCount</name>
+        <dataType>Number</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <scale>0</scale>
+        <value>
+            <numberValue>0.0</numberValue>
+        </value>
     </variables>
     <variables>
         <name>varTotalEligibleHours</name>

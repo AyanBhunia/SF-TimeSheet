@@ -2,7 +2,7 @@ public with sharing class TimesheetInvoicePreviewAction {
 
     @InvocableMethod(
         label='Generate Intermediate Invoice Preview'
-        description='Aggregates timesheet line items by Customer Account, merges by project/employee/activity, resolves rates, and produces proposed in-memory intermediate invoices.'
+        description='Aggregates timesheet line items by customer and optional grouping key, merges by project/employee/activity, resolves rates, and produces proposed in-memory intermediate invoices.'
         category='Timesheet Invoicing'
     )
     public static List<TimesheetInvoiceEngine.PreviewResponse> execute(List<TimesheetInvoiceEngine.PreviewRequest> requests) {

@@ -286,4 +286,156 @@ private class TimesheetInvoiceEngineTest {
         System.assert(prevRes.previewLineItems != null, 'Should return line items even with no explicit timesheet selection');
         System.assert(prevRes.invoiceCount >= 1, 'Should produce at least one invoice');
     }
+
+    private static final String EMPLOYEE_CUSTOMER = 'dbt__Timesheet__r.dbt__Employee__r.Account__c';
+    private static final String EMPLOYEE_KEY = 'dbt__Timesheet__r.dbt__Employee__c';
+
+    // Second employee with an approved timesheet and 4 billable hours on the existing project.
+    private static dbt__Employee__c addSecondEmployeeLine() {
+        dbt__Project__c proj = [SELECT Id FROM dbt__Project__c LIMIT 1];
+        // Each employee needs a distinct user (package validation rule).
+        String uniqueName = 'invoice.key.' + System.currentTimeMillis() + '@example.com.test';
+        User secondUser = new User(
+            Alias = 'invkey', Email = 'invoice.key@example.com', LastName = 'Roe', Username = uniqueName,
+            ProfileId = UserInfo.getProfileId(), EmailEncodingKey = 'UTF-8', LanguageLocaleKey = 'en_US',
+            LocaleSidKey = 'en_US', TimeZoneSidKey = 'America/Los_Angeles'
+        );
+        insert secondUser;
+        dbt__Employee__c emp2 = new dbt__Employee__c(
+            dbt__First_Name__c = 'John',
+            dbt__Last_Name__c = 'Roe',
+            dbt__Email__c = 'john.roe@example.com',
+            dbt__User__c = secondUser.Id
+        );
+        insert emp2;
+        insert new dbt__Project_Employee__c(dbt__Project__c = proj.Id, dbt__Employee__c = emp2.Id, dbt__Hourly_Rate__c = 50.00);
+
+        Date refDate = Date.today().toStartOfWeek();
+        dbt__Timesheet__c ts2 = new dbt__Timesheet__c(
+            dbt__Employee__c = emp2.Id,
+            dbt__Status__c = 'Approved',
+            dbt__Start_Date__c = refDate,
+            dbt__End_Date__c = refDate.addDays(6)
+        );
+        insert ts2;
+        insert new dbt__Timesheet_Line_Item__c(
+            dbt__Timesheet__c = ts2.Id,
+            dbt__Project__c = proj.Id,
+            dbt__Activity__c = 'Development',
+            dbt__Date__c = refDate,
+            dbt__Duration__c = 4,
+            dbt__Billable__c = 'Yes',
+            dbt__Type__c = 'Attendance'
+        );
+        return emp2;
+    }
+
+    private static TimesheetInvoiceEngine.FetchResponse fetchFor(String customerField) {
+        TimesheetInvoiceEngine.FetchRequest req = new TimesheetInvoiceEngine.FetchRequest();
+        req.startDate = Date.today().toStartOfWeek();
+        req.endDate = req.startDate.addDays(6);
+        req.onlyBillable = true;
+        req.allowedStatuses = 'Approved';
+        req.customerAccountField = customerField;
+        return TimesheetInvoiceEngine.fetchEligibleTimesheets(req);
+    }
+
+    private static TimesheetInvoiceEngine.PreviewResponse previewFor(List<String> lineIds, String customerField, String keyFields) {
+        TimesheetInvoiceEngine.PreviewRequest req = new TimesheetInvoiceEngine.PreviewRequest();
+        req.eligibleLineItemIds = lineIds;
+        req.startDate = Date.today().toStartOfWeek();
+        req.endDate = req.startDate.addDays(6);
+        req.customerAccountField = customerField;
+        req.invoiceGroupingKeyFields = keyFields;
+        return TimesheetInvoiceEngine.generateInvoicePreview(req);
+    }
+
+    @isTest
+    static void testGroupingKeySplitsOneCustomerIntoSeparateInvoices() {
+        addSecondEmployeeLine();
+        List<String> lineIds = fetchFor(null).eligibleLineItemIds;
+
+        System.assertEquals(1, previewFor(lineIds, null, null).invoiceCount, 'No key: one invoice per customer');
+
+        TimesheetInvoiceEngine.PreviewResponse keyed = previewFor(lineIds, null, EMPLOYEE_KEY);
+        System.assertEquals(2, keyed.invoiceCount, 'Employee key: one invoice per employee');
+        System.assertEquals(1200.00, keyed.totalProposedAmount, 'Splitting must not change the total: 10h*100 + 4h*50');
+
+        // Keys must be unique per invoice: the LWC uses them as its iteration key.
+        List<Object> dtos = (List<Object>)JSON.deserializeUntyped(keyed.previewJson);
+        Set<String> keys = new Set<String>();
+        Set<String> labels = new Set<String>();
+        for (Object dto : dtos) {
+            keys.add((String)((Map<String, Object>)dto).get('invoiceKey'));
+            labels.add((String)((Map<String, Object>)dto).get('groupLabel'));
+        }
+        System.assertEquals(2, keys.size());
+        System.assertEquals(2, labels.size(), 'Labels identify each employee');
+        System.assert(!labels.contains(null), 'Keyed invoices have a label');
+
+        TimesheetInvoiceEngine.CommitRequest commitReq = new TimesheetInvoiceEngine.CommitRequest();
+        commitReq.previewJson = keyed.previewJson;
+        TimesheetInvoiceEngine.CommitResponse commitRes = TimesheetInvoiceEngine.commitInvoices(commitReq);
+        System.assert(commitRes.isSuccess, commitRes.message);
+        System.assertEquals(2, [SELECT COUNT() FROM Intermediate_Invoice__c WHERE Account__c = :[SELECT Id FROM Account LIMIT 1].Id]);
+        System.assertEquals(0, fetchFor(null).eligibleLineItemIds.size(), 'Double-billing guard still works after a split');
+    }
+
+    @isTest
+    static void testCustomerFromEmployeeBillsEmployeeAccount() {
+        dbt__Employee__c emp2 = addSecondEmployeeLine();
+        Account employeeCustomer = new Account(Name = 'Employee Customer', BillingCity = 'Austin');
+        insert employeeCustomer;
+        emp2.Account__c = employeeCustomer.Id;
+        update emp2;
+
+        // Project has a different customer: the employee's must win. First employee has none.
+        TimesheetInvoiceEngine.FetchResponse fetched = fetchFor(EMPLOYEE_CUSTOMER);
+        System.assertEquals(1, fetched.eligibleLineItemIds.size());
+        System.assertEquals(3, fetched.skippedNoCustomerCount, 'Lines without a customer are reported, not silently lost');
+        System.assertEquals(4, fetched.totalEligibleHours);
+
+        TimesheetInvoiceEngine.PreviewResponse preview = previewFor(fetched.eligibleLineItemIds, EMPLOYEE_CUSTOMER, null);
+        System.assertEquals(1, preview.invoiceCount);
+        System.assertEquals(employeeCustomer.Id, preview.previewInvoices[0].Account__c);
+        System.assert(preview.previewInvoices[0].Billing_Address__c.contains('Austin'), 'Address comes from the billed customer');
+        System.assertEquals(200.00, preview.totalProposedAmount, 'Rate still comes from project + employee');
+    }
+
+    @isTest
+    static void testEmployeeCustomerWorksWhenProjectHasNoAccount() {
+        Account acc = [SELECT Id FROM Account LIMIT 1];
+        update new dbt__Project__c(Id = [SELECT Id FROM dbt__Project__c LIMIT 1].Id, Account__c = null);
+        update new dbt__Employee__c(Id = [SELECT Id FROM dbt__Employee__c LIMIT 1].Id, Account__c = acc.Id);
+
+        System.assertEquals(0, fetchFor(null).eligibleLineItemIds.size(), 'Default project customer finds nothing');
+        System.assertEquals(3, fetchFor(null).skippedNoCustomerCount);
+        System.assertEquals(3, fetchFor(EMPLOYEE_CUSTOMER).eligibleLineItemIds.size());
+    }
+
+    @isTest
+    static void testInvalidPathsFailInsteadOfMergingEverything() {
+        List<String> lineIds = fetchFor(null).eligibleLineItemIds;
+        for (String badKey : new List<String>{
+            'Not_A_Field__c',
+            'dbt__Project__r.Not_A_Field__c',
+            'Bad__r.Name',
+            'Id FROM Account --',
+            'dbt__Project__c, '
+        }) {
+            try {
+                previewFor(lineIds, null, badKey);
+                System.assert(false, 'Should reject grouping key: ' + badKey);
+            } catch (TimesheetInvoiceEngine.EngineException e) {
+                System.assert(e.getMessage().contains('Invalid invoice field path'), e.getMessage());
+            }
+        }
+
+        try {
+            fetchFor('dbt__Project__c'); // valid lookup, wrong target object
+            System.assert(false, 'Customer field must point to Account');
+        } catch (TimesheetInvoiceEngine.EngineException e) {
+            System.assert(e.getMessage().contains('lookup to Account'), e.getMessage());
+        }
+    }
 }
