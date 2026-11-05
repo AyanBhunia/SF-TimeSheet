@@ -188,7 +188,7 @@ public with sharing class TimesheetInvoiceEngine {
 
         if (!eligibleTimesheetIds.isEmpty()) {
             res.eligibleTimesheets = [
-                SELECT Id, Name, dbt__Employee__c, dbt__Employee__r.Name,
+                SELECT Id, Name, dbt__Employee__c,
                        dbt__Start_Date__c, dbt__End_Date__c, dbt__Status__c, dbt__Total_Hours__c
                 FROM dbt__Timesheet__c
                 WHERE Id IN :eligibleTimesheetIds
@@ -223,11 +223,14 @@ public with sharing class TimesheetInvoiceEngine {
         res.totalProposedAmount = 0.00;
         res.invoiceCount = 0;
 
-        if (req == null || req.eligibleLineItemIds == null || req.eligibleLineItemIds.isEmpty() ||
-            ((req.selectedTimesheetIds == null || req.selectedTimesheetIds.isEmpty()) &&
-             (req.selectedTimesheets == null || req.selectedTimesheets.isEmpty()))) {
+        if (req == null || req.eligibleLineItemIds == null || req.eligibleLineItemIds.isEmpty()) {
             res.previewJson = '[]';
             return res;
+        }
+
+        Set<Id> eligibleIds = new Set<Id>();
+        for (String sId : req.eligibleLineItemIds) {
+            eligibleIds.add((Id)sId);
         }
 
         Set<Id> selectedTsIds = new Set<Id>();
@@ -239,23 +242,38 @@ public with sharing class TimesheetInvoiceEngine {
         if (req.selectedTimesheetIds != null) {
             selectedTsIds.addAll(req.selectedTimesheetIds);
         }
-        Set<Id> eligibleIds = new Set<Id>();
-        for (String sId : req.eligibleLineItemIds) {
-            eligibleIds.add((Id)sId);
-        }
+
+        // If no timesheets were explicitly selected (user clicked Next without selecting rows),
+        // use ALL eligible timesheets (include all eligible line items without filtering by timesheet)
+        Boolean useAllTimesheets = selectedTsIds.isEmpty();
 
         // Query full details of eligible line items
-        List<dbt__Timesheet_Line_Item__c> lineItems = [
-            SELECT Id, dbt__Date__c, dbt__Duration__c, dbt__Activity__c, dbt__Billable__c,
-                   dbt__Project__c, dbt__Project__r.Name, dbt__Project__r.Account__c,
-                   dbt__Project__r.Account__r.Name, dbt__Project__r.Account__r.BillingStreet,
-                   dbt__Project__r.Account__r.BillingCity, dbt__Project__r.Account__r.BillingState,
-                   dbt__Project__r.Account__r.BillingPostalCode, dbt__Project__r.Account__r.BillingCountry,
-                   dbt__Timesheet__c, dbt__Timesheet__r.dbt__Employee__c, dbt__Timesheet__r.dbt__Employee__r.Name
-            FROM dbt__Timesheet_Line_Item__c
-            WHERE Id IN :eligibleIds AND dbt__Timesheet__c IN :selectedTsIds
-            ORDER BY dbt__Date__c ASC
-        ];
+        List<dbt__Timesheet_Line_Item__c> lineItems;
+        if (useAllTimesheets) {
+            lineItems = [
+                SELECT Id, dbt__Date__c, dbt__Duration__c, dbt__Activity__c, dbt__Billable__c,
+                       dbt__Project__c, dbt__Project__r.Name, dbt__Project__r.Account__c,
+                       dbt__Project__r.Account__r.Name, dbt__Project__r.Account__r.BillingStreet,
+                       dbt__Project__r.Account__r.BillingCity, dbt__Project__r.Account__r.BillingState,
+                       dbt__Project__r.Account__r.BillingPostalCode, dbt__Project__r.Account__r.BillingCountry,
+                       dbt__Timesheet__c, dbt__Timesheet__r.dbt__Employee__c, dbt__Timesheet__r.dbt__Employee__r.Name
+                FROM dbt__Timesheet_Line_Item__c
+                WHERE Id IN :eligibleIds
+                ORDER BY dbt__Date__c ASC
+            ];
+        } else {
+            lineItems = [
+                SELECT Id, dbt__Date__c, dbt__Duration__c, dbt__Activity__c, dbt__Billable__c,
+                       dbt__Project__c, dbt__Project__r.Name, dbt__Project__r.Account__c,
+                       dbt__Project__r.Account__r.Name, dbt__Project__r.Account__r.BillingStreet,
+                       dbt__Project__r.Account__r.BillingCity, dbt__Project__r.Account__r.BillingState,
+                       dbt__Project__r.Account__r.BillingPostalCode, dbt__Project__r.Account__r.BillingCountry,
+                       dbt__Timesheet__c, dbt__Timesheet__r.dbt__Employee__c, dbt__Timesheet__r.dbt__Employee__r.Name
+                FROM dbt__Timesheet_Line_Item__c
+                WHERE Id IN :eligibleIds AND dbt__Timesheet__c IN :selectedTsIds
+                ORDER BY dbt__Date__c ASC
+            ];
+        }
 
         if (lineItems.isEmpty()) {
             res.previewJson = '[]';
@@ -561,8 +579,8 @@ public with sharing class TimesheetInvoiceEngine {
         } catch (Exception e) {
             Database.rollback(sp);
             res.isSuccess = false;
-            res.message = 'Commit failed: ' + e.getMessage();
-            throw new EngineException(res.message);
+            res.message = 'Commit failed: ' + e.getMessage() + ' | Line: ' + e.getLineNumber();
+            // Do NOT re-throw - return the error response so the flow can handle it gracefully
         }
 
         return res;

@@ -1,0 +1,19 @@
+<aura:component implements="lightning:isUrlAddressable" access="global">
+    <aura:handler name="init" value="{!this}" action="{!c.init}" />
+    <lightning:navigation aura:id="nav" />
+
+    <!-- Fast in-app modal overlay for launching the Screen Flow without a full page reload -->
+    <section role="dialog" tabindex="-1" aria-modal="true" aria-label="Generate Intermediate Invoices" class="slds-modal slds-fade-in-open slds-modal_large">
+        <div class="slds-modal__container">
+            <lightning:buttonIcon iconName="utility:close" variant="bare-inverse" size="large"
+                                  class="slds-modal__close" alternativeText="Close" onclick="{!c.handleClose}" />
+            <div class="slds-modal__header">
+                <h2 class="slds-modal__title slds-hyphenate">Generate Intermediate Invoices</h2>
+            </div>
+            <div class="slds-modal__content slds-p-around_medium">
+                <lightning:flow aura:id="flowData" onstatuschange="{!c.handleStatusChange}" />
+            </div>
+        </div>
+    </section>
+    <div class="slds-backdrop slds-backdrop_open" role="presentation"></div>
+</aura:component>

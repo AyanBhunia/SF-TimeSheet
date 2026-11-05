@@ -11,6 +11,9 @@
         <connector>
             <targetReference>Decision_Has_Eligible_Items</targetReference>
         </connector>
+        <faultConnector>
+            <targetReference>Screen_Error</targetReference>
+        </faultConnector>
         <flowTransactionModel>CurrentTransaction</flowTransactionModel>
         <inputParameters>
             <name>startDate</name>
@@ -57,6 +60,9 @@
         <connector>
             <targetReference>Screen_Preview_And_Edit</targetReference>
         </connector>
+        <faultConnector>
+            <targetReference>Screen_Error</targetReference>
+        </faultConnector>
         <flowTransactionModel>CurrentTransaction</flowTransactionModel>
         <inputParameters>
             <name>selectedTimesheets</name>
@@ -84,7 +90,7 @@
         </inputParameters>
         <inputParameters>
             <name>defaultInvoiceStatus</name>
-            <value><stringValue>Confirmed</stringValue></value>
+            <value><stringValue>Draft</stringValue></value>
         </inputParameters>
         <nameSegment>TimesheetInvoicePreviewAction</nameSegment>
         <outputParameters>
@@ -111,6 +117,9 @@
         <connector>
             <targetReference>Screen_Confirmation</targetReference>
         </connector>
+        <faultConnector>
+            <targetReference>Screen_Error</targetReference>
+        </faultConnector>
         <flowTransactionModel>CurrentTransaction</flowTransactionModel>
         <inputParameters>
             <name>previewJson</name>
@@ -247,8 +256,7 @@
         <allowPause>false</allowPause>
         <connector>
             <targetReference>Action_Commit_Invoices</targetReference>
-        </connector>
-        <fields>
+        </connector>        <fields>
             <name>Preview_Editor_Cmp</name>
             <extensionName>c:invoicePreviewEditor</extensionName>
             <fieldType>ComponentInstance</fieldType>
@@ -272,10 +280,9 @@
         <allowPause>false</allowPause>
         <connector>
             <targetReference>Action_Generate_Invoice_Preview</targetReference>
-        </connector>
-        <fields>
+        </connector>        <fields>
             <name>Summary_Banner</name>
-            <fieldText>&lt;div style=&quot;background: #f3f3f3; padding: 12px; border-radius: 4px; margin-bottom: 12px;&quot;&gt;&lt;p&gt;&lt;strong style=&quot;font-size: 14px;&quot;&gt;Candidate Timesheets Summary&lt;/strong&gt;&lt;/p&gt;&lt;p&gt;Found &lt;strong&gt;{!varTotalLineItemCount}&lt;/strong&gt; un-invoiced line items totaling &lt;strong&gt;{!varTotalEligibleHours}&lt;/strong&gt; hours across candidate timesheets.&lt;/p&gt;&lt;/div&gt;</fieldText>
+            <fieldText>&lt;div style=&quot;background: #f3f3f3; padding: 12px; border-radius: 4px; margin-bottom: 12px;&quot;&gt;&lt;p&gt;&lt;strong style=&quot;font-size: 14px;&quot;&gt;Candidate Timesheets Summary&lt;/strong&gt;&lt;/p&gt;&lt;p&gt;Found &lt;strong&gt;{!varTotalLineItemCount}&lt;/strong&gt; un-invoiced line items totaling &lt;strong&gt;{!varTotalEligibleHours}&lt;/strong&gt; hours across candidate timesheets.&lt;/p&gt;&lt;p style=&quot;color: #514f4d;&quot;&gt;Select the timesheets you want to include, then click &lt;strong&gt;Next&lt;/strong&gt; to generate a preview. If you don&apos;t select any rows, ALL candidate timesheets will be included.&lt;/p&gt;&lt;/div&gt;</fieldText>
             <fieldType>DisplayText</fieldType>
         </fields>
         <fields>
@@ -304,9 +311,26 @@
             </inputParameters>
             <inputParameters>
                 <name>columns</name>
-                <value><stringValue>[{&quot;apiName&quot;:&quot;Name&quot;,&quot;label&quot;:&quot;Timesheet Number&quot;,&quot;type&quot;:&quot;text&quot;},{&quot;apiName&quot;:&quot;dbt__Start_Date__c&quot;,&quot;label&quot;:&quot;Start Date&quot;,&quot;type&quot;:&quot;date&quot;},{&quot;apiName&quot;:&quot;dbt__End_Date__c&quot;,&quot;label&quot;:&quot;End Date&quot;,&quot;type&quot;:&quot;date&quot;},{&quot;apiName&quot;:&quot;dbt__Status__c&quot;,&quot;label&quot;:&quot;Status&quot;,&quot;type&quot;:&quot;text&quot;},{&quot;apiName&quot;:&quot;dbt__Total_Hours__c&quot;,&quot;label&quot;:&quot;Total Hours&quot;,&quot;type&quot;:&quot;number&quot;}]</stringValue></value>
+                <value><stringValue>[{"apiName":"Name","label":"Timesheet Number","type":"text"},{"apiName":"dbt__Start_Date__c","label":"Start Date","type":"date"},{"apiName":"dbt__End_Date__c","label":"End Date","type":"date"},{"apiName":"dbt__Status__c","label":"Status","type":"text"},{"apiName":"dbt__Total_Hours__c","label":"Total Hours","type":"number"}]</stringValue></value>
             </inputParameters>
             <storeOutputAutomatically>true</storeOutputAutomatically>
+        </fields>
+        <showFooter>true</showFooter>
+        <showHeader>true</showHeader>
+    </screens>
+
+    <screens>
+        <name>Screen_Error</name>
+        <label>Flow Error</label>
+        <locationX>400</locationX>
+        <locationY>566</locationY>
+        <allowBack>false</allowBack>
+        <allowFinish>true</allowFinish>
+        <allowPause>false</allowPause>
+        <fields>
+            <name>Error_Message_Display</name>
+            <fieldText>&lt;div style=&quot;background: #fde7e9; border-left: 4px solid #c23934; padding: 16px; margin-bottom: 16px;&quot;&gt;&lt;h3 style=&quot;color: #c23934; font-size: 16px; margin: 0 0 8px 0;&quot;&gt;An Error Occurred&lt;/h3&gt;&lt;p&gt;{!$Flow.FaultMessage}&lt;/p&gt;&lt;/div&gt;&lt;p&gt;Please contact your Salesforce Administrator if this issue persists. Click &lt;strong&gt;Finish&lt;/strong&gt; to close.&lt;/p&gt;</fieldText>
+            <fieldType>DisplayText</fieldType>
         </fields>
         <showFooter>true</showFooter>
         <showHeader>true</showHeader>
@@ -396,4 +420,5 @@
         <scale>2</scale>
         <value><numberValue>0.0</numberValue></value>
     </variables>
+
 </Flow>

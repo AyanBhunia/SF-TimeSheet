@@ -261,4 +261,29 @@ private class TimesheetInvoiceEngineTest {
         System.assertEquals(1, prevRes.previewLineItems.size());
         System.assertEquals(0.00, prevRes.previewLineItems[0].Unit_Price__c, 'Rate should default to 0 when no junction record exists');
     }
+
+    @isTest
+    static void testPreviewWithNoSelectedTimesheets_UsesAll() {
+        // When selectedTimesheets is null/empty, the engine should process ALL eligible timesheets
+        Account acc = [SELECT Id FROM Account LIMIT 1];
+        dbt__Employee__c emp = [SELECT Id FROM dbt__Employee__c LIMIT 1];
+        dbt__Project__c proj = [SELECT Id FROM dbt__Project__c WHERE Account__c = :acc.Id LIMIT 1];
+        dbt__Timesheet__c ts = [SELECT Id FROM dbt__Timesheet__c LIMIT 1];
+        dbt__Timesheet_Line_Item__c tli = [SELECT Id FROM dbt__Timesheet_Line_Item__c WHERE dbt__Timesheet__c = :ts.Id LIMIT 1];
+
+        // Pass empty selectedTimesheets (simulates user clicking Next without selecting any rows)
+        TimesheetInvoiceEngine.PreviewRequest prevReq = new TimesheetInvoiceEngine.PreviewRequest();
+        prevReq.selectedTimesheets = new List<dbt__Timesheet__c>(); // empty - no selection
+        prevReq.eligibleLineItemIds = new List<String>{String.valueOf(tli.Id)};
+        prevReq.startDate = Date.today().toStartOfWeek();
+        prevReq.endDate = Date.today().toStartOfWeek().addDays(6);
+        prevReq.onlyBillable = true;
+
+        Test.startTest();
+        TimesheetInvoiceEngine.PreviewResponse prevRes = TimesheetInvoiceEngine.generateInvoicePreview(prevReq);
+        Test.stopTest();
+
+        System.assert(prevRes.previewLineItems != null, 'Should return line items even with no explicit timesheet selection');
+        System.assert(prevRes.invoiceCount >= 1, 'Should produce at least one invoice');
+    }
 }

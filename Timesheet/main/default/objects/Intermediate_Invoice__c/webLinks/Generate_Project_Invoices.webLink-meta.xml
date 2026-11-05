@@ -9,5 +9,5 @@
     <openType>replace</openType>
     <protected>false</protected>
     <requireRowSelection>false</requireRowSelection>
-    <url>/flow/Generate_Project_Invoices?retURL=/lightning/o/Intermediate_Invoice__c/list</url>
+    <url>/lightning/cmp/c__GenerateProjectInvoicesWrapper</url>
 </WebLink>
