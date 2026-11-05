@@ -438,4 +438,54 @@ private class TimesheetInvoiceEngineTest {
             System.assert(e.getMessage().contains('lookup to Account'), e.getMessage());
         }
     }
+
+    @isTest
+    static void testCommitActionAttachesOnePdfPerSplitInvoice() {
+        addSecondEmployeeLine();
+        TimesheetInvoiceEngine.PreviewResponse keyed = previewFor(fetchFor(null).eligibleLineItemIds, null, EMPLOYEE_KEY);
+        TimesheetInvoiceEngine.CommitRequest commitReq = new TimesheetInvoiceEngine.CommitRequest();
+        commitReq.previewJson = keyed.previewJson;
+
+        Test.startTest();
+        TimesheetInvoiceEngine.CommitResponse res =
+            TimesheetInvoiceCommitAction.execute(new List<TimesheetInvoiceEngine.CommitRequest>{commitReq})[0];
+        Test.stopTest();
+
+        System.assert(res.isSuccess, res.message);
+        System.assertEquals(2, res.createdInvoiceIds.size());
+        for (Id invoiceId : res.createdInvoiceIds) {
+            String invoiceName = [SELECT Name FROM Intermediate_Invoice__c WHERE Id = :invoiceId].Name;
+            List<ContentDocumentLink> links = [
+                SELECT ContentDocument.Title, ContentDocument.FileExtension
+                FROM ContentDocumentLink
+                WHERE LinkedEntityId = :invoiceId
+            ];
+            System.assertEquals(1, links.size(), 'Each invoice gets its own PDF');
+            System.assertEquals('Invoice-' + invoiceName, links[0].ContentDocument.Title);
+            System.assertEquals('pdf', links[0].ContentDocument.FileExtension);
+        }
+    }
+
+    @isTest
+    static void testFailedCommitQueuesNoPdf() {
+        TimesheetInvoiceEngine.CommitRequest commitReq = new TimesheetInvoiceEngine.CommitRequest();
+        commitReq.previewJson = 'not json';
+
+        Test.startTest();
+        TimesheetInvoiceEngine.CommitResponse res =
+            TimesheetInvoiceCommitAction.execute(new List<TimesheetInvoiceEngine.CommitRequest>{commitReq})[0];
+        System.assertEquals(0, Limits.getQueueableJobs(), 'No PDF job after a failed commit');
+        Test.stopTest();
+
+        System.assert(!res.isSuccess);
+    }
+
+    @isTest
+    static void testPdfServiceIgnoresEmptyInput() {
+        Test.startTest();
+        IntermediateInvoicePdfService.generatePdfs(null);
+        System.enqueueJob(new InvoicePdfQueueable(new List<Id>()));
+        Test.stopTest();
+        System.assertEquals(0, [SELECT COUNT() FROM ContentVersion WHERE Title LIKE 'Invoice-%']);
+    }
 }
