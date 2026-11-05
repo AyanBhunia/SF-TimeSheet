@@ -1,0 +1,399 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <!-- Action Calls -->
+    <actionCalls>
+        <name>Action_Fetch_Eligible_Timesheets</name>
+        <label>Fetch Eligible Timesheets</label>
+        <locationX>182</locationX>
+        <locationY>242</locationY>
+        <actionName>TimesheetInvoiceFetchAction</actionName>
+        <actionType>apex</actionType>
+        <connector>
+            <targetReference>Decision_Has_Eligible_Items</targetReference>
+        </connector>
+        <flowTransactionModel>CurrentTransaction</flowTransactionModel>
+        <inputParameters>
+            <name>startDate</name>
+            <value><elementReference>Input_Start_Date</elementReference></value>
+        </inputParameters>
+        <inputParameters>
+            <name>endDate</name>
+            <value><elementReference>Input_End_Date</elementReference></value>
+        </inputParameters>
+        <inputParameters>
+            <name>onlyBillable</name>
+            <value><elementReference>Input_Only_Billable</elementReference></value>
+        </inputParameters>
+        <inputParameters>
+            <name>allowedStatuses</name>
+            <value><stringValue>Submitted,Approved</stringValue></value>
+        </inputParameters>
+        <nameSegment>TimesheetInvoiceFetchAction</nameSegment>
+        <outputParameters>
+            <assignToReference>varEligibleTimesheets</assignToReference>
+            <name>eligibleTimesheets</name>
+        </outputParameters>
+        <outputParameters>
+            <assignToReference>varEligibleLineItemIds</assignToReference>
+            <name>eligibleLineItemIds</name>
+        </outputParameters>
+        <outputParameters>
+            <assignToReference>varTotalEligibleHours</assignToReference>
+            <name>totalEligibleHours</name>
+        </outputParameters>
+        <outputParameters>
+            <assignToReference>varTotalLineItemCount</assignToReference>
+            <name>totalLineItemCount</name>
+        </outputParameters>
+    </actionCalls>
+
+    <actionCalls>
+        <name>Action_Generate_Invoice_Preview</name>
+        <label>Generate Intermediate Invoice Preview</label>
+        <locationX>50</locationX>
+        <locationY>458</locationY>
+        <actionName>TimesheetInvoicePreviewAction</actionName>
+        <actionType>apex</actionType>
+        <connector>
+            <targetReference>Screen_Preview_And_Edit</targetReference>
+        </connector>
+        <flowTransactionModel>CurrentTransaction</flowTransactionModel>
+        <inputParameters>
+            <name>selectedTimesheets</name>
+            <value><elementReference>DataTable_Timesheets.selectedRows</elementReference></value>
+        </inputParameters>
+        <inputParameters>
+            <name>eligibleLineItemIds</name>
+            <value><elementReference>varEligibleLineItemIds</elementReference></value>
+        </inputParameters>
+        <inputParameters>
+            <name>startDate</name>
+            <value><elementReference>Input_Start_Date</elementReference></value>
+        </inputParameters>
+        <inputParameters>
+            <name>endDate</name>
+            <value><elementReference>Input_End_Date</elementReference></value>
+        </inputParameters>
+        <inputParameters>
+            <name>onlyBillable</name>
+            <value><elementReference>Input_Only_Billable</elementReference></value>
+        </inputParameters>
+        <inputParameters>
+            <name>dueDaysOffset</name>
+            <value><numberValue>30.0</numberValue></value>
+        </inputParameters>
+        <inputParameters>
+            <name>defaultInvoiceStatus</name>
+            <value><stringValue>Confirmed</stringValue></value>
+        </inputParameters>
+        <nameSegment>TimesheetInvoicePreviewAction</nameSegment>
+        <outputParameters>
+            <assignToReference>varPreviewJson</assignToReference>
+            <name>previewJson</name>
+        </outputParameters>
+        <outputParameters>
+            <assignToReference>varTotalProposedAmount</assignToReference>
+            <name>totalProposedAmount</name>
+        </outputParameters>
+        <outputParameters>
+            <assignToReference>varInvoiceCount</assignToReference>
+            <name>invoiceCount</name>
+        </outputParameters>
+    </actionCalls>
+
+    <actionCalls>
+        <name>Action_Commit_Invoices</name>
+        <label>Commit Intermediate Invoices to Database</label>
+        <locationX>50</locationX>
+        <locationY>674</locationY>
+        <actionName>TimesheetInvoiceCommitAction</actionName>
+        <actionType>apex</actionType>
+        <connector>
+            <targetReference>Screen_Confirmation</targetReference>
+        </connector>
+        <flowTransactionModel>CurrentTransaction</flowTransactionModel>
+        <inputParameters>
+            <name>previewJson</name>
+            <value><elementReference>Preview_Editor_Cmp.editedPreviewJson</elementReference></value>
+        </inputParameters>
+        <nameSegment>TimesheetInvoiceCommitAction</nameSegment>
+        <outputParameters>
+            <assignToReference>varCreatedInvoiceIds</assignToReference>
+            <name>createdInvoiceIds</name>
+        </outputParameters>
+        <outputParameters>
+            <assignToReference>varCommitMessage</assignToReference>
+            <name>message</name>
+        </outputParameters>
+    </actionCalls>
+
+    <apiVersion>64.0</apiVersion>
+
+    <!-- Decisions -->
+    <decisions>
+        <name>Decision_Has_Eligible_Items</name>
+        <label>Has Eligible Items?</label>
+        <locationX>182</locationX>
+        <locationY>350</locationY>
+        <defaultConnector>
+            <targetReference>Screen_No_Items_Found</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>No Eligible Items</defaultConnectorLabel>
+        <rules>
+            <name>Outcome_Has_Eligible_Items</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>varTotalLineItemCount</leftValueReference>
+                <operator>GreaterThan</operator>
+                <rightValue><numberValue>0.0</numberValue></rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Screen_Review_Timesheets</targetReference>
+            </connector>
+            <label>Eligible Items Found</label>
+        </rules>
+    </decisions>
+
+    <description>Orchestrates the conversion of approved/submitted timesheets into QuickBooks-aligned customer Intermediate Invoices.</description>
+    <environments>Default</environments>
+    <interviewLabel>Generate Project Invoices {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>Generate Project Invoices</label>
+    <processType>Flow</processType>
+
+    <!-- Screens -->
+    <screens>
+        <name>Screen_Confirmation</name>
+        <label>Intermediate Invoices Generated Successfully</label>
+        <locationX>50</locationX>
+        <locationY>782</locationY>
+        <allowBack>false</allowBack>
+        <allowFinish>true</allowFinish>
+        <allowPause>false</allowPause>
+        <fields>
+            <name>Success_Banner</name>
+            <fieldText>&lt;div style=&quot;background: #eef4f0; border-left: 4px solid #4bca81; padding: 16px; margin-bottom: 16px;&quot;&gt;&lt;h3 style=&quot;color: #04844b; font-size: 16px; margin: 0 0 8px 0;&quot;&gt;Intermediate Invoicing Complete!&lt;/h3&gt;&lt;p&gt;{!varCommitMessage}&lt;/p&gt;&lt;/div&gt;&lt;p&gt;Click &lt;strong&gt;Finish&lt;/strong&gt; to navigate back to the Intermediate Invoices list.&lt;/p&gt;</fieldText>
+            <fieldType>DisplayText</fieldType>
+        </fields>
+        <showFooter>true</showFooter>
+        <showHeader>true</showHeader>
+    </screens>
+
+    <screens>
+        <name>Screen_Filter_Criteria</name>
+        <label>Select Intermediate Invoicing Period &amp; Criteria</label>
+        <locationX>182</locationX>
+        <locationY>134</locationY>
+        <allowBack>false</allowBack>
+        <allowFinish>true</allowFinish>
+        <allowPause>false</allowPause>
+        <connector>
+            <targetReference>Action_Fetch_Eligible_Timesheets</targetReference>
+        </connector>
+        <fields>
+            <name>Filter_Help_Text</name>
+            <fieldText>&lt;p&gt;&lt;strong&gt;Timesheet-to-Intermediate Invoice Generation Wizard&lt;/strong&gt;&lt;/p&gt;&lt;p&gt;Select the timesheet date window to process. Submitted and Approved timesheet lines will be aggregated by Customer Account into candidate intermediate invoices.&lt;/p&gt;</fieldText>
+            <fieldType>DisplayText</fieldType>
+        </fields>
+        <fields>
+            <name>Input_Start_Date</name>
+            <dataType>Date</dataType>
+            <fieldText>Period Start Date</fieldText>
+            <fieldType>InputField</fieldType>
+            <isRequired>true</isRequired>
+        </fields>
+        <fields>
+            <name>Input_End_Date</name>
+            <dataType>Date</dataType>
+            <fieldText>Period End Date</fieldText>
+            <fieldType>InputField</fieldType>
+            <isRequired>true</isRequired>
+        </fields>
+        <fields>
+            <name>Input_Only_Billable</name>
+            <dataType>Boolean</dataType>
+            <defaultValue><booleanValue>true</booleanValue></defaultValue>
+            <fieldText>Include Only Billable Items (Uncheck to include non-billable items at $0 rate)</fieldText>
+            <fieldType>InputField</fieldType>
+            <isRequired>true</isRequired>
+        </fields>
+        <showFooter>true</showFooter>
+        <showHeader>true</showHeader>
+    </screens>
+
+    <screens>
+        <name>Screen_No_Items_Found</name>
+        <label>No Eligible Timesheets Found</label>
+        <locationX>314</locationX>
+        <locationY>458</locationY>
+        <allowBack>true</allowBack>
+        <allowFinish>true</allowFinish>
+        <allowPause>false</allowPause>
+        <fields>
+            <name>No_Items_Message</name>
+            <fieldText>&lt;p&gt;&lt;strong style=&quot;color: rgb(194, 57, 52); font-size: 14px;&quot;&gt;No Eligible Timesheets Found&lt;/strong&gt;&lt;/p&gt;&lt;p&gt;No un-invoiced, submitted or approved timesheet lines were found for the selected date range.&lt;/p&gt;&lt;p&gt;Please click &lt;strong&gt;Previous&lt;/strong&gt; to adjust the date range or filters.&lt;/p&gt;</fieldText>
+            <fieldType>DisplayText</fieldType>
+        </fields>
+        <showFooter>true</showFooter>
+        <showHeader>true</showHeader>
+    </screens>
+
+    <screens>
+        <name>Screen_Preview_And_Edit</name>
+        <label>Preview &amp; Inline Edit Intermediate Invoices</label>
+        <locationX>50</locationX>
+        <locationY>566</locationY>
+        <allowBack>true</allowBack>
+        <allowFinish>true</allowFinish>
+        <allowPause>false</allowPause>
+        <connector>
+            <targetReference>Action_Commit_Invoices</targetReference>
+        </connector>
+        <fields>
+            <name>Preview_Editor_Cmp</name>
+            <extensionName>c:invoicePreviewEditor</extensionName>
+            <fieldType>ComponentInstance</fieldType>
+            <inputParameters>
+                <name>previewJson</name>
+                <value><elementReference>varPreviewJson</elementReference></value>
+            </inputParameters>
+            <storeOutputAutomatically>true</storeOutputAutomatically>
+        </fields>
+        <showFooter>true</showFooter>
+        <showHeader>true</showHeader>
+    </screens>
+
+    <screens>
+        <name>Screen_Review_Timesheets</name>
+        <label>Review Candidate Timesheets</label>
+        <locationX>50</locationX>
+        <locationY>350</locationY>
+        <allowBack>true</allowBack>
+        <allowFinish>true</allowFinish>
+        <allowPause>false</allowPause>
+        <connector>
+            <targetReference>Action_Generate_Invoice_Preview</targetReference>
+        </connector>
+        <fields>
+            <name>Summary_Banner</name>
+            <fieldText>&lt;div style=&quot;background: #f3f3f3; padding: 12px; border-radius: 4px; margin-bottom: 12px;&quot;&gt;&lt;p&gt;&lt;strong style=&quot;font-size: 14px;&quot;&gt;Candidate Timesheets Summary&lt;/strong&gt;&lt;/p&gt;&lt;p&gt;Found &lt;strong&gt;{!varTotalLineItemCount}&lt;/strong&gt; un-invoiced line items totaling &lt;strong&gt;{!varTotalEligibleHours}&lt;/strong&gt; hours across candidate timesheets.&lt;/p&gt;&lt;/div&gt;</fieldText>
+            <fieldType>DisplayText</fieldType>
+        </fields>
+        <fields>
+            <name>DataTable_Timesheets</name>
+            <dataTypeMappings>
+                <typeName>T</typeName>
+                <typeValue>dbt__Timesheet__c</typeValue>
+            </dataTypeMappings>
+            <extensionName>flowruntime:datatable</extensionName>
+            <fieldType>ComponentInstance</fieldType>
+            <inputParameters>
+                <name>label</name>
+                <value><stringValue>Candidate Timesheets</stringValue></value>
+            </inputParameters>
+            <inputParameters>
+                <name>selectionMode</name>
+                <value><stringValue>MULTI_SELECT</stringValue></value>
+            </inputParameters>
+            <inputParameters>
+                <name>minRowSelection</name>
+                <value><numberValue>0.0</numberValue></value>
+            </inputParameters>
+            <inputParameters>
+                <name>tableData</name>
+                <value><elementReference>varEligibleTimesheets</elementReference></value>
+            </inputParameters>
+            <inputParameters>
+                <name>columns</name>
+                <value><stringValue>[{&quot;apiName&quot;:&quot;Name&quot;,&quot;label&quot;:&quot;Timesheet Number&quot;,&quot;type&quot;:&quot;text&quot;},{&quot;apiName&quot;:&quot;dbt__Start_Date__c&quot;,&quot;label&quot;:&quot;Start Date&quot;,&quot;type&quot;:&quot;date&quot;},{&quot;apiName&quot;:&quot;dbt__End_Date__c&quot;,&quot;label&quot;:&quot;End Date&quot;,&quot;type&quot;:&quot;date&quot;},{&quot;apiName&quot;:&quot;dbt__Status__c&quot;,&quot;label&quot;:&quot;Status&quot;,&quot;type&quot;:&quot;text&quot;},{&quot;apiName&quot;:&quot;dbt__Total_Hours__c&quot;,&quot;label&quot;:&quot;Total Hours&quot;,&quot;type&quot;:&quot;number&quot;}]</stringValue></value>
+            </inputParameters>
+            <storeOutputAutomatically>true</storeOutputAutomatically>
+        </fields>
+        <showFooter>true</showFooter>
+        <showHeader>true</showHeader>
+    </screens>
+
+    <!-- Start -->
+    <start>
+        <locationX>56</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>Screen_Filter_Criteria</targetReference>
+        </connector>
+    </start>
+
+    <status>Active</status>
+
+    <!-- Variables -->
+    <variables>
+        <name>varCommitMessage</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <name>varCreatedInvoiceIds</name>
+        <dataType>String</dataType>
+        <isCollection>true</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <name>varEligibleLineItemIds</name>
+        <dataType>String</dataType>
+        <isCollection>true</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <name>varEligibleTimesheets</name>
+        <dataType>SObject</dataType>
+        <isCollection>true</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <objectType>dbt__Timesheet__c</objectType>
+    </variables>
+    <variables>
+        <name>varInvoiceCount</name>
+        <dataType>Number</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <scale>0</scale>
+        <value><numberValue>0.0</numberValue></value>
+    </variables>
+    <variables>
+        <name>varPreviewJson</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <name>varTotalEligibleHours</name>
+        <dataType>Number</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <scale>2</scale>
+        <value><numberValue>0.0</numberValue></value>
+    </variables>
+    <variables>
+        <name>varTotalLineItemCount</name>
+        <dataType>Number</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <scale>0</scale>
+        <value><numberValue>0.0</numberValue></value>
+    </variables>
+    <variables>
+        <name>varTotalProposedAmount</name>
+        <dataType>Currency</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <scale>2</scale>
+        <value><numberValue>0.0</numberValue></value>
+    </variables>
+</Flow>

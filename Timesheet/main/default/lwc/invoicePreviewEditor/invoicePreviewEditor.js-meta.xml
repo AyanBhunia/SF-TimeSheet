@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>64.0</apiVersion>
+    <isExposed>true</isExposed>
+    <masterLabel>Intermediate Invoice Preview &amp; Inline Editor</masterLabel>
+    <description>Interactive preview and inline editor for proposed customer intermediate invoices generated from timesheets.</description>
+    <targets>
+        <target>lightning__FlowScreen</target>
+    </targets>
+    <targetConfigs>
+        <targetConfig targets="lightning__FlowScreen">
+            <property name="previewJson" type="String" label="Intermediate Invoice Preview JSON" description="JSON payload of candidate intermediate invoices and line items" role="inputOnly"/>
+            <property name="editedPreviewJson" type="String" label="Edited Preview JSON" description="Updated JSON payload after inline edits" role="outputOnly"/>
+            <property name="totalAmountString" type="String" label="Total Amount" description="Sum of all proposed intermediate invoices" role="outputOnly"/>
+            <property name="invoiceCount" type="Integer" label="Intermediate Invoice Count" description="Number of proposed intermediate invoices" role="outputOnly"/>
+        </targetConfig>
+    </targetConfigs>
+</LightningComponentBundle>

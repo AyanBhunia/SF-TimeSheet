@@ -1,0 +1,264 @@
+@isTest
+private class TimesheetInvoiceEngineTest {
+
+    @testSetup
+    static void setupData() {
+        // 1. Account
+        Account acc = new Account(
+            Name = 'Acme Corporation',
+            BillingStreet = '123 Market St',
+            BillingCity = 'San Francisco',
+            BillingState = 'CA',
+            BillingPostalCode = '94105',
+            BillingCountry = 'USA'
+        );
+        insert acc;
+
+        // 2. Employee
+        dbt__Employee__c emp = new dbt__Employee__c(
+            dbt__First_Name__c = 'Jane',
+            dbt__Last_Name__c = 'Doe',
+            dbt__Email__c = 'jane.doe@example.com'
+        );
+        insert emp;
+
+        // 3. Project
+        dbt__Project__c proj = new dbt__Project__c(
+            Name = 'Alpha Project',
+            Account__c = acc.Id,
+            dbt__Billable__c = 'Yes',
+            dbt__Active__c = true
+        );
+        insert proj;
+
+        // 4. Project Employee (Hourly Rate = 100)
+        dbt__Project_Employee__c pe = new dbt__Project_Employee__c(
+            dbt__Project__c = proj.Id,
+            dbt__Employee__c = emp.Id,
+            dbt__Hourly_Rate__c = 100.00
+        );
+        insert pe;
+
+        // 5. Timesheet (Approved)
+        Date refDate = Date.today().toStartOfWeek();
+        dbt__Timesheet__c ts = new dbt__Timesheet__c(
+            dbt__Employee__c = emp.Id,
+            dbt__Status__c = 'Approved',
+            dbt__Start_Date__c = refDate,
+            dbt__End_Date__c = refDate.addDays(6)
+        );
+        insert ts;
+
+        // 6. Timesheet Line Items
+        List<dbt__Timesheet_Line_Item__c> lines = new List<dbt__Timesheet_Line_Item__c>{
+            // Line 1: Development, Billable, 5 hours
+            new dbt__Timesheet_Line_Item__c(
+                dbt__Timesheet__c = ts.Id,
+                dbt__Project__c = proj.Id,
+                dbt__Activity__c = 'Development',
+                dbt__Date__c = refDate,
+                dbt__Duration__c = 5,
+                dbt__Billable__c = 'Yes',
+                dbt__Type__c = 'Attendance'
+            ),
+            // Line 2: Development, Billable, 3 hours (will merge with Line 1)
+            new dbt__Timesheet_Line_Item__c(
+                dbt__Timesheet__c = ts.Id,
+                dbt__Project__c = proj.Id,
+                dbt__Activity__c = 'Development',
+                dbt__Date__c = refDate.addDays(1),
+                dbt__Duration__c = 3,
+                dbt__Billable__c = 'Yes',
+                dbt__Type__c = 'Attendance'
+            ),
+            // Line 3: Consulting, Billable, 2 hours
+            new dbt__Timesheet_Line_Item__c(
+                dbt__Timesheet__c = ts.Id,
+                dbt__Project__c = proj.Id,
+                dbt__Activity__c = 'Consulting',
+                dbt__Date__c = refDate.addDays(2),
+                dbt__Duration__c = 2,
+                dbt__Billable__c = 'Yes',
+                dbt__Type__c = 'Attendance'
+            ),
+            // Line 4: Absence (Must be excluded)
+            new dbt__Timesheet_Line_Item__c(
+                dbt__Timesheet__c = ts.Id,
+                dbt__Project__c = proj.Id,
+                dbt__Activity__c = 'Vacation',
+                dbt__Date__c = refDate.addDays(3),
+                dbt__Duration__c = 8,
+                dbt__Billable__c = 'No',
+                dbt__Type__c = 'Absence',
+                dbt__Absence_Category__c = 'PTO-Planned'
+            )
+        };
+        insert lines;
+    }
+
+    @isTest
+    static void testEndToEndInvoicing() {
+        Account acc = [SELECT Id FROM Account LIMIT 1];
+        dbt__Timesheet__c ts = [SELECT Id, dbt__Start_Date__c, dbt__End_Date__c FROM dbt__Timesheet__c LIMIT 1];
+
+        Test.startTest();
+
+        // 1. Test Fetch Action
+        TimesheetInvoiceEngine.FetchRequest fetchReq = new TimesheetInvoiceEngine.FetchRequest();
+        fetchReq.startDate = ts.dbt__Start_Date__c;
+        fetchReq.endDate = ts.dbt__End_Date__c;
+        fetchReq.onlyBillable = true;
+        fetchReq.allowedStatuses = 'Approved';
+        fetchReq.accountIdFilter = acc.Id;
+
+        List<TimesheetInvoiceEngine.FetchResponse> fetchResponses =
+            TimesheetInvoiceFetchAction.execute(new List<TimesheetInvoiceEngine.FetchRequest>{fetchReq});
+
+        System.assertEquals(1, fetchResponses.size());
+        TimesheetInvoiceEngine.FetchResponse fetchRes = fetchResponses[0];
+        System.assertEquals(1, fetchRes.eligibleTimesheets.size(), 'Should find 1 eligible timesheet');
+        System.assertEquals(3, fetchRes.eligibleLineItemIds.size(), 'Should find 3 billable items (excluding absence)');
+        System.assertEquals(10, fetchRes.totalEligibleHours, 'Total hours should be 5 + 3 + 2 = 10');
+
+        // 2. Test Preview Action
+        TimesheetInvoiceEngine.PreviewRequest prevReq = new TimesheetInvoiceEngine.PreviewRequest();
+        prevReq.selectedTimesheetIds = new List<Id>{ts.Id};
+        prevReq.eligibleLineItemIds = fetchRes.eligibleLineItemIds;
+        prevReq.startDate = fetchReq.startDate;
+        prevReq.endDate = fetchReq.endDate;
+        prevReq.onlyBillable = true;
+        prevReq.dueDaysOffset = 30;
+        prevReq.defaultInvoiceStatus = 'Confirmed';
+        prevReq.descriptionTemplate = '{Project} - {Employee} ({Activity})';
+
+        List<TimesheetInvoiceEngine.PreviewResponse> prevResponses =
+            TimesheetInvoicePreviewAction.execute(new List<TimesheetInvoiceEngine.PreviewRequest>{prevReq});
+
+        System.assertEquals(1, prevResponses.size());
+        TimesheetInvoiceEngine.PreviewResponse prevRes = prevResponses[0];
+        System.assertEquals(1, prevRes.previewInvoices.size(), 'Should propose 1 intermediate invoice for the account');
+        System.assertEquals(2, prevRes.previewLineItems.size(), 'Should merge into 2 lines: Development and Consulting');
+        System.assertEquals(1000.00, prevRes.totalProposedAmount, 'Total proposed amount should be 10 hrs * 100 = 1000');
+        System.assert(String.isNotBlank(prevRes.previewJson), 'Preview JSON should be generated');
+
+        // 3. Test Commit Action (using Preview JSON)
+        TimesheetInvoiceEngine.CommitRequest commitReq = new TimesheetInvoiceEngine.CommitRequest();
+        commitReq.previewJson = prevRes.previewJson;
+
+        List<TimesheetInvoiceEngine.CommitResponse> commitResponses =
+            TimesheetInvoiceCommitAction.execute(new List<TimesheetInvoiceEngine.CommitRequest>{commitReq});
+
+        System.assertEquals(1, commitResponses.size());
+        TimesheetInvoiceEngine.CommitResponse commitRes = commitResponses[0];
+        System.assert(commitRes.isSuccess, 'Commit should succeed');
+        System.assertEquals(1, commitRes.createdInvoiceIds.size());
+
+        Id invoiceId = commitRes.createdInvoiceIds[0];
+        Intermediate_Invoice__c inv = [SELECT Id, Account__c, Status__c, Billing_Address__c FROM Intermediate_Invoice__c WHERE Id = :invoiceId];
+        System.assertEquals(acc.Id, inv.Account__c);
+        System.assertEquals('Confirmed', inv.Status__c);
+
+        List<Intermediate_Invoice_Line_Item__c> lines = [
+            SELECT Id, Activity__c, Quantity__c, Unit_Price__c, Source_Timesheet_Line_Items__c
+            FROM Intermediate_Invoice_Line_Item__c
+            WHERE Intermediate_Invoice__c = :invoiceId
+            ORDER BY Activity__c ASC
+        ];
+        System.assertEquals(2, lines.size());
+        // Consulting
+        System.assertEquals('Consulting', lines[0].Activity__c);
+        System.assertEquals(2, lines[0].Quantity__c);
+        System.assertEquals(100.00, lines[0].Unit_Price__c);
+        // Development (merged 5 + 3 = 8)
+        System.assertEquals('Development', lines[1].Activity__c);
+        System.assertEquals(8, lines[1].Quantity__c);
+        System.assertEquals(100.00, lines[1].Unit_Price__c);
+        System.assert(lines[1].Source_Timesheet_Line_Items__c.contains(','), 'Merged line should contain comma-separated IDs');
+
+        // 4. Test Deduplication: Running fetch again should return 0 eligible lines
+        List<TimesheetInvoiceEngine.FetchResponse> secondFetchResponses =
+            TimesheetInvoiceFetchAction.execute(new List<TimesheetInvoiceEngine.FetchRequest>{fetchReq});
+        System.assertEquals(0, secondFetchResponses[0].eligibleLineItemIds.size(), 'Previously committed lines must be excluded');
+
+        Test.stopTest();
+    }
+
+    @isTest
+    static void testCommitViaSObjectListsFallback() {
+        Account acc = [SELECT Id FROM Account LIMIT 1];
+        dbt__Project__c proj = [SELECT Id FROM dbt__Project__c LIMIT 1];
+
+        Intermediate_Invoice__c inv = new Intermediate_Invoice__c(
+            Account__c = acc.Id,
+            Invoice_Date__c = Date.today(),
+            Status__c = 'Confirmed'
+        );
+
+        Intermediate_Invoice_Line_Item__c ili = new Intermediate_Invoice_Line_Item__c(
+            Project__c = proj.Id,
+            Activity__c = 'Testing',
+            Quantity__c = 4,
+            Unit_Price__c = 50.00,
+            Billable__c = true
+        );
+
+        TimesheetInvoiceEngine.CommitRequest req = new TimesheetInvoiceEngine.CommitRequest();
+        req.invoices = new List<Intermediate_Invoice__c>{inv};
+        req.lineItems = new List<Intermediate_Invoice_Line_Item__c>{ili};
+
+        Test.startTest();
+        TimesheetInvoiceEngine.CommitResponse res = TimesheetInvoiceEngine.commitInvoices(req);
+        Test.stopTest();
+
+        System.assert(res.isSuccess);
+        System.assertEquals(1, res.createdInvoiceIds.size());
+    }
+
+    @isTest
+    static void testMissingRateDefaultsToZero() {
+        // Create project without Project_Employee junction
+        Account acc = [SELECT Id FROM Account LIMIT 1];
+        dbt__Employee__c emp = [SELECT Id FROM dbt__Employee__c LIMIT 1];
+
+        dbt__Project__c proj2 = new dbt__Project__c(
+            Name = 'Beta Project',
+            Account__c = acc.Id,
+            dbt__Billable__c = 'Yes',
+            dbt__Active__c = true
+        );
+        insert proj2;
+
+        dbt__Timesheet__c ts2 = new dbt__Timesheet__c(
+            dbt__Employee__c = emp.Id,
+            dbt__Status__c = 'Approved',
+            dbt__Start_Date__c = Date.today(),
+            dbt__End_Date__c = Date.today().addDays(6)
+        );
+        insert ts2;
+
+        dbt__Timesheet_Line_Item__c tli = new dbt__Timesheet_Line_Item__c(
+            dbt__Timesheet__c = ts2.Id,
+            dbt__Project__c = proj2.Id,
+            dbt__Activity__c = 'Design',
+            dbt__Date__c = Date.today(),
+            dbt__Duration__c = 6,
+            dbt__Billable__c = 'Yes',
+            dbt__Type__c = 'Attendance'
+        );
+        insert tli;
+
+        TimesheetInvoiceEngine.PreviewRequest prevReq = new TimesheetInvoiceEngine.PreviewRequest();
+        prevReq.selectedTimesheetIds = new List<Id>{ts2.Id};
+        prevReq.eligibleLineItemIds = new List<String>{String.valueOf(tli.Id)};
+        prevReq.startDate = Date.today();
+        prevReq.endDate = Date.today().addDays(6);
+        prevReq.onlyBillable = true;
+
+        Test.startTest();
+        TimesheetInvoiceEngine.PreviewResponse prevRes = TimesheetInvoiceEngine.generateInvoicePreview(prevReq);
+        Test.stopTest();
+
+        System.assertEquals(1, prevRes.previewLineItems.size());
+        System.assertEquals(0.00, prevRes.previewLineItems[0].Unit_Price__c, 'Rate should default to 0 when no junction record exists');
+    }
+}

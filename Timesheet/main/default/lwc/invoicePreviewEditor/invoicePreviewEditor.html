@@ -1,0 +1,192 @@
+<template>
+    <div class="slds-box slds-theme_default slds-p-around_medium">
+        <!-- Summary Header -->
+        <div class="slds-page-header slds-m-bottom_medium slds-theme_shade">
+            <div class="slds-page-header__row">
+                <div class="slds-page-header__col-title">
+                    <div class="slds-media">
+                        <div class="slds-media__figure">
+                            <lightning-icon icon-name="standard:invoice" size="medium"></lightning-icon>
+                        </div>
+                        <div class="slds-media__body">
+                            <h2 class="slds-page-header__title slds-truncate" title="Proposed Intermediate Invoices">
+                                Intermediate Invoice Preview &amp; Inline Editing
+                            </h2>
+                            <p class="slds-page-header__name-meta">
+                                Review proposed customer intermediate invoices. You can adjust dates, memo, description, hours, or rates before committing.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="slds-page-header__col-actions">
+                    <div class="slds-badge slds-badge_inverse slds-text-heading_small slds-p-around_x-small">
+                        Total Intermediate Invoices: {invoiceCount} &nbsp;|&nbsp; Grand Total: ${formattedGrandTotal}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Invoices List / Accordion -->
+        <template if:true={hasInvoices}>
+            <lightning-accordion allow-multiple-sections-open active-section-name={activeSections}>
+                <template for:each={invoices} for:item="inv" for:index="invIdx">
+                    <lightning-accordion-section
+                        key={inv.accountId}
+                        name={inv.accountId}
+                        label={inv.sectionLabel}>
+
+                        <!-- Invoice Header Fields Card -->
+                        <div class="slds-card slds-card_boundary slds-m-bottom_small slds-p-around_small slds-theme_default">
+                            <div class="slds-grid slds-wrap slds-gutters">
+                                <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3">
+                                    <lightning-input
+                                        type="date"
+                                        label="Intermediate Invoice Date"
+                                        value={inv.invoiceDate}
+                                        data-inv-idx={invIdx}
+                                        data-field="invoiceDate"
+                                        onchange={handleHeaderChange}>
+                                    </lightning-input>
+                                </div>
+                                <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3">
+                                    <lightning-input
+                                        type="date"
+                                        label="Due Date"
+                                        value={inv.dueDate}
+                                        data-inv-idx={invIdx}
+                                        data-field="dueDate"
+                                        onchange={handleHeaderChange}>
+                                    </lightning-input>
+                                </div>
+                                <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3">
+                                    <div class="slds-form-element">
+                                        <label class="slds-form-element__label">Billing Period</label>
+                                        <div class="slds-form-element__control slds-p-top_xx-small">
+                                            <span class="slds-text-body_regular">{inv.periodStart} to {inv.periodEnd}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="slds-col slds-size_1-of-1 slds-medium-size_2-of-3 slds-m-top_x-small">
+                                    <lightning-input
+                                        type="text"
+                                        label="Customer Memo"
+                                        value={inv.memo}
+                                        data-inv-idx={invIdx}
+                                        data-field="memo"
+                                        onchange={handleHeaderChange}>
+                                    </lightning-input>
+                                </div>
+                                <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3 slds-m-top_x-small">
+                                    <div class="slds-form-element">
+                                        <label class="slds-form-element__label">Billing Address</label>
+                                        <div class="slds-form-element__control slds-p-top_xx-small">
+                                            <span class="slds-text-body_small slds-truncate">{inv.billingAddress}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Line Items Table -->
+                        <div class="slds-table_responsive">
+                            <table class="slds-table slds-table_cell-buffer slds-table_bordered slds-table_col-bordered slds-m-bottom_small">
+                                <thead>
+                                    <tr class="slds-line-height_reset slds-text-title_caps">
+                                        <th scope="col" style="width: 50px;">#</th>
+                                        <th scope="col">Project</th>
+                                        <th scope="col">Employee</th>
+                                        <th scope="col">Activity</th>
+                                        <th scope="col" style="min-width: 200px;">Description</th>
+                                        <th scope="col" style="width: 100px;">Hours</th>
+                                        <th scope="col" style="width: 110px;">Rate ($)</th>
+                                        <th scope="col" style="width: 100px;">Amount ($)</th>
+                                        <th scope="col" style="width: 70px;">Billable</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template for:each={inv.lines} for:item="line" for:index="lineIdx">
+                                        <tr key={line.lineNumber} class="slds-hint-parent">
+                                            <td>{line.lineNumber}</td>
+                                            <td>
+                                                <span class="slds-truncate" title={line.projectName}>{line.projectName}</span>
+                                            </td>
+                                            <td>
+                                                <span class="slds-truncate" title={line.employeeName}>{line.employeeName}</span>
+                                            </td>
+                                            <td>
+                                                <span class="slds-truncate" title={line.activity}>{line.activity}</span>
+                                            </td>
+                                            <td>
+                                                <lightning-input
+                                                    type="text"
+                                                    variant="label-hidden"
+                                                    value={line.description}
+                                                    data-inv-idx={invIdx}
+                                                    data-line-idx={lineIdx}
+                                                    data-field="description"
+                                                    onchange={handleLineChange}>
+                                                </lightning-input>
+                                            </td>
+                                            <td>
+                                                <lightning-input
+                                                    type="number"
+                                                    step="0.01"
+                                                    variant="label-hidden"
+                                                    value={line.quantity}
+                                                    data-inv-idx={invIdx}
+                                                    data-line-idx={lineIdx}
+                                                    data-field="quantity"
+                                                    onchange={handleLineChange}>
+                                                </lightning-input>
+                                            </td>
+                                            <td>
+                                                <lightning-input
+                                                    type="number"
+                                                    step="0.01"
+                                                    variant="label-hidden"
+                                                    value={line.unitPrice}
+                                                    data-inv-idx={invIdx}
+                                                    data-line-idx={lineIdx}
+                                                    data-field="unitPrice"
+                                                    onchange={handleLineChange}>
+                                                </lightning-input>
+                                            </td>
+                                            <td class="slds-text-align_right slds-text-color_success font-bold">
+                                                ${line.amountFormatted}
+                                            </td>
+                                            <td class="slds-text-align_center">
+                                                <template if:true={line.billable}>
+                                                    <span class="slds-badge slds-theme_success">Yes</span>
+                                                </template>
+                                                <template if:false={line.billable}>
+                                                    <span class="slds-badge slds-theme_warning">No</span>
+                                                </template>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Intermediate Invoice Subtotal Footer -->
+                        <div class="slds-grid slds-grid_align-end slds-p-around_x-small slds-theme_shade slds-m-bottom_medium">
+                            <div class="slds-text-title_bold slds-text-heading_small">
+                                Subtotal for {inv.accountName}: &nbsp;${inv.totalAmountFormatted}
+                            </div>
+                        </div>
+
+                    </lightning-accordion-section>
+                </template>
+            </lightning-accordion>
+        </template>
+
+        <template if:false={hasInvoices}>
+            <div class="slds-illustration slds-illustration_small slds-p-around_large">
+                <div class="slds-text-longform">
+                    <h3 class="slds-text-heading_medium">No candidate intermediate invoices to preview</h3>
+                    <p class="slds-text-body_regular">Please return to previous steps and adjust your filter criteria.</p>
+                </div>
+            </div>
+        </template>
+    </div>
+</template>

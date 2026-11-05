@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ListView xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>All</fullName>
+    <columns>NAME</columns>
+    <columns>Account__c</columns>
+    <columns>Total_Amount__c</columns>
+    <columns>Status__c</columns>
+    <columns>Invoice_Date__c</columns>
+    <columns>Due_Date__c</columns>
+    <columns>Billing_Period_Start__c</columns>
+    <columns>Billing_Period_End__c</columns>
+    <filterScope>Everything</filterScope>
+    <label>All Intermediate Invoices</label>
+</ListView>

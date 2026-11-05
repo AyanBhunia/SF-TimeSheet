@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Source_Timesheet_Line_Items__c</fullName>
+    <deprecated>false</deprecated>
+    <description>Comma-delimited IDs of the source dbt__Timesheet_Line_Item__c records aggregated into this invoice line.</description>
+    <externalId>false</externalId>
+    <label>Source Timesheet Line Items</label>
+    <length>131072</length>
+    <trackTrending>false</trackTrending>
+    <type>LongTextArea</type>
+    <visibleLines>3</visibleLines>
+</CustomField>

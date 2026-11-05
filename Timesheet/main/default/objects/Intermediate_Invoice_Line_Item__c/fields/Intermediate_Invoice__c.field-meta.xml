@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Intermediate_Invoice__c</fullName>
+    <deprecated>false</deprecated>
+    <description>Parent Intermediate Invoice container.</description>
+    <externalId>false</externalId>
+    <label>Intermediate Invoice</label>
+    <referenceTo>Intermediate_Invoice__c</referenceTo>
+    <relationshipLabel>Intermediate Invoice Line Items</relationshipLabel>
+    <relationshipName>Intermediate_Invoice_Line_Items</relationshipName>
+    <relationshipOrder>0</relationshipOrder>
+    <reparentableMasterDetail>false</reparentableMasterDetail>
+    <trackTrending>false</trackTrending>
+    <type>MasterDetail</type>
+    <writeRequiresMasterRead>false</writeRequiresMasterRead>
+</CustomField>
