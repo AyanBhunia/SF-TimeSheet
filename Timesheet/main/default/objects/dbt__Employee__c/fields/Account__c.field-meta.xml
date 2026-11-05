@@ -7,8 +7,8 @@
     <externalId>false</externalId>
     <label>Account</label>
     <referenceTo>Account</referenceTo>
-    <relationshipLabel>Employees</relationshipLabel>
-    <relationshipName>Employees</relationshipName>
+    <relationshipLabel>Invoice Employees</relationshipLabel>
+    <relationshipName>Invoice_Employees</relationshipName>
     <required>false</required>
     <trackTrending>false</trackTrending>
     <type>Lookup</type>
