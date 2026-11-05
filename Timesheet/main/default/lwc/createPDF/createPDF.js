@@ -149,8 +149,8 @@ export default class PdfGenerator extends LightningElement {
      * (Rewritten to use local-midnight Date creation to avoid timezone shifts)
      */
     processLineItems(lineItems) {
-        const startDateLocal = this.parseDateAsLocal(this.Timesheet.Start_Date__c);
-        const endDateLocal = this.parseDateAsLocal(this.Timesheet.End_Date__c);
+        const startDateLocal = this.parseDateAsLocal(this.Timesheet.dbt__Start_Date__c);
+        const endDateLocal = this.parseDateAsLocal(this.Timesheet.dbt__End_Date__c);
         if (!startDateLocal || !endDateLocal) {
             this.TimesheetLineItems = [];
             return;
@@ -162,7 +162,7 @@ export default class PdfGenerator extends LightningElement {
         while (dateCursor <= endDateLocal) {
             const yyyyMmDd = this.formatYMD(dateCursor);
             tempLineItems.push({
-                Date__c: yyyyMmDd,
+                dbt__Date__c: yyyyMmDd,
                 duration: "0",
                 Day: this.weekdays[dateCursor.getDay()]
             });
@@ -171,12 +171,12 @@ export default class PdfGenerator extends LightningElement {
 
         // Normalize incoming items to YYYY-MM-DD before matching
         const normalizedItems = (lineItems || []).map(item => ({
-            ymd: this.extractYMDFromSFDate(item.Date__c),
+            ymd: this.extractYMDFromSFDate(item.dbt__Date__c),
             duration: item.duration != null ? String(item.duration) : "0"
         }));
 
         tempLineItems.forEach(row => {
-            const found = normalizedItems.find(it => it.ymd === row.Date__c);
+            const found = normalizedItems.find(it => it.ymd === row.dbt__Date__c);
             if (found) {
                 row.duration = found.duration;
             }
@@ -198,26 +198,26 @@ export default class PdfGenerator extends LightningElement {
         this.addHeader(doc);
         this.addTable(doc);
 
-        doc.save(`${this.Timesheet?.Employee__r?.Name || "Unknown Contractor"}_Timesheet_${this.Timesheet?.End_Date__c || 'generated'}.pdf`);
+        doc.save(`${this.Timesheet?.dbt__Employee__r?.Name || "Unknown Contractor"}_Timesheet_${this.Timesheet?.dbt__End_Date__c || 'generated'}.pdf`);
     }
 
     /**
      * @description Adds header to PDF
      */
     addHeader(doc) {
-        const contractorName = this.Timesheet?.Employee__r?.Name || "Unknown Contractor";
-        const clientManagerName = this.Timesheet?.Employee__r?.Client_Manager__r?.Name || "Unknown Manager";
-        const clientManagerEmail = this.Timesheet?.Employee__r?.Client_Manager_email__c || "No Email Provided";
-        const fortnightEnding = this.Timesheet?.End_Date__c || "Unknown Date";
-        const billableHours = this.Timesheet?.Billable_Hours__c || "0";
-        const totalHours = this.Timesheet?.Total_Hours__c || "0";
+        const contractorName = this.Timesheet?.dbt__Employee__r?.Name || "Unknown Contractor";
+        const clientManagerName = this.Timesheet?.dbt__Employee__r?.dbt__Client_Manager__r?.Name || "Unknown Manager";
+        const clientManagerEmail = this.Timesheet?.dbt__Employee__r?.dbt__Client_Manager_email__c || "No Email Provided";
+        const fortnightEnding = this.Timesheet?.dbt__End_Date__c || "Unknown Date";
+        const billableHours = this.Timesheet?.dbt__Billable_Hours__c || "0";
+        const totalHours = this.Timesheet?.dbt__Total_Hours__c || "0";
 
         const pic = new Image();
         pic.src = imageLogo;
 
         doc.setFontSize(22);
         doc.setTextColor(0, 56, 101);
-        doc.text(`Timesheet_${this.Timesheet?.Start_Date__c || 'NA'}_${this.Timesheet?.End_Date__c || 'Na'}`, 18, this.tableRowStart - 20); 
+        doc.text(`Timesheet_${this.Timesheet?.dbt__Start_Date__c || 'NA'}_${this.Timesheet?.dbt__End_Date__c || 'Na'}`, 18, this.tableRowStart - 20); 
         doc.setFontSize(12);
         doc.setTextColor(0, 0, 0);
 
@@ -240,7 +240,7 @@ export default class PdfGenerator extends LightningElement {
     addTable(doc) {
         const columns = [
             { header: 'Day', dataKey: 'Day' },
-            { header: 'Date', dataKey: 'Date__c' },
+            { header: 'Date', dataKey: 'dbt__Date__c' },
             { header: 'Hours_Worked', dataKey: 'duration' }
         ];
 

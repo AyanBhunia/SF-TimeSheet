@@ -121,6 +121,70 @@ public class EmployeeTriggerHandlerTest {
         }
     }
     
+    @isTest
+    public static void managerApprovalUpdatesAccrualTotalsWithoutEmployeeEditAccess(){
+        Employee__c employee;
+        Timesheet__c timesheet;
+        User manager = [Select Id from User where FirstName = 'Standard' AND LastName = 'User2' LIMIT 1];
+        User adminUser = [Select Id from User where FirstName = 'Admin' AND LastName = 'User' LIMIT 1];
+        assignManagerPermissionSet(manager);
+        System.runAs(adminUser){
+            employee = createEmployeeForUser([Select Id from User where FirstName = 'Standard' AND LastName = 'User' LIMIT 1].Id);
+            employee.Accrual_Start_Date__c = Date.today().addYears(-1);
+            employee.Extra_Accrued_Hours__c = 5;
+            insert employee;
+            timesheet = new Timesheet__c(Employee__c = employee.Id, Status__c = 'Submitted',
+                Start_Date__c = Date.today(), End_Date__c = Date.today().addDays(6));
+            insert timesheet;
+        }
+
+        Database.SaveResult result;
+        System.runAs(manager){
+            Assert.isFalse(Schema.SObjectType.Employee__c.isUpdateable(), 'The manager must not have Edit on Employee');
+            Test.startTest();
+            // The approval process field update runs in the system context, as the approver.
+            result = new SystemContext().save(new Timesheet__c(Id = timesheet.Id, Status__c = 'Approved'));
+            Test.stopTest();
+        }
+
+        Assert.isTrue(result.isSuccess(), String.valueOf(result.getErrors()));
+        Assert.areEqual(5, [SELECT Total_Accrued_Hours__c FROM Employee__c WHERE Id = :employee.Id].Total_Accrued_Hours__c);
+    }
+
+    @isTest
+    public static void userWithoutAccessStillCannotChangeEmployeeUser(){
+        Employee__c employee;
+        User manager = [Select Id from User where FirstName = 'Standard' AND LastName = 'User2' LIMIT 1];
+        User adminUser = [Select Id from User where FirstName = 'Admin' AND LastName = 'User' LIMIT 1];
+        assignManagerPermissionSet(manager);
+        System.runAs(adminUser){
+            employee = createEmployeeForUser([Select Id from User where FirstName = 'Standard' AND LastName = 'User' LIMIT 1].Id);
+            insert employee;
+        }
+
+        Database.SaveResult result;
+        System.runAs(manager){
+            Test.startTest();
+            result = new SystemContext().save(new Employee__c(Id = employee.Id, User__c = manager.Id));
+            Test.stopTest();
+        }
+
+        Assert.isFalse(result.isSuccess());
+        Assert.areEqual('You do not have access, Please contact system admin', result.getErrors()[0].getMessage());
+    }
+
+    private without sharing class SystemContext {
+        Database.SaveResult save(SObject record){
+            return Database.update(record, false);
+        }
+    }
+
+    private static void assignManagerPermissionSet(User u){
+        System.runAs(new User(Id = UserInfo.getUserId())){
+            insert new PermissionSetAssignment(AssigneeId = u.Id,
+                PermissionSetId = [SELECT Id FROM PermissionSet WHERE Name = 'TimeSheet_Manager' LIMIT 1].Id);
+        }
+    }
     private static User createAdminUser(String firstName, String lastName){
         Profile p = [Select Id, Name from Profile where Name = 'System Administrator' LIMIT 1];
         

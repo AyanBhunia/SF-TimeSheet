@@ -1,4 +1,4 @@
-trigger TimesheetTrigger on Timesheet__c (before insert, before update, after insert, after update, after delete, after undelete) {
+trigger TimesheetTrigger on dbt__Timesheet__c (before insert, before update, after insert, after update, after delete, after undelete) {
 
     if (Trigger.isBefore) {
 
@@ -8,19 +8,19 @@ trigger TimesheetTrigger on Timesheet__c (before insert, before update, after in
         // never blocked, because only the owner of a timer can save or discard it, and the approver cannot.
         if (Trigger.isUpdate) {
             Set<Id> closing = new Set<Id>();
-            for (Timesheet__c ts : Trigger.new) {
-                String status = ts.Status__c;
-                String oldStatus = Trigger.oldMap.get(ts.Id).Status__c;
+            for (dbt__Timesheet__c ts : Trigger.new) {
+                String status = ts.dbt__Status__c;
+                String oldStatus = Trigger.oldMap.get(ts.Id).dbt__Status__c;
                 if (status != oldStatus && (status == 'Submitted' || (status == 'Approved' && oldStatus != 'Submitted'))) {
                     closing.add(ts.Id);
                 }
             }
             if (!closing.isEmpty()) {
                 for (AggregateResult running : [
-                    SELECT Timesheet__c timesheetId
-                    FROM Timesheet_Line_Item__c
-                    WHERE Timesheet__c IN :closing AND Timer_Data__c != NULL
-                    GROUP BY Timesheet__c
+                    SELECT dbt__Timesheet__c timesheetId
+                    FROM dbt__Timesheet_Line_Item__c
+                    WHERE dbt__Timesheet__c IN :closing AND dbt__Timer_Data__c != NULL
+                    GROUP BY dbt__Timesheet__c
                 ]) {
                     Trigger.newMap.get((Id) running.get('timesheetId')).addError(
                         'A timer is still running on this timesheet. Save or discard it in the timer first, then submit or approve the timesheet.');
@@ -30,9 +30,9 @@ trigger TimesheetTrigger on Timesheet__c (before insert, before update, after in
 
         Set<Id> timesheetIds = new Set<Id>();
         Set<Id> empIdsForDivisor = new Set<Id>();
-        for (Timesheet__c ts : Trigger.new) {
-            if (ts.Status__c == 'Approved' && ts.Employee__c != null) {
-                empIdsForDivisor.add(ts.Employee__c);
+        for (dbt__Timesheet__c ts : Trigger.new) {
+            if (ts.dbt__Status__c == 'Approved' && ts.dbt__Employee__c != null) {
+                empIdsForDivisor.add(ts.dbt__Employee__c);
                 timesheetIds.add(ts.Id);
             } else {
                 ts.Accrued_Hours__c = 0;
@@ -43,47 +43,48 @@ trigger TimesheetTrigger on Timesheet__c (before insert, before update, after in
         Map<Id, Date> empAccrualStartMap = new Map<Id, Date>();
         Date minAccrualDate;
         if (!empIdsForDivisor.isEmpty()) {
-            for (Employee__c emp : [
-                SELECT Id, Accrual_Divisor__c, Accrual_Start_Date__c
-                FROM Employee__c
+            for (dbt__Employee__c emp : [
+                SELECT Id, Accrual_Divisor__c, dbt__Accrual_Start_Date__c
+                FROM dbt__Employee__c
                 WHERE Id IN :empIdsForDivisor
-                AND Accrual_Start_Date__c != NULL
+                AND dbt__Accrual_Start_Date__c != NULL
             ]) {
                 empDivisorMap.put(emp.Id, emp.Accrual_Divisor__c);
-                empAccrualStartMap.put(emp.Id, emp.Accrual_Start_Date__c);
-                if (minAccrualDate == null || emp.Accrual_Start_Date__c < minAccrualDate) {
-                    minAccrualDate = emp.Accrual_Start_Date__c;
+                empAccrualStartMap.put(emp.Id, emp.dbt__Accrual_Start_Date__c);
+                if (minAccrualDate == null || emp.dbt__Accrual_Start_Date__c < minAccrualDate) {
+                    minAccrualDate = emp.dbt__Accrual_Start_Date__c;
                 }
             }
         }
 
         Map<Id, Decimal> timesheetToBillableHours = new Map<Id, Decimal>();
         if (!timesheetIds.isEmpty() && !empAccrualStartMap.isEmpty()) {
-            for (Timesheet_Line_Item__c li : [
-                SELECT Timesheet__c, Duration__c, Date__c, Billable__c, Type__c, Employee__c
-                FROM Timesheet_Line_Item__c
-                WHERE Timesheet__c IN :timesheetIds
-                AND Billable__c = 'Yes'
-                AND Type__c = 'Attendance'
-                AND Date__c >= :minAccrualDate
-                AND Employee__c != NULL
-                AND Timesheet__r.Employee__r.Accrual_Start_Date__c != NULL
+            for (dbt__Timesheet_Line_Item__c li : [
+                SELECT dbt__Timesheet__c, dbt__Duration__c, dbt__Date__c, dbt__Billable__c, dbt__Type__c, dbt__Employee__c
+                FROM dbt__Timesheet_Line_Item__c
+                WHERE dbt__Timesheet__c IN :timesheetIds
+                AND dbt__Billable__c = 'Yes'
+                AND dbt__Type__c = 'Attendance'
+                AND dbt__Date__c >= :minAccrualDate
+                AND dbt__Employee__c != NULL
+                AND dbt__Timesheet__r.dbt__Employee__r.dbt__Accrual_Start_Date__c != NULL
             ]) {
-                Date accrualStart = empAccrualStartMap.get(li.Employee__c);
-                if (accrualStart != null && li.Date__c != null && li.Date__c >= accrualStart) {
-                    Decimal running = timesheetToBillableHours.containsKey(li.Timesheet__c)
-                        ? timesheetToBillableHours.get(li.Timesheet__c)
+                Date accrualStart = empAccrualStartMap.get(li.dbt__Employee__c);
+                if (accrualStart != null && li.dbt__Date__c != null && li.dbt__Date__c >= accrualStart) {
+                    Decimal running = timesheetToBillableHours.containsKey(li.dbt__Timesheet__c)
+                        ? timesheetToBillableHours.get(li.dbt__Timesheet__c)
                         : 0;
-                    running += (li.Duration__c == null ? 0 : li.Duration__c);
-                    timesheetToBillableHours.put(li.Timesheet__c, running);
+                    running += (li.dbt__Duration__c == null ? 0 : li.dbt__Duration__c);
+                    //Decimal running = (timesheetToBillableHours.get(li.dbt__Timesheet__c) ?? 0) + (li.dbt__Duration__c ?? 0);
+                    timesheetToBillableHours.put(li.dbt__Timesheet__c, running);
                 }
             }
         }
 
-        for (Timesheet__c ts : Trigger.new) {
-            if (ts.Status__c == 'Approved' && ts.Employee__c != null) {
+        for (dbt__Timesheet__c ts : Trigger.new) {
+            if (ts.dbt__Status__c == 'Approved' && ts.dbt__Employee__c != null) {
                 Decimal totalBillableHours = timesheetToBillableHours.get(ts.Id);
-                Decimal divisor = empDivisorMap.get(ts.Employee__c);
+                Decimal divisor = empDivisorMap.get(ts.dbt__Employee__c);
 
                 if (totalBillableHours != null && totalBillableHours > 0 && divisor != null && divisor != 0) {
                     ts.Accrued_Hours__c = totalBillableHours / divisor;
@@ -103,36 +104,36 @@ trigger TimesheetTrigger on Timesheet__c (before insert, before update, after in
         Set<Id> empIdsToUpdate = new Set<Id>();
 
         if (Trigger.isInsert || Trigger.isUpdate || Trigger.isUndelete) {
-            for (Timesheet__c ts : Trigger.new) {
+            for (dbt__Timesheet__c ts : Trigger.new) {
                 boolean isRelevantChange = false;
                 
-                if (Trigger.isInsert && ts.Status__c == 'Approved') {
+                if (Trigger.isInsert && ts.dbt__Status__c == 'Approved') {
                     isRelevantChange = true;
                 }
                 else if (Trigger.isUpdate) {
-                    Timesheet__c oldTs = Trigger.oldMap.get(ts.Id);
+                    dbt__Timesheet__c oldTs = Trigger.oldMap.get(ts.Id);
                     
-                    boolean statusChanged = (ts.Status__c != oldTs.Status__c) && 
-                                            (ts.Status__c == 'Approved' || oldTs.Status__c == 'Approved');
+                    boolean statusChanged = (ts.dbt__Status__c != oldTs.dbt__Status__c) && 
+                                            (ts.dbt__Status__c == 'Approved' || oldTs.dbt__Status__c == 'Approved');
                     
-                    boolean absenceChanged = (ts.Absence_Hours__c != oldTs.Absence_Hours__c) &&
-                                             (ts.Status__c == 'Approved');
+                    boolean absenceChanged = (ts.dbt__Absence_Hours__c != oldTs.dbt__Absence_Hours__c) &&
+                                             (ts.dbt__Status__c == 'Approved');
 
                     if (statusChanged || absenceChanged) {
                         isRelevantChange = true;
                     }
                 }
                 
-                if (isRelevantChange && ts.Employee__c != null) {
-                    empIdsToUpdate.add(ts.Employee__c);
+                if (isRelevantChange && ts.dbt__Employee__c != null) {
+                    empIdsToUpdate.add(ts.dbt__Employee__c);
                 }
             }
         }
 
         if (Trigger.isDelete) {
-            for (Timesheet__c ts : Trigger.old) {
-                if (ts.Status__c == 'Approved' && ts.Employee__c != null) {
-                    empIdsToUpdate.add(ts.Employee__c);
+            for (dbt__Timesheet__c ts : Trigger.old) {
+                if (ts.dbt__Status__c == 'Approved' && ts.dbt__Employee__c != null) {
+                    empIdsToUpdate.add(ts.dbt__Employee__c);
                 }
             }
         }
@@ -142,17 +143,17 @@ trigger TimesheetTrigger on Timesheet__c (before insert, before update, after in
             Map<Id, Decimal> empExtraAccruedMap = new Map<Id, Decimal>();
             Map<Id, Decimal> empExtraAbsenceMap = new Map<Id, Decimal>();
             Date minAccrualDate;
-            for (Employee__c emp : [
-                SELECT Id, Accrual_Start_Date__c, Extra_Accrued_Hours__c, Extra_Absence_Hours__c 
-                FROM Employee__c 
+            for (dbt__Employee__c emp : [
+                SELECT Id, dbt__Accrual_Start_Date__c, Extra_Accrued_Hours__c, Extra_Absence_Hours__c 
+                FROM dbt__Employee__c 
                 WHERE Id IN :empIdsToUpdate
-                AND Accrual_Start_Date__c != NULL
+                AND dbt__Accrual_Start_Date__c != NULL
             ]) {
-                empAccrualStartMap.put(emp.Id, emp.Accrual_Start_Date__c);
+                empAccrualStartMap.put(emp.Id, emp.dbt__Accrual_Start_Date__c);
                 empExtraAccruedMap.put(emp.Id, emp.Extra_Accrued_Hours__c != null ? emp.Extra_Accrued_Hours__c : 0);
                 empExtraAbsenceMap.put(emp.Id, emp.Extra_Absence_Hours__c != null ? emp.Extra_Absence_Hours__c : 0);
-                if (minAccrualDate == null || emp.Accrual_Start_Date__c < minAccrualDate) {
-                    minAccrualDate = emp.Accrual_Start_Date__c;
+                if (minAccrualDate == null || emp.dbt__Accrual_Start_Date__c < minAccrualDate) {
+                    minAccrualDate = emp.dbt__Accrual_Start_Date__c;
                 }
             }
 
@@ -165,28 +166,28 @@ trigger TimesheetTrigger on Timesheet__c (before insert, before update, after in
                     empAbsenceMap.put(empId, empExtraAbsenceMap.get(empId));
                 }
 
-                for (Timesheet__c ts : [
-                    SELECT Employee__c, Accrued_Hours__c, Absence_Hours__c, End_Date__c
-                    FROM Timesheet__c 
-                    WHERE Employee__c IN :empIdsToUpdate
-                    AND Status__c = 'Approved'
-                    AND End_Date__c >= :minAccrualDate
-                    AND Employee__r.Accrual_Start_Date__c != NULL
+                for (dbt__Timesheet__c ts : [
+                    SELECT dbt__Employee__c, Accrued_Hours__c, dbt__Absence_Hours__c, dbt__End_Date__c
+                    FROM dbt__Timesheet__c 
+                    WHERE dbt__Employee__c IN :empIdsToUpdate
+                    AND dbt__Status__c = 'Approved'
+                    AND dbt__End_Date__c >= :minAccrualDate
+                    AND dbt__Employee__r.dbt__Accrual_Start_Date__c != NULL
                 ]) {
-                    Date accrualStart = empAccrualStartMap.get(ts.Employee__c);
+                    Date accrualStart = empAccrualStartMap.get(ts.dbt__Employee__c);
                     
-                    if (accrualStart != null && ts.End_Date__c != null && ts.End_Date__c >= accrualStart) {
+                    if (accrualStart != null && ts.dbt__End_Date__c != null && ts.dbt__End_Date__c >= accrualStart) {
                         Decimal accrued = ts.Accrued_Hours__c != null ? ts.Accrued_Hours__c : 0;
-                        Decimal absence = ts.Absence_Hours__c != null ? ts.Absence_Hours__c : 0;
+                        Decimal absence = ts.dbt__Absence_Hours__c != null ? ts.dbt__Absence_Hours__c : 0;
                         
-                        empTotalMap.put(ts.Employee__c, empTotalMap.get(ts.Employee__c) + accrued);
-                        empAbsenceMap.put(ts.Employee__c, empAbsenceMap.get(ts.Employee__c) + absence);
+                        empTotalMap.put(ts.dbt__Employee__c, empTotalMap.get(ts.dbt__Employee__c) + accrued);
+                        empAbsenceMap.put(ts.dbt__Employee__c, empAbsenceMap.get(ts.dbt__Employee__c) + absence);
                     }
                 }
 
-                List<Employee__c> employeesToUpdate = new List<Employee__c>();
+                List<dbt__Employee__c> employeesToUpdate = new List<dbt__Employee__c>();
                 for (Id empId : empTotalMap.keySet()) {
-                    employeesToUpdate.add(new Employee__c(
+                    employeesToUpdate.add(new dbt__Employee__c(
                         Id = empId,
                         Total_Accrued_Hours__c = empTotalMap.get(empId),
                         Total_Absence_Hours__c = empAbsenceMap.get(empId)
@@ -194,12 +195,7 @@ trigger TimesheetTrigger on Timesheet__c (before insert, before update, after in
                 }
 
                 if (!employeesToUpdate.isEmpty()) {
-                    try {
-                        EmployeeTriggerHandler.bypassEmployeePermissionCheck = true;
-                        Database.update(employeesToUpdate, AccessLevel.SYSTEM_MODE);
-                    } finally {
-                        EmployeeTriggerHandler.bypassEmployeePermissionCheck = false;
-                    }
+                    update employeesToUpdate;
                 }
             }
         }

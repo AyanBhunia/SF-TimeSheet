@@ -13,9 +13,3 @@ package.xml
 # Optional org-only metadata (Leave Approval Process); never part of the package
 unpackaged/
 **/approvalProcesses/**
-
-# Managed package notification types (already exist in destination org)
-Timesheet/main/default/notificationtypes/
-
-# Managed package path assistants (already exist in destination org)
-Timesheet/main/default/pathAssistants/

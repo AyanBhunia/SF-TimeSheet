@@ -9,55 +9,55 @@ private class EmployeeAccrualUpdaterTest {
         
         System.runAs(adminUser) {
             // Create Employee
-            Employee__c emp = new Employee__c();
+            dbt__Employee__c emp = new dbt__Employee__c();
             emp.Name = 'Test Emp';
-            emp.Employment_Type__c = 'Full Time';
-            emp.Accrual_Start_Date__c = Date.today().addMonths(-1);
+            emp.dbt__Employment_Type__c = 'Full Time';
+            emp.dbt__Accrual_Start_Date__c = Date.today().addMonths(-1);
             
             // Use the field name as it appears in the main class logic
             try {
-                emp.put('Accrual_Divisor__c', 9);
+                emp.put('dbt__Accrual_Divisor__c', 9);
             } catch(Exception e) {
                 emp.put('Accrual_Divisor__c', 9);
             }
             insert emp;
             
             // Create Project
-            Project__c proj = new Project__c();
+            dbt__Project__c proj = new dbt__Project__c();
             proj.Name = 'Test Project';
-            proj.Billable__c = 'Yes';
-            proj.Active__c = true;
-            proj.Start_Date__c = Date.today().addMonths(-1);
-            proj.End_Date__c = Date.today().addMonths(1);
+            proj.dbt__Billable__c = 'Yes';
+            proj.dbt__Active__c = true;
+            proj.dbt__Start_Date__c = Date.today().addMonths(-1);
+            proj.dbt__End_Date__c = Date.today().addMonths(1);
             insert proj;
             
             // Create Timesheet
-            Timesheet__c ts = new Timesheet__c();
-            ts.Employee__c = emp.Id;
-            ts.Status__c = 'Approved';
-            ts.Start_Date__c = Date.today();
-            ts.End_Date__c = Date.today().addDays(6);
+            dbt__Timesheet__c ts = new dbt__Timesheet__c();
+            ts.dbt__Employee__c = emp.Id;
+            ts.dbt__Status__c = 'Approved';
+            ts.dbt__Start_Date__c = Date.today();
+            ts.dbt__End_Date__c = Date.today().addDays(6);
             insert ts;
             
             // Create Timesheet Line Item to generate hours which triggers Accrued_Hours__c calculation
-            Timesheet_Line_Item__c li = new Timesheet_Line_Item__c();
-            li.Timesheet__c = ts.Id;
-            li.Date__c = Date.today();
-            li.Project__c = proj.Id;
-            li.Type__c = 'Attendance';
-            li.Activity__c = 'Development-Coding';
-            li.Duration__c = 18;
-            li.Billable__c = 'Yes';
+            dbt__Timesheet_Line_Item__c li = new dbt__Timesheet_Line_Item__c();
+            li.dbt__Timesheet__c = ts.Id;
+            li.dbt__Date__c = Date.today();
+            li.dbt__Project__c = proj.Id;
+            li.dbt__Type__c = 'Attendance';
+            li.dbt__Activity__c = 'Development-Coding';
+            li.dbt__Duration__c = 18;
+            li.dbt__Billable__c = 'Yes';
             insert li;
             
             // Refresh Timesheet to get calculated Accrued_Hours__c
-            ts = [SELECT Id, Accrued_Hours__c FROM Timesheet__c WHERE Id = :ts.Id];
+            ts = [SELECT Id, Accrued_Hours__c FROM dbt__Timesheet__c WHERE Id = :ts.Id];
             
             Test.startTest();
             EmployeeAccrualUpdater.EmployeeAccrualUpdater();
             Test.stopTest();
             
-            Employee__c res = [SELECT Total_Accrued_Hours__c FROM Employee__c WHERE Id = :emp.Id];
+            dbt__Employee__c res = [SELECT Total_Accrued_Hours__c FROM dbt__Employee__c WHERE Id = :emp.Id];
             
             // Assert that the Employee total matches the Timesheet accrued hours
             System.assertEquals(ts.Accrued_Hours__c, res.Total_Accrued_Hours__c, 'Employee Total should match Timesheet Accrued Hours');

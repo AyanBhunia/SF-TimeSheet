@@ -34,9 +34,9 @@ export default class TestLineItem extends LightningElement {
   wiredTimesheet({ error, data }) {
     if (data) {
       this.timesheetInfo = data;
-    //   console.info('Timesheet__c schema (UI API):', data);
+    //   console.info('dbt__Timesheet__c schema (UI API):', data);
     } else if (error) {
-      console.error('Error loading Timesheet__c schema', error);
+      console.error('Error loading dbt__Timesheet__c schema', error);
     }
   }
 
@@ -44,9 +44,9 @@ export default class TestLineItem extends LightningElement {
   wiredEmployee({ error, data }) {
     if (data) {
       this.employeeInfo = data;
-    //   console.info('Employee__c schema (UI API):', data);
+    //   console.info('dbt__Employee__c schema (UI API):', data);
     } else if (error) {
-      console.error('Error loading Employee__c schema', error);
+      console.error('Error loading dbt__Employee__c schema', error);
     }
   }
 
@@ -54,9 +54,9 @@ export default class TestLineItem extends LightningElement {
   wiredProjectEmployee({ error, data }) {
     if (data) {
       this.projectEmployeeInfo = data;
-    //   console.info('Project_Employee__c schema (UI API):', data);
+    //   console.info('dbt__Project_Employee__c schema (UI API):', data);
     } else if (error) {
-      console.error('Error loading Project_Employee__c schema', error);
+      console.error('Error loading dbt__Project_Employee__c schema', error);
     }
   }
 
@@ -64,9 +64,9 @@ export default class TestLineItem extends LightningElement {
   wiredTimesheetLine({ error, data }) {
     if (data) {
       this.timesheetLineInfo = data;
-    //   console.info('Timesheet_Line_Item__c schema (UI API):', data);
+    //   console.info('dbt__Timesheet_Line_Item__c schema (UI API):', data);
     } else if (error) {
-      console.error('Error loading Timesheet_Line_Item__c schema', error);
+      console.error('Error loading dbt__Timesheet_Line_Item__c schema', error);
     }
   }
 
@@ -232,9 +232,9 @@ export default class TestLineItem extends LightningElement {
         return getTimesheet({ timesheetId: this.recordId })
             .then(result => {
                 // console.log('load timesheet',JSON.stringify(result));
-                this.EmployeeID = result.Employee__c;
-                this.TimesheetStartDate = result.Start_Date__c;
-                this.TimeSheetEndDate = result.End_Date__c;
+                this.EmployeeID = result.dbt__Employee__c;
+                this.TimesheetStartDate = result.dbt__Start_Date__c;
+                this.TimeSheetEndDate = result.dbt__End_Date__c;
                 this.TimeSheetName = result.name;
             })
             .then(() => {
@@ -284,12 +284,12 @@ export default class TestLineItem extends LightningElement {
         return getProjects({ empId: this.EmployeeID })
             .then(result => {
                 this.projectOptions = result.map(proj => ({
-                    label: proj.Project__r.Name,
-                    value: proj.Project__c,
-                    billable: proj.Project__r?.Billable__c,
-                    hourly_rate: proj.Hourly_Rate__c || 0 
+                    label: proj.dbt__Project__r.Name,
+                    value: proj.dbt__Project__c,
+                    billable: proj.dbt__Project__r?.dbt__Billable__c,
+                    hourly_rate: proj.dbt__Hourly_Rate__c || 0 
                 }));
-                this.projectIds = result.map(proj => proj.Project__c);
+                this.projectIds = result.map(proj => proj.dbt__Project__c);
             })
             .then(() => {
                 getProjectActivities({ projectIds: this.projectIds })
@@ -298,7 +298,7 @@ export default class TestLineItem extends LightningElement {
                         // Build a map of projectId -> array of option objects
                         this.ProjectActivityMap = new Map();
                         result.forEach(item => {
-                            const pid = item.Project__c;
+                            const pid = item.dbt__Project__c;
                             const arr = this.ProjectActivityMap.get(pid) || [];
                             arr.push({ label: item.Name, value: item.Name });
                             this.ProjectActivityMap.set(pid, arr);
@@ -355,48 +355,48 @@ export default class TestLineItem extends LightningElement {
   
         data.forEach(item => {
             // Use localDateFromServer to get a local-midnight Date object (no TZ shift)
-            const date = this.localDateFromServer(item.Date__c);
+            const date = this.localDateFromServer(item.dbt__Date__c);
             const dayIndex = date.getDay() === 0 ? 6 : date.getDay() - 1;
 
             if(includeId){
                 this.previousRecordIDs.add(item.Id);
-                this.previousDurations.set(item.Id, item.Duration__c || 0);
+                this.previousDurations.set(item.Id, item.dbt__Duration__c || 0);
                 this.previousSignatures.set(item.Id, this.rowSignature({
-                    type: item.Type__c, project: item.Project__c, activity: item.Activity__c,
-                    absence: item.Absence_Category__c, date: item.Date__c,
-                    duration: item.Duration__c, description: item.Description__c
+                    type: item.dbt__Type__c, project: item.dbt__Project__c, activity: item.dbt__Activity__c,
+                    absence: item.dbt__Absence_Category__c, date: item.dbt__Date__c,
+                    duration: item.dbt__Duration__c, description: item.dbt__Description__c
                 }));
             }
 
             // Helper to update the date data
             const updateDate = record => {
-                record.dates[dayIndex].dur = item.Duration__c || 0;
-                record.dates[dayIndex].desc = item.Description__c || '';
+                record.dates[dayIndex].dur = item.dbt__Duration__c || 0;
+                record.dates[dayIndex].desc = item.dbt__Description__c || '';
                 record.dates[dayIndex].id = includeId ? item.Id : null; 
                 record.dates[dayIndex].isdisable = false;
             };
 
-            if (item.Type__c === "Attendance") {
+            if (item.dbt__Type__c === "Attendance") {
 
-                const key = `${item.Project__c}_${item.Activity__c}`;
+                const key = `${item.dbt__Project__c}_${item.dbt__Activity__c}`;
 
                 if (!attendanceData[key]) {
-                    const selectedProject = this.projectOptions.find(option => option.value === item.Project__c);
+                    const selectedProject = this.projectOptions.find(option => option.value === item.dbt__Project__c);
                     attendanceData[key] = {
                         ...this.getBlankData("Attendance"),
-                        projectName: item.Project__c,
-                        activityName: item.Activity__c,
-                        billable: item.Project__r?.Billable__c,
+                        projectName: item.dbt__Project__c,
+                        activityName: item.dbt__Activity__c,
+                        billable: item.dbt__Project__r?.dbt__Billable__c,
                         hourlyRate: (selectedProject && selectedProject.hourly_rate) ? selectedProject.hourly_rate : 0
                     };
                 }
                 updateDate(attendanceData[key]); 
             } else {
-                const key = item.Absence_Category__c;
+                const key = item.dbt__Absence_Category__c;
                 if (!absenceData[key]) {
                     absenceData[key] = {
                         ...this.getBlankData("Absence"),
-                        absenceName: item.Absence_Category__c
+                        absenceName: item.dbt__Absence_Category__c
                     };
                 }
                 updateDate(absenceData[key]);
@@ -734,17 +734,17 @@ export default class TestLineItem extends LightningElement {
                         }
                         if (day.id) currentRecordIDs.add(day.id);
                         upsertList.push({
-                            sobjectType: 'Timesheet_Line_Item__c',
+                            sobjectType: 'dbt__Timesheet_Line_Item__c',
                             Id: day.id,
-                            Timesheet__c: this.recordId,
-                            Type__c: "Attendance",
-                            Project__c: project.projectName,
-                            Activity__c: project.activityName,
-                            Duration__c: day.dur,
-                            Description__c: day.desc,
-                            Date__c: day.date,
-                            Billable__c: this.projectOptions.find(option => option.value === project.projectName)?.billable || "No",
-                            Hours_Limit_Exceeded__c: false
+                            dbt__Timesheet__c: this.recordId,
+                            dbt__Type__c: "Attendance",
+                            dbt__Project__c: project.projectName,
+                            dbt__Activity__c: project.activityName,
+                            dbt__Duration__c: day.dur,
+                            dbt__Description__c: day.desc,
+                            dbt__Date__c: day.date,
+                            dbt__Billable__c: this.projectOptions.find(option => option.value === project.projectName)?.billable || "No",
+                            dbt__Hours_Limit_Exceeded__c: false
                         });
                     }
                 })
@@ -761,16 +761,16 @@ export default class TestLineItem extends LightningElement {
                         }
                         if (day.id) currentRecordIDs.add(day.id);
                         upsertList.push({
-                            sobjectType: 'Timesheet_Line_Item__c',
+                            sobjectType: 'dbt__Timesheet_Line_Item__c',
                             Id: day.id,
-                            Timesheet__c: this.recordId,
-                            Type__c: "Absence",
-                            Absence_Category__c: absence.absenceName,
-                            Duration__c: day.dur,
-                            Description__c: day.desc,
-                            Date__c: day.date,
-                            Billable__c: this.projectOptions.find(option => option.value === absence.absenceName)?.billable || "No",
-                            Hours_Limit_Exceeded__c: false
+                            dbt__Timesheet__c: this.recordId,
+                            dbt__Type__c: "Absence",
+                            dbt__Absence_Category__c: absence.absenceName,
+                            dbt__Duration__c: day.dur,
+                            dbt__Description__c: day.desc,
+                            dbt__Date__c: day.date,
+                            dbt__Billable__c: this.projectOptions.find(option => option.value === absence.absenceName)?.billable || "No",
+                            dbt__Hours_Limit_Exceeded__c: false
                         });
                     }
                 })
@@ -792,9 +792,9 @@ export default class TestLineItem extends LightningElement {
         upsertList = upsertList.filter(row => {
             if (!row.Id) return true;
             const unchanged = this.previousSignatures.get(row.Id) === this.rowSignature({
-                type: row.Type__c, project: row.Project__c, activity: row.Activity__c,
-                absence: row.Absence_Category__c, date: row.Date__c,
-                duration: row.Duration__c, description: row.Description__c
+                type: row.dbt__Type__c, project: row.dbt__Project__c, activity: row.dbt__Activity__c,
+                absence: row.dbt__Absence_Category__c, date: row.dbt__Date__c,
+                duration: row.dbt__Duration__c, description: row.dbt__Description__c
             });
             if (!unchanged) {
                 loadedHours[row.Id] = this.previousDurations.get(row.Id) || 0;
@@ -813,9 +813,9 @@ export default class TestLineItem extends LightningElement {
             loadedHours,
             upserts: upsertList,
             deletes: deleteList.map(id => ({
-                sobjectType: 'Timesheet_Line_Item__c',
+                sobjectType: 'dbt__Timesheet_Line_Item__c',
                 Id: id,
-                Duration__c: this.previousDurations.get(id) || 0
+                dbt__Duration__c: this.previousDurations.get(id) || 0
             }))
         })
             .then(res => {
@@ -885,7 +885,7 @@ export default class TestLineItem extends LightningElement {
                 // Only the project hours are copied. This week's absence rows (leave from the PTO tab
                 // included) stay as they are, so Save never deletes or duplicates them.
                 const keptAbsence = this.absenceList;
-                this.processTimesheetData(result.filter(item => item.Type__c === 'Attendance'), false);
+                this.processTimesheetData(result.filter(item => item.dbt__Type__c === 'Attendance'), false);
                 this.absenceList = keptAbsence;
                 this.calculateTotals();
                 this.showToast('Success', 'Timesheet copied successfully', 'success');

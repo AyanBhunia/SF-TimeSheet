@@ -67,8 +67,8 @@ export default class TimesheetLineItemsLWC extends LightningElement {
       let arr = [];
       for (let i = 0; i < result.length; i++) {
         arr.push({
-          label: result[i].Project__r.Name,
-          value: result[i].Project__c
+          label: result[i].dbt__Project__r.Name,
+          value: result[i].dbt__Project__c
         });
       }
       this.optionArray = arr;
@@ -82,14 +82,14 @@ export default class TimesheetLineItemsLWC extends LightningElement {
     } else {
       timesheetLineItem.index = 1;
     }
-    timesheetLineItem.Type__c = "Attendance";
-    timesheetLineItem.Timesheet__c = this.recordId;
-    timesheetLineItem.Date__c = new Date().toISOString().split("T")[0];
-    timesheetLineItem.Project__c = null;
-    timesheetLineItem.Activity__c = null;
-    timesheetLineItem.Absence_Category__c = null;
-    timesheetLineItem.Duration__c = null;
-    timesheetLineItem.Description__c = null;
+    timesheetLineItem.dbt__Type__c = "Attendance";
+    timesheetLineItem.dbt__Timesheet__c = this.recordId;
+    timesheetLineItem.dbt__Date__c = new Date().toISOString().split("T")[0];
+    timesheetLineItem.dbt__Project__c = null;
+    timesheetLineItem.dbt__Activity__c = null;
+    timesheetLineItem.dbt__Absence_Category__c = null;
+    timesheetLineItem.dbt__Duration__c = null;
+    timesheetLineItem.dbt__Description__c = null;
     timesheetLineItem.isAttendance = true;
     timesheetLineItem.isAbsence = false;
     this.timeSheetLineItems.push(timesheetLineItem);
@@ -145,19 +145,19 @@ export default class TimesheetLineItemsLWC extends LightningElement {
       }
     }
     for (let i = 0; i < this.timeSheetLineItems.length; i++) {
-      if (this.timeSheetLineItems[i].Type__c === "Absence") {
+      if (this.timeSheetLineItems[i].dbt__Type__c === "Absence") {
         this.timeSheetLineItems[i].isAbsence = true;
         this.timeSheetLineItems[i].isAttendance = false;
-        this.timeSheetLineItems[i].Project__c = null;
-        this.timeSheetLineItems[i].Activity__c = null;
-      } else if (this.timeSheetLineItems[i].Type__c === "Attendance") {
+        this.timeSheetLineItems[i].dbt__Project__c = null;
+        this.timeSheetLineItems[i].dbt__Activity__c = null;
+      } else if (this.timeSheetLineItems[i].dbt__Type__c === "Attendance") {
         this.timeSheetLineItems[i].isAbsence = false;
         this.timeSheetLineItems[i].isAttendance = true;
-        this.timeSheetLineItems[i].Absence_Category__c = null;
+        this.timeSheetLineItems[i].dbt__Absence_Category__c = null;
       }
-      if (this.timeSheetLineItems[i].Type__c === "Absence") {
-        if (this.timeSheetLineItems[i].Absence_Category__c === "Holiday") {
-          this.timeSheetLineItems[i].Duration__c = 8;
+      if (this.timeSheetLineItems[i].dbt__Type__c === "Absence") {
+        if (this.timeSheetLineItems[i].dbt__Absence_Category__c === "Holiday") {
+          this.timeSheetLineItems[i].dbt__Duration__c = 8;
         }
       }
     }
@@ -176,18 +176,18 @@ export default class TimesheetLineItemsLWC extends LightningElement {
         let timesheetLineItem = {};
         timesheetLineItem.index = i + 1;
         timesheetLineItem.Id = data[i].Id;
-        timesheetLineItem.Type__c = data[i].Type__c;
-        timesheetLineItem.Timesheet__c = data[i].Timesheet__c;
-        timesheetLineItem.Date__c = data[i].Date__c;
-        timesheetLineItem.Project__c = data[i].Project__c;
-        timesheetLineItem.Activity__c = data[i].Activity__c;
-        timesheetLineItem.Absence_Category__c = data[i].Absence_Category__c;
-        timesheetLineItem.Duration__c = data[i].Duration__c;
-        timesheetLineItem.Description__c = data[i].Description__c;
-        if (timesheetLineItem.Type__c === "Attendance") {
+        timesheetLineItem.dbt__Type__c = data[i].dbt__Type__c;
+        timesheetLineItem.dbt__Timesheet__c = data[i].dbt__Timesheet__c;
+        timesheetLineItem.dbt__Date__c = data[i].dbt__Date__c;
+        timesheetLineItem.dbt__Project__c = data[i].dbt__Project__c;
+        timesheetLineItem.dbt__Activity__c = data[i].dbt__Activity__c;
+        timesheetLineItem.dbt__Absence_Category__c = data[i].dbt__Absence_Category__c;
+        timesheetLineItem.dbt__Duration__c = data[i].dbt__Duration__c;
+        timesheetLineItem.dbt__Description__c = data[i].dbt__Description__c;
+        if (timesheetLineItem.dbt__Type__c === "Attendance") {
           timesheetLineItem.isAttendance = true;
           timesheetLineItem.isAbsence = false;
-        } else if (timesheetLineItem.Type__c === "Absence") {
+        } else if (timesheetLineItem.dbt__Type__c === "Absence") {
           timesheetLineItem.isAttendance = false;
           timesheetLineItem.isAbsence = true;
         }

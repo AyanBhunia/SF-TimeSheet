@@ -243,7 +243,7 @@
                                         <p><strong>Description:</strong> Timesheet Approved Email Templates <lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small" onclick={handleCopy} data-text="Timesheet Approved Email Templates" title="Copy to Clipboard" alternative-text="Copy to Clipboard"></lightning-button-icon></p>
                                         <p><strong>Subject:</strong> Timesheet is Approved <lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small" onclick={handleCopy} data-text="Timesheet is Approved" title="Copy to Clipboard" alternative-text="Copy to Clipboard"></lightning-button-icon></p>
                                         <p><strong>Body:</strong> <lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small" onclick={handleCopy} data-text={approvedEmailBody} title="Copy to Clipboard" alternative-text="Copy to Clipboard"></lightning-button-icon></p>
-                                        <pre class="slds-m-top_xx-small">&#123;!Timesheet__c.Employee__c&#125;,<br/>Your &#123;!Timesheet__c.Name&#125; is Approved.<br/>Comments : &#123;!ApprovalRequest.Comments&#125;</pre>
+                                        <pre class="slds-m-top_xx-small">&#123;!dbt__Timesheet__c.dbt__Employee__c&#125;,<br/>Your &#123;!dbt__Timesheet__c.Name&#125; is Approved.<br/>Comments : &#123;!ApprovalRequest.Comments&#125;</pre>
                                     </div>
                                 </li>
                                 <li>Similarly follow the same steps and create another email template for rejected action:
@@ -252,7 +252,7 @@
                                         <p><strong>Description:</strong> Timesheet Rejected Email Templates <lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small" onclick={handleCopy} data-text="Timesheet Rejected Email Templates" title="Copy to Clipboard" alternative-text="Copy to Clipboard"></lightning-button-icon></p>
                                         <p><strong>Subject:</strong> Timesheet is Rejected <lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small" onclick={handleCopy} data-text="Timesheet is Rejected" title="Copy to Clipboard" alternative-text="Copy to Clipboard"></lightning-button-icon></p>
                                         <p><strong>Body:</strong> <lightning-button-icon icon-name="utility:copy" variant="bare" size="small" class="slds-m-left_xx-small" onclick={handleCopy} data-text={rejectedEmailBody} title="Copy to Clipboard" alternative-text="Copy to Clipboard"></lightning-button-icon></p>
-                                        <pre class="slds-m-top_xx-small">&#123;!Timesheet__c.Employee__c&#125;,<br/>Your &#123;!Timesheet__c.Name&#125; is Rejected.<br/>Comments : &#123;!ApprovalRequest.Comments&#125;</pre>
+                                        <pre class="slds-m-top_xx-small">&#123;!dbt__Timesheet__c.dbt__Employee__c&#125;,<br/>Your &#123;!dbt__Timesheet__c.Name&#125; is Rejected.<br/>Comments : &#123;!ApprovalRequest.Comments&#125;</pre>
                                     </div>
                                 </li>
                             </ol>

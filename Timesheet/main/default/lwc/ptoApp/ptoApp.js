@@ -19,7 +19,7 @@ export default class PtoApp extends LightningElement {
     error;
     isLoading = true;
     active = 'overview';
-    // Request to select on open, from an email link: /lightning/n/PTO?c__section=approve&c__request=<Id>
+    // Request to select on open, from an email link: /lightning/n/dbt__PTO?c__section=approve&c__request=<Id>
     linkedRequestId;
 
     @wire(CurrentPageReference)

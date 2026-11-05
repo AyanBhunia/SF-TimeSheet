@@ -75,10 +75,10 @@ export default class dashboardProfile extends LightningElement {
     @wire(getProfileConfig)
     wiredConfig({ error, data }) {
         if (data) {
-            this._column1Fields = data.Column_1_Fields__c;
-            this._column2Fields = data.Column_2_Fields__c;
-            this._column3Fields = data.Column_3_Fields__c;
-            this._showNullFields = data.Show_Null_Fields__c;
+            this._column1Fields = data.dbt__Column_1_Fields__c;
+            this._column2Fields = data.dbt__Column_2_Fields__c;
+            this._column3Fields = data.dbt__Column_3_Fields__c;
+            this._showNullFields = data.dbt__Show_Null_Fields__c;
             this.checkMismatch();
             this.processFieldOrder();
         } else if (error) {

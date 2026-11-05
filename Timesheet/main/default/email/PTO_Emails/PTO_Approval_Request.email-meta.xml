@@ -5,18 +5,18 @@
     <encodingKey>UTF-8</encodingKey>
     <name>PTO: Approval Request</name>
     <style>none</style>
-    <subject>PTO request {!PTO_Request__c.Name} from {!PTO_Request__c.Employee__c} needs your approval</subject>
-    <textOnly>Hi {!PTO_Request__c.Approver__c},
+    <subject>PTO request {!dbt__PTO_Request__c.Name} from {!dbt__PTO_Request__c.dbt__Employee__c} needs your approval</subject>
+    <textOnly>Hi {!dbt__PTO_Request__c.dbt__Approver__c},
 
-{!PTO_Request__c.Employee__c} has requested time off and needs your approval.
+{!dbt__PTO_Request__c.dbt__Employee__c} has requested time off and needs your approval.
 
-Request: {!PTO_Request__c.Name}
-Dates: {!PTO_Request__c.Start_Date__c} to {!PTO_Request__c.End_Date__c}
-Days: {!PTO_Request__c.Day_Count__c}
-Total hours: {!PTO_Request__c.Total_Hours__c}
-PTO Reason: {!PTO_Request__c.Notes__c}
+Request: {!dbt__PTO_Request__c.Name}
+Dates: {!dbt__PTO_Request__c.dbt__Start_Date__c} to {!dbt__PTO_Request__c.dbt__End_Date__c}
+Days: {!dbt__PTO_Request__c.dbt__Day_Count__c}
+Total hours: {!dbt__PTO_Request__c.dbt__Total_Hours__c}
+PTO Reason: {!dbt__PTO_Request__c.dbt__Notes__c}
 
-Approve or reject it in Salesforce: {!PTO_Request__c.PTO_Tab_Link__c}&amp;c__section=approve</textOnly>
+Approve or reject it in Salesforce: {!dbt__PTO_Request__c.dbt__PTO_Tab_Link__c}&amp;c__section=approve</textOnly>
     <type>custom</type>
     <uiType>Aloha</uiType>
 </EmailTemplate>
