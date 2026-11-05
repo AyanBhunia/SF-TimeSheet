@@ -97,6 +97,20 @@ public with sharing class EmployeeTriggerHandler {
     }
     
     private static Map<Id, Employee__c> getUserEmployeeMapForBeforeUpdate(List<Employee__c> employees){
+        // Only a change of User__c needs this check. System updates such as the accrual totals written when a
+        // timesheet is approved leave it unchanged, and the user behind them need not have Edit on Employee.
+        if (Trigger.oldMap != null) {
+            List<Employee__c> userChanged = new List<Employee__c>();
+            for (Employee__c employee : employees) {
+                if (employee.User__c != ((Employee__c) Trigger.oldMap.get(employee.Id)).User__c) {
+                    userChanged.add(employee);
+                }
+            }
+            if (userChanged.isEmpty()) {
+                return new Map<Id, Employee__c>();
+            }
+            employees = userChanged;
+        }
         Map<Id, Employee__c> userEmployeeMap = new Map<Id, Employee__c>();
         if(Employee__c.SObjectType.getDescribe().isUpdateable() 
             && Schema.SObjectType.Employee__c.fields.User__c.isUpdateable()) {
