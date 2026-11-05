@@ -17,10 +17,10 @@ Stop two kinds of failure from reaching customers:
 |---|---|---|
 | CI | None; no `.github/`, no repo secrets | Everything here is new |
 | `appexchange` protection | None | Direct pushes possible |
-| Repo | Public fork; default branch `main` | Unlimited Actions minutes. Secrets must be guarded. Scheduled and manual workflows only run from the default branch |
+| Repo | Public fork; default branch `main` | Unlimited Actions minutes. Secrets must be guarded. Schedules run only from the default branch (they can check out `appexchange`); `workflow_dispatch` needs its file on the default branch but can target any branch |
 | Dev Hub (`PBO`) scratch orgs | 3 active (2 in use now), 6 per day | **No scratch org per PR.** Budget in section 5 |
-| Validated package builds | 6 per day | Used for release candidates only |
-| Skip-validation builds | 500 per day | Used for nightly install tests |
+| Validated package builds | 6 per day (`Package2VersionCreates`, read from the Dev Hub) | One nightly, the rest for release candidates |
+| Skip-validation builds | 500 per day | Not used for install tests: installability is unproven (Phase 0) |
 | App size | 28 Apex classes, 21 test classes, 25 LWC, 14 flows, 5 triggers, 12 objects, 5 permission sets | |
 | LWC Jest tests on `appexchange` | **0** | Largest untested area |
 | Package version | 2.33.0.NEXT, namespace `dbt`, ancestor HIGHEST | |
@@ -33,12 +33,12 @@ Stop two kinds of failure from reaching customers:
    G4 Apex in scratch org                          gated, see section 5
         │ merge
  Nightly (and on demand)
-   G5 Package install test  (skip-validation build, fresh org)
+   G5 Package install test  (validated build with coverage, fresh org)
    G6 Flow scenarios        (run as installed package)
  Release candidate (manual, `release/*`)
    G7 Validated build with coverage
-   G8 Upgrade test          (last released → candidate, with data)
-   G9 UI E2E as personas    (Playwright)
+   G8 Upgrade test          (last released → candidate, with data, same org as G9)
+   G9 UI E2E as personas    (Playwright, on the upgraded org)
    G10 Evidence + manual approval → promote + tag
 ```
 
@@ -50,9 +50,9 @@ Stop two kinds of failure from reaching customers:
 | G2 Static | ESLint; Prettier check on changed files; Salesforce Code Analyzer (PMD, flow rules); metadata XML well-formed | PR | No |
 | G3 Jest | `sfdx-lwc-jest` with coverage | PR | No |
 | G4 Apex | Scratch org with `dbt`, deploy, then `sf apex run test` **standalone** after the deploy (deploy-time test runs do not fire the org's record-triggered flows the same way), 75% minimum org-wide, 85% target per class | PR | Yes |
-| G5 Install | Fresh no-namespace org, install the managed build; assert every expected component exists through a **component manifest check** | Nightly | Yes |
+| G5 Install | Fresh no-namespace org, install the managed build; assert components through a **manifest check**: subscriber-visible items in the org (objects, fields, tabs, flows, permission sets, global classes), and the full list from `sf package version retrieve` where that permission is available | Nightly | Yes |
 | G6 Flow scenarios | Run scheduled flows with `Flow.Interview.createInterview('dbt', ...)` against seeded data in the installed org | Nightly | Yes |
-| G7 Validated build | `sf package version create --code-coverage` from a clean CI checkout | Release | Yes |
+| G7 Validated build | `sf package version create --package Timesheet --code-coverage` from a clean CI checkout. Every CI command names `--package Timesheet`, because `TimesheetUnlocked` shares the same path | Release | Yes |
 | G8 Upgrade | Install last released version, seed data, upgrade to the candidate, re-run the smoke and data checks | Release | Yes |
 | G9 UI E2E | Playwright as Employee, Manager, HR Admin | Release | Yes |
 | G10 Promote | Evidence report, GitHub Environment approval, promote, tag `vX.Y` with the `04t` | Release | Yes |
@@ -102,19 +102,21 @@ Hard limits: 3 active, 6 per day. Developers currently hold 2 active.
 | Consumer | Orgs | Rule |
 |---|---|---|
 | G4 PR Apex | up to 2 per day | Only when `Timesheet/**` changed and the PR has the `run-apex` label or is marked ready; one at a time |
-| Nightly G5 and G6 | 1 per day | Skipped if `appexchange` has no new commits |
-| Release G8 and G9 | 2 per run | Manual |
+| Nightly G5 and G6 | 1 per day, plus 1 of 6 validated builds | Skipped if `appexchange` has no new commits |
+| Release G8 and G9 | 1 per run, shared | Manual |
 | Spare | 1 | Developers |
 
 Rules:
-- `org-budget.js` runs first. With no daily or active slot free, the job **ends as "skipped: no budget" with a visible warning, never as a pass**.
+- `org-budget.js` runs first. With no slot free, the job **fails with a clear "no budget, re-run later" message, never a pass or a skip**, because a skipped required check blocks merging anyway.
+- G4 uses a `dbt` namespaced org; G5, G8 and G9 use `sf org create scratch --no-namespace`.
+- Path filters must not hide a required check: the job always reports, and passes immediately when `Timesheet/**` did not change.
 - Every job deletes its org in an `if: always()` step, with `--duration-days 1` as a backstop.
 - All org jobs share one concurrency group, so they queue instead of competing.
 - **Decision needed:** developers should release at least one of their 2 active orgs, or CI will often have only one slot. A second Dev Hub with its own limits is not needed yet.
 
 ## 6. Security (public repo)
 
-- Secret-using jobs run only on `pull_request` from the same repo, `push`, `schedule` or `workflow_dispatch`. Fork PRs get G1 to G3 only. `pull_request_target` is banned.
+- Secret-using jobs run only on `pull_request` from the same repo, `push`, `schedule` or `workflow_dispatch`. Fork PRs get G1 to G3 only; before merging one, a maintainer pushes it to an internal branch so G4 runs. `pull_request_target` is banned.
 - Auth is JWT with a **dedicated CI integration user** on the Dev Hub, with a minimal profile. Not a personal login.
 - `SF_JWT_KEY` and `SF_CONSUMER_KEY` live in GitHub **Environments** (`ci`, and `release` with required reviewer).
 - Logs: never print the auth URL or frontdoor URLs. Screenshots and traces can contain org data, so uploaded artifacts use seeded fake data only and are kept 7 days.
@@ -132,9 +134,9 @@ Rules:
 | The timer exists twice on Employee Overview | Use the `visible=true` selector |
 | Mobile user agents get Classic | Phone layouts are out of E2E scope; covered by Jest |
 | Package components are `dbt__` in an installed org | Selectors and SOQL use the namespace; helpers read it from config |
-| `PostInstallScript` emails a hard-coded external address on every install | **Scratch orgs must keep deliverability at "system email only"** so CI does not send it; verify in Phase 0 |
+| `PostInstallScript` emails a hard-coded external address on every install | **Scratch orgs must keep deliverability at "system email only"** so CI does not send it. **The scratch default is unproven: Phase 0 checks it before the first CI install** |
 | Schedules fire in org time zone | Set the time zone explicitly in the scratch definition; add one non-UTC org run |
-| Beta managed versions cannot be upgraded from | G8 goes released → candidate only. Phase 0 must confirm the candidate installs as an upgrade |
+| 2GP beta upgrade rules are unproven here | G8 goes released → candidate. Phase 0 must prove this before G8 is built |
 
 ## 8. Scenario catalogue
 
@@ -159,6 +161,7 @@ Priority: **P0** blocks merge or release from day one, **P1** added in the phase
 | P-11 | Org without demo data; org with demo data; both upgrade | Succeeds | P1 |
 | P-12 | Namespace-sensitive code: `hasPermission`, `Flow.Interview`, prompt link, dashboards | Works with `dbt__` | P0 |
 | P-13 | Non-UTC org (e.g. Asia/Kolkata and America/Los_Angeles) | Weekly dates correct | P1 |
+| P-15 | Upgrade across a version that removed or deprecated a component, with data in it | Upgrade succeeds; outcome recorded | P1 |
 | P-14 | Custom metadata defaults present after install; missing or null values fall back | 8 and 24 defaults used | P1 |
 
 ### 8.2 Scheduled and automated flows (F)
@@ -304,7 +307,7 @@ Each phase ends with something that runs. Each task below goes to agy as one sma
 
 | Phase | Output | Needs from you |
 |---|---|---|
-| 0 Spikes | Confirm: CI auth; released → candidate upgrade; skip-validation build installs; deliverability default; component manifest source | JWT setup, free scratch slot |
+| 0 Spikes | Confirm: CI auth; released → candidate upgrade; skip-validation installability; deliverability default; component manifest source; `Flow.Interview` on scheduled flows in the installed package | JWT setup, free scratch slot |
 | 1 No-org checks | G1, G2, G3 workflows, PR template, CODEOWNERS, Jest config working | Nothing |
 | 2 Jest | J scenarios for the riskiest LWC first: grid, timer, PTO apply, assign, dashboard | Nothing |
 | 3 Apex | Audit existing tests, fill P0 gaps, G4 | Phase 0 auth |
@@ -323,7 +326,7 @@ Existing code bugs found while testing are logged in `findings and issues.md` an
 |---|---|---|
 | 1 | CI user and connected app on `PBO`. `PBO` is logged in under a teammate's account; who owns it? | Needed before Phase 3 |
 | 2 | Release one active scratch org for CI | CI runs with one slot |
-| 3 | A small workflow file on `main`, because schedules only run from the default branch. Or change the fork's default to `appexchange` | Add a stub on `main` that dispatches to `appexchange` |
+| 3 | A small workflow file on `main`, because schedules only run from the default branch. Or change the fork's default to `appexchange` | Scheduled workflow on `main` that checks out `appexchange` |
 | 4 | Oldest customer version to support in P-03 | 2.26 |
 | 5 | Should `PostInstallScript` keep emailing a fixed address on every install from CI, if deliverability cannot stop it? | Keep deliverability off |
 
