@@ -97,27 +97,47 @@ Timesheet/main/default/classes/*Test.cls  A-* additions
 
 ## 5. Scratch-org budget
 
-Hard limits: 3 active, 6 per day. Developers currently hold 2 active.
+Current Dev Hub (`PBO`): 3 active, 6 per day. It will be replaced by an org with higher limits later, so the Dev Hub alias and limits are configuration, not hard-coded.
 
-| Consumer | Orgs | Rule |
+### Reused org versus new org
+
+| Gate | Org | Why |
 |---|---|---|
-| G4 PR Apex | up to 2 per day | Only when `Timesheet/**` changed and the PR has the `run-apex` label or is marked ready; one at a time |
-| Nightly G5 and G6 | 1 per day, plus 1 of 6 validated builds | Skipped if `appexchange` has no new commits |
+| G4 PR Apex | **Reused `dbt` namespaced CI org** | A check-only deploy with tests leaves the org unchanged, so PRs cannot affect each other |
+| G4b merged-code Apex (nightly) | **Same reused org** | Real deploy, then `sf apex run test` standalone, so record-triggered flows run properly |
+| G5, G6 install and flows | **New no-namespace org** | A fresh install can only be tested on an org that has never had the package. An installed package cannot simply be reset |
+| G8, G9 upgrade and E2E | **New no-namespace org** | Must start from the last released version |
+
+So the reused org saves a new org on every PR and every nightly Apex run. Package gates still create one org each when they run.
+
+### Reused org rules
+
+- **Lifetime:** 30 days, the scratch-org maximum. `ci-org.js` reads `ActiveScratchOrg.ExpirationDate` first; with under 3 days left, or if the org is missing, it creates and migrates to a replacement. This uses 1 daily and, briefly, 1 extra active slot.
+- **Dedicated:** nobody develops in it. Hand edits would make results untrustworthy. One of the 2 current `dbt` scratch orgs (expiring 2026-11-28 and 2026-11-29) can become it, if no developer depends on it.
+- **PRs use `sf project deploy start --dry-run --test-level RunLocalTests`.** Known limit: flows are not activated in a dry run, so a flow changed in a PR is exercised only after merge, by G4b and G6. Phase 0 compares dry-run and standalone results.
+- **Drift:** source deletions do not remove components from the org. The nightly job compares org and repo; on drift, or monthly at the latest, the org is rebuilt.
+- **One job at a time:** all jobs on this org share a concurrency group and queue.
+- **Auth:** JWT through the CI user to the Dev Hub, then to the scratch org, so a replacement org needs no new secret.
+
+### Budget on the current limits
+
+| Consumer | New orgs | Rule |
+|---|---|---|
+| G4, G4b | 0 per run, 1 per month | Reused org |
+| Nightly G5 and G6 | 1 per day, plus 1 of 6 validated builds | Skipped if `appexchange` has no new commits. Holds the second active slot while running |
 | Release G8 and G9 | 1 per run, shared | Manual |
-| Spare | 1 | Developers |
+| Developers | 1 active | The third slot |
 
 Rules:
-- `org-budget.js` runs first. With no slot free, the job **fails with a clear "no budget, re-run later" message, never a pass or a skip**, because a skipped required check blocks merging anyway.
-- G4 uses a `dbt` namespaced org; G5, G8 and G9 use `sf org create scratch --no-namespace`.
+- `org-budget.js` runs before any org is created. With no slot free, the job **fails with a clear "no budget, re-run later" message, never a pass or a skip**, because a skipped required check blocks merging anyway.
+- Temporary orgs are deleted in an `if: always()` step, with `--duration-days 1` as a backstop. The reused org is never deleted by these steps.
+- New-org jobs share one concurrency group, so they queue instead of competing.
 - Path filters must not hide a required check: the job always reports, and passes immediately when `Timesheet/**` did not change.
-- Every job deletes its org in an `if: always()` step, with `--duration-days 1` as a backstop.
-- All org jobs share one concurrency group, so they queue instead of competing.
-- **Decision needed:** developers should release at least one of their 2 active orgs, or CI will often have only one slot. A second Dev Hub with its own limits is not needed yet.
 
 ## 6. Security (public repo)
 
 - Secret-using jobs run only on `pull_request` from the same repo, `push`, `schedule` or `workflow_dispatch`. Fork PRs get G1 to G3 only; before merging one, a maintainer pushes it to an internal branch so G4 runs. `pull_request_target` is banned.
-- Auth is JWT with a **dedicated CI integration user** on the Dev Hub, with a minimal profile. Not a personal login.
+- Auth is JWT with the **teammate account on `PBO`** (decided by the owner). That account has more access than a CI job needs, so the connected app is limited to pre-authorized use and the key is held only in protected Environments. Rotate the key if the account changes.
 - `SF_JWT_KEY` and `SF_CONSUMER_KEY` live in GitHub **Environments** (`ci`, and `release` with required reviewer).
 - Logs: never print the auth URL or frontdoor URLs. Screenshots and traces can contain org data, so uploaded artifacts use seeded fake data only and are kept 7 days.
 - Actions are pinned by commit SHA. `permissions:` is minimal in each workflow.
@@ -324,8 +344,8 @@ Existing code bugs found while testing are logged in `findings and issues.md` an
 
 | # | Decision | Default if no answer |
 |---|---|---|
-| 1 | CI user and connected app on `PBO`. `PBO` is logged in under a teammate's account; who owns it? | Needed before Phase 3 |
-| 2 | Release one active scratch org for CI | CI runs with one slot |
+| 1 | CI user on `PBO` | **Decided:** the teammate account. Connected app and key still to be set up before Phase 3 |
+| 2 | Which current `dbt` scratch org becomes the dedicated CI org | Needed before Phase 3; otherwise CI creates one in the free slot |
 | 3 | A small workflow file on `main`, because schedules only run from the default branch. Or change the fork's default to `appexchange` | Scheduled workflow on `main` that checks out `appexchange` |
 | 4 | Oldest customer version to support in P-03 | 2.26 |
 | 5 | Should `PostInstallScript` keep emailing a fixed address on every install from CI, if deliverability cannot stop it? | Keep deliverability off |
