@@ -117,8 +117,8 @@
             <dayOfMonthToRun>0</dayOfMonthToRun>
             <frequency>Daily</frequency>
             <frequencyNumber>0</frequencyNumber>
-            <startDate>2025-04-08</startDate>
-            <startTime>00:00:00.000Z</startTime>
+            <startDate>2026-11-11</startDate>
+            <startTime>03:30:00.000Z</startTime>
         </schedule>
         <triggerType>Scheduled</triggerType>
     </start>

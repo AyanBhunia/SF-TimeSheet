@@ -111,8 +111,8 @@
             <dayOfMonthToRun>0</dayOfMonthToRun>
             <frequency>Weekly</frequency>
             <frequencyNumber>0</frequencyNumber>
-            <startDate>2024-11-29</startDate>
-            <startTime>07:59:00.000Z</startTime>
+            <startDate>2026-11-11</startDate>
+            <startTime>03:30:00.000Z</startTime>
         </schedule>
         <triggerType>Scheduled</triggerType>
     </start>
