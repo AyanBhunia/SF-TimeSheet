@@ -96,3 +96,49 @@ jobs:
           path: coverage
           retention-days: 7
           if-no-files-found: ignore
+
+  apex:
+    name: apex (G4)
+    # Secrets never reach fork PRs (docs/testing-pipeline.md section 6).
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    environment: ci
+    timeout-minutes: 60
+    concurrency:
+      group: ci-org
+      cancel-in-progress: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
+        with:
+          node-version: 22
+
+      - name: Install Salesforce CLI
+        run: npm install --global @salesforce/cli@2.112.6
+
+      - name: Authenticate to the CI org
+        env:
+          SF_CI_ORG_AUTH_URL: ${{ secrets.SF_CI_ORG_AUTH_URL }}
+        run: |
+          printf '%s' "$SF_CI_ORG_AUTH_URL" > "$RUNNER_TEMP/ci-org.url"
+          sf org login sfdx-url --sfdx-url-file "$RUNNER_TEMP/ci-org.url" --alias ci-org > /dev/null
+          rm -f "$RUNNER_TEMP/ci-org.url"
+
+      - name: Dry-run deploy with local Apex tests
+        run: |
+          mkdir -p apex-results
+          sf project deploy start --source-dir Timesheet --target-org ci-org \
+            --dry-run --test-level RunLocalTests --coverage-formatters json-summary \
+            --results-dir apex-results --junit --wait 60
+
+      - name: Upload Apex results
+        if: always()
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: apex-results
+          path: apex-results
+          retention-days: 7
+          if-no-files-found: ignore
