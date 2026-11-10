@@ -144,8 +144,11 @@ jobs:
       - name: Dry-run deploy with local Apex tests
         run: |
           mkdir -p apex-results
+          # Run only the repo's test classes, so classes left in the reused org cannot affect the result.
+          tests=$(grep -rliE '@is[Tt]est' --include='*.cls' Timesheet | xargs -n1 basename | sed 's/\.cls$//' | sort | paste -sd, -)
+          echo "Test classes: $tests"
           sf project deploy start --source-dir Timesheet --target-org ci-org \
-            --dry-run --test-level RunLocalTests --coverage-formatters json-summary \
+            --dry-run --test-level RunSpecifiedTests --tests "$tests" --coverage-formatters json-summary \
             --results-dir apex-results --junit --wait 60
 
       - name: Upload Apex results
