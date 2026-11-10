@@ -132,6 +132,15 @@ jobs:
           sf org login sfdx-url --sfdx-url-file "$RUNNER_TEMP/ci-org.url" --alias ci-org > /dev/null
           rm -f "$RUNNER_TEMP/ci-org.url"
 
+      - name: Drop user-specific folder shares (CI checkout only)
+        # Folder metadata shares to a user from an old scratch org; no such user in the CI org.
+        # Reported in findings and issues.md; source is not changed by CI.
+        run: |
+          for f in $(grep -rl --include='*Folder-meta.xml' '<sharedToType>User</sharedToType>' Timesheet || true); do
+            perl -0pi -e 's#\s*<folderShares>(?:(?!</folderShares>).)*?<sharedToType>User</sharedToType>\s*</folderShares>##gs' "$f"
+            echo "stripped user shares: $f"
+          done
+
       - name: Dry-run deploy with local Apex tests
         run: |
           mkdir -p apex-results
