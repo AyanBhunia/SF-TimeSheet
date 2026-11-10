@@ -16,6 +16,14 @@
       "default": false,
       "package": "TimesheetUnlocked",
       "versionDescription": ""
+    },
+    {
+      "versionName": "ver 0.1",
+      "versionNumber": "0.1.0.NEXT",
+      "path": "Timesheet",
+      "default": false,
+      "package": "TimesheetTestFlow",
+      "versionDescription": ""
     }
   ],
   "name": "SF-TimeSheet",
@@ -113,6 +121,8 @@
     "Timesheet@2.33.0-1": "04tbm000000uRNJAA2",
     "TimesheetUnlocked@0.1.0-26": "04tbm000000uRS9AAM",
     "Timesheet@2.34.0-1": "04tbm000000vg5lAAA",
-    "TimesheetUnlocked@0.1.0-27": "04tbm000000vhkzAAA"
+    "TimesheetUnlocked@0.1.0-27": "04tbm000000vhkzAAA",
+    "TimesheetTestFlow": "0Hobm00000098nxCAA",
+    "TimesheetTestFlow@0.1.0-1": "04tbm000000weGPAAY"
   }
 }
