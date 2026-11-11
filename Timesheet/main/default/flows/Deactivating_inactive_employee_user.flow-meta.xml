@@ -55,7 +55,7 @@
                 </rightValue>
             </conditions>
             <conditions>
-                <leftValueReference>$Record.Is_Demo__c</leftValueReference>
+                <leftValueReference>$Record.dbt__Is_Demo__c</leftValueReference>
                 <operator>EqualTo</operator>
                 <rightValue>
                     <booleanValue>false</booleanValue>
