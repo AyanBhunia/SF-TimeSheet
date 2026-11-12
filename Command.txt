@@ -8,6 +8,9 @@ sf package version create --package TimesheetUnlocked --installation-key-bypass 
 
 Test package version creation command:
 sfdx force:package:version:create --package TimesheetTestFlow --installation-key-bypass -v pbo --json --skip-validation --post-install-script PostInstallScript --wait 30
+sf package version create --package TimesheetTestFlow --installation-key-bypass --target-dev-hub PBO --skip-validation --post-install-script PostInstallScript --wait 30 --json
+sf package version create --package TimesheetTestFlow --installation-key-bypass --target-dev-hub PBO --code-coverage --post-install-script PostInstallScript --wait 30 --json
+
 
 # then promote the package version
 sf package version promote --package <package_version_id>
