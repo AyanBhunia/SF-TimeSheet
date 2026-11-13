@@ -54,3 +54,5 @@ data/
 
 
 .claude
+# Company workflow records
+.company/
