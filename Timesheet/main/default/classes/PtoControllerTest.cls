@@ -660,7 +660,7 @@ private class PtoControllerTest {
 
     // An Employee__c Id that matches no record
     private static Id missingEmployeeId() {
-        return Id.valueOf(Employee__c.SObjectType.getDescribe().getKeyPrefix() + '000000000000AAA');
+        return Id.valueOf(Employee__c.SObjectType.getDescribe().getKeyPrefix() + '000000000000');
     }
 
     private static String status(Id requestId) {
