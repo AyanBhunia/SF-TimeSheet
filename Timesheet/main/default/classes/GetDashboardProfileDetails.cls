@@ -33,13 +33,28 @@ public with sharing class GetDashboardProfileDetails {
     }
     
     /**
+     * @description Retrieves dashboard profile configuration from Custom Metadata
+     * @return Dashboard_Profile_Config__mdt The configuration record
+     */
+    @AuraEnabled(cacheable=true)
+    public static Dashboard_Profile_Config__mdt getProfileConfig() {
+        return [
+            SELECT Column_1_Fields__c, Column_2_Fields__c, Column_3_Fields__c, Show_Null_Fields__c
+            FROM Dashboard_Profile_Config__mdt
+            WHERE DeveloperName = 'Default_Value'
+            WITH SECURITY_ENFORCED
+            LIMIT 1
+        ];
+    }
+    
+    /**
      * @description Retrieves employee record with related project information
      * @param userID The ID of the user
      * @return Employee__c Employee record with related data
      */
     private static Employee__c getEmployeeRecord(Id userID) {
         return [
-            SELECT Id, Name, Client_Manager__r.Name, Client_Manager_email__c,Email__c,Hire_Date__c,Last_Working_Date__c,No_of_Vacations_Taken__c,Phone_Number__c,
+            SELECT Id, Name, Active__c, Is_Demo__c, Client_Manager__r.Name, Client_Manager_email__c,Email__c,Hire_Date__c,Last_Working_Date__c,No_of_Vacations_Taken__c,Phone_Number__c,Total_Accrued_Hours__c,Total_Absence_Hours__c,Total_Absence_Hours_Available__c,
                 (SELECT Project_Name__c FROM Project_Employees__r)
             FROM Employee__c
             WHERE User__c = :userID
@@ -77,6 +92,9 @@ public with sharing class GetDashboardProfileDetails {
     private static void populateEmployeeDetails(Map<String, Object> resultData, Employee__c emp) {
         // Basic Information
         resultData.put('Name', emp.Name);
+        // Used by demoDataPrompt, not shown as profile columns: whether the user's employee is active and a demo record.
+        resultData.put('Active', emp.Active__c);
+        resultData.put('IsDemo', emp.Is_Demo__c);
         resultData.put('ClientManager', emp.Client_Manager__r?.Name);
         resultData.put('ClientManagerEmail', emp.Client_Manager_email__c);
 
@@ -86,6 +104,11 @@ public with sharing class GetDashboardProfileDetails {
         resultData.put('LastWorkingDate', emp.Last_Working_Date__c);
         resultData.put('VacationsTaken', emp.No_of_Vacations_Taken__c);
         resultData.put('PhoneNumber', emp.Phone_Number__c);
+
+        // Accrued and Absence Hours
+        resultData.put('TotalEmpAccruedHours', emp.Total_Accrued_Hours__c != null ? emp.Total_Accrued_Hours__c.setScale(2) : null);
+        resultData.put('TotalEmpAbsenceHours', emp.Total_Absence_Hours__c != null ? emp.Total_Absence_Hours__c.setScale(2) : null);
+        resultData.put('TotalAbsenceHoursAvailable', emp.Total_Absence_Hours_Available__c != null ? emp.Total_Absence_Hours_Available__c.setScale(2) : null);
         
         // Project information
         List<String> projectNames = new List<String>();
@@ -105,9 +128,70 @@ public with sharing class GetDashboardProfileDetails {
      * @param hours AggregateResult containing timesheet summary
      */
     private static void populateTimesheetSummary(Map<String, Object> resultData, AggregateResult hours) {
-        resultData.put('TotalBillableHours', (Decimal) hours.get('TotalBillableHours'));
-        resultData.put('TotalNonBillableHours', (Decimal) hours.get('TotalNonBillableHours'));
-        resultData.put('TotalAbsenceHours', (Decimal) hours.get('TotalAbsenceHours'));
-        resultData.put('TotalHours', (Decimal) hours.get('TotalHours'));
+        resultData.put('AllBillableHours', (Decimal) hours.get('TotalBillableHours'));
+        resultData.put('AllNonBillableHours', (Decimal) hours.get('TotalNonBillableHours'));
+        resultData.put('AllAbsenceHours', (Decimal) hours.get('TotalAbsenceHours'));
+        resultData.put('AllHours', (Decimal) hours.get('TotalHours'));
+    }
+
+    @AuraEnabled
+    public static void updateDashboardProfileConfigAsync() {
+        List<Dashboard_Profile_Config__mdt> configs = [
+            SELECT Id, DeveloperName 
+            FROM Dashboard_Profile_Config__mdt 
+            WHERE DeveloperName = 'Default_Value'
+        ];
+        
+        if (configs.isEmpty()) {
+            return;
+        }
+        
+        String col1 = 'Name,PhoneNumber,Email,HireDate,LastWorkingDate';
+        String col2 = 'ClientManager,ClientManagerEmail,Projects,TotalEmpAccruedHours,TotalEmpAbsenceHours,TotalAbsenceHoursAvailable';
+        String col3 = 'AllBillableHours,AllNonBillableHours,AllAbsenceHours,AllHours,VacationsTaken';
+        
+        String namespace = 'dbt__';
+        
+        Metadata.CustomMetadata customMetadata = new Metadata.CustomMetadata();
+        customMetadata.fullName = namespace + 'Dashboard_Profile_Config.' + namespace + 'Default_Value';
+        customMetadata.label = 'Default Value';
+        
+        Metadata.CustomMetadataValue customField1 = new Metadata.CustomMetadataValue();
+        customField1.field = namespace + 'Column_1_Fields__c';
+        customField1.value = col1;
+        customMetadata.values.add(customField1);
+        
+        Metadata.CustomMetadataValue customField2 = new Metadata.CustomMetadataValue();
+        customField2.field = namespace + 'Column_2_Fields__c';
+        customField2.value = col2;
+        customMetadata.values.add(customField2);
+        
+        Metadata.CustomMetadataValue customField3 = new Metadata.CustomMetadataValue();
+        customField3.field = namespace + 'Column_3_Fields__c';
+        customField3.value = col3;
+        customMetadata.values.add(customField3);
+        
+        Metadata.DeployContainer mdContainer = new Metadata.DeployContainer();
+        mdContainer.addMetadata(customMetadata);
+        
+        if (!Test.isRunningTest()) {
+            Metadata.Operations.enqueueDeployment(mdContainer, null);
+        }
+    }
+
+    /**
+     * @description Checks if the current user has the Timesheet_HR_Admin permission set
+     * @return Boolean True if the user has the permission set, false otherwise
+     */
+    @AuraEnabled(cacheable=true)
+    public static Boolean hasHrAdminPermission() {
+        List<PermissionSetAssignment> assignments = [
+            SELECT Id 
+            FROM PermissionSetAssignment 
+            WHERE AssigneeId = :UserInfo.getUserId() 
+            AND PermissionSet.Name = 'Timesheet_HR_Admin'
+            WITH SECURITY_ENFORCED
+        ];
+        return !assignments.isEmpty();
     }
 }

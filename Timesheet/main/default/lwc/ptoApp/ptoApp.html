@@ -1,0 +1,69 @@
+<template>
+    <article class="slds-card pto-app">
+        <div class="slds-card__header slds-grid">
+            <header class="slds-media slds-media_center slds-has-flexi-truncate">
+                <div class="slds-media__figure">
+                    <lightning-icon icon-name="custom:custom20" size="small" alternative-text="PTO"></lightning-icon>
+                </div>
+                <div class="slds-media__body">
+                    <h2 class="slds-card__header-title">Paid Time Off</h2>
+                    <p lwc:if={subtitle} class="slds-text-body_small slds-text-color_weak">{subtitle}</p>
+                </div>
+            </header>
+        </div>
+
+        <template lwc:if={isLoading}>
+            <lightning-spinner alternative-text="Loading" size="small"></lightning-spinner>
+        </template>
+
+        <template lwc:if={error}>
+            <div class="slds-card__body slds-card__body_inner">
+                <div class="slds-notify slds-notify_alert slds-alert_error" role="alert">
+                    <h2>{error}</h2>
+                </div>
+            </div>
+        </template>
+        <template lwc:elseif={context}>
+            <div class="slds-tabs_default">
+                <ul class="slds-tabs_default__nav slds-p-horizontal_medium" role="tablist">
+                    <template for:each={tabs} for:item="tab">
+                        <li key={tab.name} class={tab.liClass} title={tab.label} role="presentation">
+                            <a class="slds-tabs_default__link" href="#" role="tab" tabindex={tab.tabIndex}
+                                aria-selected={tab.ariaSelected} data-name={tab.name} onclick={handleTab}>{tab.label}</a>
+                        </li>
+                    </template>
+                </ul>
+                <div class="slds-tabs_default__content slds-p-around_medium" role="tabpanel">
+                    <template lwc:if={isOverview}>
+                        <template lwc:if={hasEmployee}>
+                            <c-pto-overview context={context} employee-id={employeeId}></c-pto-overview>
+                        </template>
+                        <template lwc:else>
+                            <p class="slds-text-color_weak">{noEmployeeMessage}</p>
+                        </template>
+                    </template>
+                    <template lwc:if={isApply}>
+                        <template lwc:if={canApplyForSomeone}>
+                            <c-pto-apply context={context} onchanged={handleChanged}></c-pto-apply>
+                        </template>
+                        <template lwc:else>
+                            <p class="slds-text-color_weak">{noEmployeeMessage}</p>
+                        </template>
+                    </template>
+                    <template lwc:if={isPast}>
+                        <template lwc:if={hasEmployee}>
+                            <c-pto-past employee-id={employeeId} context={context} can-retry={isHrAdmin}
+                                linked-request-id={linkedRequestId}></c-pto-past>
+                        </template>
+                        <template lwc:else>
+                            <p class="slds-text-color_weak">{noEmployeeMessage}</p>
+                        </template>
+                    </template>
+                    <template lwc:if={isApprove}>
+                        <c-pto-approve linked-request-id={linkedRequestId} onchanged={handleChanged}></c-pto-approve>
+                    </template>
+                </div>
+            </div>
+        </template>
+    </article>
+</template>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Prevent_Insufficient_Absence_Hours</fullName>
+    <active>true</active>
+    <errorConditionFormula>AND(
+    NOT(ISBLANK(Employee__r.Accrual_Start_Date__c)),
+    NOT(ISBLANK(Employee__r.Accrual_Divisor__c)),
+    Employee__r.Accrual_Divisor__c &gt; 0,
+    ISCHANGED(Status__c),
+    OR(
+        ISPICKVAL(Status__c, &quot;Submitted&quot;),
+        ISPICKVAL(Status__c, &quot;Approved&quot;)
+    ),
+    Absence_Hours__c &gt; (
+        Employee__r.Total_Absence_Hours_Available__c +
+        (Billable_Hours__c / Employee__r.Accrual_Divisor__c)
+    )
+)</errorConditionFormula>
+    <errorDisplayField>Status__c</errorDisplayField>
+    <errorMessage>The employee does not have enough available absence hours to submit or approve this timesheet.</errorMessage>
+</ValidationRule>

@@ -1,0 +1,22 @@
+/* Block elements, so the card's measured bottom is its real bottom when sizing the table */
+:host,
+lightning-card {
+    display: block;
+}
+
+/* Only the table scrolls (its max-height is set to the room left on screen); the picklists float above it */
+.table-scroll {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+/* Header row stays visible while the rows scroll; above the input icons, which SLDS layers too */
+.table-scroll thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.row-error td {
+    background-color: #fef1ee;
+}

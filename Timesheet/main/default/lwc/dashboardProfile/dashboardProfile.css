@@ -17,3 +17,25 @@
 .field-value {
     text-align: right;
 }
+
+/* Phones: stack the columns instead of squeezing them side by side. */
+@media (max-width: 767px) {
+    .profile-grid {
+        flex-wrap: wrap;
+    }
+
+    .profile-col {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+
+    .profile-col + .profile-col,
+    .vertical-divider + .profile-col {
+        border-top: 1px solid #dddbda;
+        padding-top: 0.5rem;
+    }
+
+    .vertical-divider {
+        display: none;
+    }
+}

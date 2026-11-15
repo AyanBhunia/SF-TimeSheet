@@ -1,16 +1,12 @@
 {
   "packageDirectories": [
     {
-      "path": "force-app",
-      "default": true
-    },
-    {
       "path": "Timesheet",
       "package": "Timesheet",
       "versionName": "ver 2.0",
-      "versionNumber": "2.5.0.NEXT",
-      "ancestorVersion": "2.3.0",
-      "default": false,
+      "versionNumber": "2.35.0.NEXT",
+      "ancestorVersion": "HIGHEST",
+      "default": true,
       "versionDescription": ""
     },
     {
@@ -19,6 +15,15 @@
       "path": "Timesheet",
       "default": false,
       "package": "TimesheetUnlocked",
+      "versionDescription": ""
+    },
+    {
+      "versionName": "ver 0.1",
+      "versionNumber": "0.2.0.NEXT",
+      "ancestorVersion": "HIGHEST",
+      "path": "Timesheet",
+      "default": false,
+      "package": "TimesheetTestFlow",
       "versionDescription": ""
     }
   ],
@@ -75,6 +80,55 @@
     "TimesheetUnlocked@0.1.0-7": "04tKb0000011N45IAE",
     "Timesheet@2.3.0-1": "04tKb0000011N4KIAU",
     "Timesheet@2.4.0-1": "04tKb0000011N8qIAE",
-    "Timesheet@2.5.0-1": "04tKb0000011N9KIAU"
+    "Timesheet@2.5.0-1": "04tKb0000011N9KIAU",
+    "Timesheet@2.6.0-1": "04tKb0000011NA3IAM",
+    "TimesheetUnlocked@0.1.0-8": "04tKb0000011NADIA2",
+    "Timesheet@2.7.0-9": "04tKb0000011NCJIA2",
+    "Timesheet@2.7.0-10": "04tKb0000011NCOIA2",
+    "Timesheet@2.8.0-3": "04tKb0000011NCTIA2",
+    "TimesheetUnlocked@0.1.0-10": "04tKb0000011NHPIA2",
+    "Timesheet@2.9.0-1": "04tKb0000011NHUIA2",
+    "TimesheetUnlocked@0.1.0-11": "04tKb0000011NHZIA2",
+    "Timesheet@2.10.0-1": "04tKb0000011NHjIAM",
+    "Timesheet@2.11.0-1": "04tKb0000011NIIIA2",
+    "Timesheet@2.12.0-1": "04tKb0000011NIcIAM",
+    "Timesheet@2.13.0-1": "04tKb0000011NIhIAM",
+    "Timesheet@2.14.0-1": "04tKb0000011NImIAM",
+    "TimesheetUnlocked@0.1.0-12": "04tKb0000011NIrIAM",
+    "Timesheet@2.15.0-1": "04tKb0000011NIwIAM",
+    "Timesheet@2.16.0-1": "04tKb000000tBfdIAE",
+    "Timesheet@2.17.0-1": "04tKb000000tBfiIAE",
+    "Timesheet@2.18.0-1": "04tKb000000tBfnIAE",
+    "Timesheet@2.19.0-1": "04tKb000000tBggIAE",
+    "Timesheet@2.20.0-2": "04tKb000000tBn9IAE",
+    "Timesheet@2.21.0-1": "04tKb000000tBnEIAU",
+    "Timesheet@2.22.0-1": "04tKb000000tBnJIAU",
+    "TimesheetUnlocked@0.1.0-18": "04tKb000000tBniIAE",
+    "Timesheet@2.23.0-1": "04tKb000000tBnnIAE",
+    "Timesheet@2.24.0-1": "04tKb000000tBnsIAE",
+    "Timesheet@2.25.0-2": "04tbm000000ZHsPAAW",
+    "Timesheet@2.26.0-1": "04tbm000000ZIuvAAG",
+    "Timesheet@2.27.0-1": "04tbm000000p6JVAAY",
+    "Timesheet@2.28.0-1": "04tbm000000pPyrAAE",
+    "Timesheet@2.29.0-1": "04tbm000000pU0rAAE",
+    "Timesheet@2.30.0-1": "04tbm000000pVplAAE",
+    "Timesheet@2.31.0-1": "04tbm000000rhBhAAI",
+    "TimesheetUnlocked@0.1.0-20": "04tbm000000rgxBAAQ",
+    "TimesheetUnlocked@0.1.0-22": "04tbm000000rhRpAAI",
+    "TimesheetUnlocked@0.1.0-23": "04tbm000000rt9dAAA",
+    "TimesheetUnlocked@0.1.0-24": "04tbm000000rtO9AAI",
+    "TimesheetUnlocked@0.1.0-25": "04tbm000000rtPlAAI",
+    "Timesheet@2.32.0-1": "04tbm000000rtRNAAY",
+    "Timesheet@2.33.0-1": "04tbm000000uRNJAA2",
+    "TimesheetUnlocked@0.1.0-26": "04tbm000000uRS9AAM",
+    "Timesheet@2.34.0-1": "04tbm000000vg5lAAA",
+    "TimesheetUnlocked@0.1.0-27": "04tbm000000vhkzAAA",
+    "TimesheetUnlocked@0.1.0-28": "04tbm000000wWPJAA2",
+    "TimesheetTestFlow": "0Hobm00000098nxCAA",
+    "TimesheetTestFlow@0.1.0-1": "04tbm000000weGPAAY",
+    "TimesheetTestFlow@0.1.0-3": "04tbm000000wtgrAAA",
+    "TimesheetTestFlow@0.1.0-4": "04tbm000000wtiTAAQ",
+    "TimesheetTestFlow@0.2.0-1": "04tbm000000wucvAAA",
+    "Timesheet@2.35.0-1": "04tbm000000xG0jAAE"
   }
 }

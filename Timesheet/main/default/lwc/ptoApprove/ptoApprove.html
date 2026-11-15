@@ -1,0 +1,46 @@
+<template>
+    <div class="approve-card">
+        <template lwc:if={isLoading}>
+            <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+        </template>
+
+        <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-m-bottom_small">
+            <h2 class="slds-text-heading_small">Waiting for approval</h2>
+            <lightning-button-icon
+                icon-name="utility:refresh"
+                variant="border-filled"
+                alternative-text="Refresh"
+                title="Refresh"
+                onclick={refresh}>
+            </lightning-button-icon>
+        </div>
+
+        <template lwc:if={isEmpty}>
+            <div class="approve-empty">{emptyMessage}</div>
+        </template>
+        <template lwc:else>
+            <div class="slds-grid slds-wrap slds-gutters_small">
+                <div class="slds-col slds-size_1-of-1 slds-medium-size_7-of-12 slds-m-bottom_small">
+                    <c-pto-table
+                        columns={columns}
+                        rows={tableRows}
+                        selectable
+                        selected-key={selectedId}
+                        sorted-by={sortedBy}
+                        sorted-direction={sortedDirection}
+                        empty-message={emptyMessage}
+                        onsort={handleSort}
+                        onrowselect={handleSelect}>
+                    </c-pto-table>
+                </div>
+                <div class="slds-col slds-size_1-of-1 slds-medium-size_5-of-12 slds-m-bottom_small">
+                    <c-pto-request-detail
+                        request-id={selectedId}
+                        mode="approve"
+                        ondecided={handleDecided}>
+                    </c-pto-request-detail>
+                </div>
+            </div>
+        </template>
+    </div>
+</template>

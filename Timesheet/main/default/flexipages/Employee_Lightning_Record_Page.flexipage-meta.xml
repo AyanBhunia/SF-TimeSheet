@@ -117,6 +117,56 @@
                 <identifier>RecordEmployment_Type__cField</identifier>
             </fieldInstance>
         </itemInstances>
+        <itemInstances>
+            <fieldInstance>
+                <fieldInstanceProperties>
+                    <name>uiBehavior</name>
+                    <value>none</value>
+                </fieldInstanceProperties>
+                <fieldItem>Record.Accrual_Divisor__c</fieldItem>
+                <identifier>RecordAccrual_Divisor__cField</identifier>
+            </fieldInstance>
+        </itemInstances>
+        <itemInstances>
+            <fieldInstance>
+                <fieldInstanceProperties>
+                    <name>uiBehavior</name>
+                    <value>none</value>
+                </fieldInstanceProperties>
+                <fieldItem>Record.Total_Accrued_Hours__c</fieldItem>
+                <identifier>RecordTotal_Accrued_Hours__cField</identifier>
+            </fieldInstance>
+        </itemInstances>
+        <itemInstances>
+            <fieldInstance>
+                <fieldInstanceProperties>
+                    <name>uiBehavior</name>
+                    <value>none</value>
+                </fieldInstanceProperties>
+                <fieldItem>Record.Accrual_Start_Date__c</fieldItem>
+                <identifier>Recorddbt__Accrual_Start_Date__cField</identifier>
+            </fieldInstance>
+        </itemInstances>
+        <itemInstances>
+            <fieldInstance>
+                <fieldInstanceProperties>
+                    <name>uiBehavior</name>
+                    <value>none</value>
+                </fieldInstanceProperties>
+                <fieldItem>Record.Total_Absence_Hours__c</fieldItem>
+                <identifier>Recorddbt__Total_Absence_Hours__cField</identifier>
+            </fieldInstance>
+        </itemInstances>
+        <itemInstances>
+            <fieldInstance>
+                <fieldInstanceProperties>
+                    <name>uiBehavior</name>
+                    <value>none</value>
+                </fieldInstanceProperties>
+                <fieldItem>Record.Total_Absence_Hours_Available__c</fieldItem>
+                <identifier>Recorddbt__Total_Absence_Hours_Available__cField</identifier>
+            </fieldInstance>
+        </itemInstances>
         <name>Facet-e9cc82ed-d71f-49d2-97f4-2c7d97e866c6</name>
         <type>Facet</type>
     </flexiPageRegions>
@@ -199,6 +249,26 @@
                 </fieldInstanceProperties>
                 <fieldItem>Record.Client_Manager_email__c</fieldItem>
                 <identifier>RecordClient_Manager_email_cField</identifier>
+            </fieldInstance>
+        </itemInstances>
+        <itemInstances>
+            <fieldInstance>
+                <fieldInstanceProperties>
+                    <name>uiBehavior</name>
+                    <value>none</value>
+                </fieldInstanceProperties>
+                <fieldItem>Record.Extra_Absence_Hours__c</fieldItem>
+                <identifier>Recorddbt_Extra_Absence_Hours_cField</identifier>
+            </fieldInstance>
+        </itemInstances>
+        <itemInstances>
+            <fieldInstance>
+                <fieldInstanceProperties>
+                    <name>uiBehavior</name>
+                    <value>none</value>
+                </fieldInstanceProperties>
+                <fieldItem>Record.Extra_Accrued_Hours__c</fieldItem>
+                <identifier>Recorddbt_Extra_Accrued_Hours_cField</identifier>
             </fieldInstance>
         </itemInstances>
         <itemInstances>
@@ -461,6 +531,10 @@
     <flexiPageRegions>
         <itemInstances>
             <componentInstance>
+                <componentInstanceProperties>
+                    <name>label</name>
+                    <value>Tabs</value>
+                </componentInstanceProperties>
                 <componentInstanceProperties>
                     <name>tabs</name>
                     <value>Facet-7350b988-e4ea-4494-9611-a2539190fd33</value>

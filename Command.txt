@@ -1,6 +1,28 @@
 # To create package version run this
 # Before this change package version and ansector version
 sfdx force:package:version:create --package Timesheet --installation-key-bypass -v pbo --json --code-coverage --post-install-script PostInstallScript --wait 30
+sf package version create --package Timesheet --installation-key-bypass --target-dev-hub PBO --code-coverage --post-install-script PostInstallScript --wait 30 --json
+
+sfdx force:package:version:create --package TimesheetUnlocked --installation-key-bypass -v pbo --json --wait 30
+sf package version create --package TimesheetUnlocked --installation-key-bypass --target-dev-hub PBO  --wait 30 --json
+
+Test package version creation command:
+sfdx force:package:version:create --package TimesheetTestFlow --installation-key-bypass -v pbo --json --skip-validation --post-install-script PostInstallScript --wait 30
+sf package version create --package TimesheetTestFlow --installation-key-bypass --target-dev-hub PBO --skip-validation --post-install-script PostInstallScript --wait 30 --json
+sf package version create --package TimesheetTestFlow --installation-key-bypass --target-dev-hub PBO --code-coverage --post-install-script PostInstallScript --wait 30 --json
+
 
 # then promote the package version
 sf package version promote --package <package_version_id>
+
+# TO create new scratch org run this
+sf org create scratch --set-default --definition-file config/project-scratch-def.json --alias testorg --no-ancestors
+
+# install the package using the extracted SubscriberPackageVersionId
+sf package install --package <> --wait 30
+
+# assign permission set(s)
+sfdx force:user:permset:assign -n Timesheet_HR_Admin -u testorg
+
+# To delete scratch org run this
+sf org delete scratch --target-org testorg --no-prompt

@@ -122,7 +122,7 @@ private class GetTimesheetTest {
                             Id, 
                             Name 
                             FROM PermissionSet 
-                            WHERE Name = 'Timesheet_HR_Admin'];
+                            WHERE Name = 'Timesheet_HR_Admin' LIMIT 1];
         System.runAs(user){
             PermissionSetAssignment psa = new PermissionSetAssignment();
         	psa.PermissionSetId = ps.Id;

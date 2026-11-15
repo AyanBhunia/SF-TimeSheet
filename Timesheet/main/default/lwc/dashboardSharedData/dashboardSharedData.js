@@ -150,7 +150,8 @@ function processData(abc) {
     }
 
     // Process each timesheet entry
-    abc.forEach(({ dbt__Type__c, dbt__Date__c, Name, duration }) => {
+    // A project the viewer cannot see has no name; show it as "Other projects" instead of "undefined".
+    abc.forEach(({ dbt__Type__c, dbt__Date__c, Name = 'Other projects', duration }) => {
         // Parse and anchor date to UTC midnight to avoid local timezone shifts
         const dateUTC = parseToUTCDate(dbt__Date__c);
 

@@ -5,6 +5,13 @@
     <errorConditionFormula>AND(OR(ISPICKVAL( Absence_Category__c , &quot;Sick Leave&quot;),
 ISPICKVAL( Absence_Category__c , &quot;PTO-Planned&quot;), 
 ISPICKVAL(Absence_Category__c ,&quot;PTO-Un Planned&quot;)),
-Duration__c &gt; 8)</errorConditionFormula>
+Duration__c &gt; CASE(TEXT(Absence_Category__c),
+    &quot;PTO-Planned&quot;,    $CustomMetadata.Timesheet_Default_Value__mdt.Default_Values.Max_PTO_Planned_Hours__c,
+    &quot;PTO-Un Planned&quot;, $CustomMetadata.Timesheet_Default_Value__mdt.Default_Values.Max_PTO_Unplanned_Hours__c,
+    &quot;Sick Leave&quot;,     $CustomMetadata.Timesheet_Default_Value__mdt.Default_Values.Max_Sick_Leave_Hours__c,
+    &quot;Permission&quot;,     $CustomMetadata.Timesheet_Default_Value__mdt.Default_Values.Max_Permission_Hours__c,
+    &quot;On Duty&quot;,        $CustomMetadata.Timesheet_Default_Value__mdt.Default_Values.Max_On_Duty_Hours__c,
+    &quot;Holiday&quot;,        $CustomMetadata.Timesheet_Default_Value__mdt.Default_Values.Max_Holiday_Hours__c,
+    8))</errorConditionFormula>
     <errorMessage>Enter 8 hours or Less for Absence Type</errorMessage>
 </ValidationRule>

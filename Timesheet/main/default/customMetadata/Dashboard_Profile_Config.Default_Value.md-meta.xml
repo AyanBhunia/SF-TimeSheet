@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomMetadata xmlns="http://soap.sforce.com/2006/04/metadata" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+    <label>Default Value</label>
+    <protected>false</protected>
+    <values>
+        <field>Column_1_Fields__c</field>
+        <value xsi:type="xsd:string">Name,PhoneNumber,Email,HireDate,LastWorkingDate</value>
+    </values>
+    <values>
+        <field>Column_2_Fields__c</field>
+        <value xsi:type="xsd:string">ClientManager,ClientManagerEmail,Projects,TotalEmpAccruedHours,TotalEmpAbsenceHours,TotalAbsenceHoursAvailable</value>
+    </values>
+    <values>
+        <field>Column_3_Fields__c</field>
+        <value xsi:type="xsd:string">AllBillableHours,AllNonBillableHours,AllAbsenceHours,AllHours,VacationsTaken</value>
+    </values>
+    <values>
+        <field>Show_Null_Fields__c</field>
+        <value xsi:type="xsd:boolean">false</value>
+    </values>
+</CustomMetadata>

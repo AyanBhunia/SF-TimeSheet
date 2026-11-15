@@ -1,13 +1,16 @@
 import { LightningElement, api, track, wire } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import LightningConfirm from 'lightning/confirm';
+
+// Must match SYNC_CHANNEL in timesheetTimer.
+const TIMER_SYNC_CHANNEL = 'timesheet-timer-sync';
 import { refreshApex } from '@salesforce/apex';
 import getWeeklyTimesheetItems from '@salesforce/apex/WeeklyTimesheetController.getWeeklyTimesheetItems';
 import getProjects from '@salesforce/apex/WeeklyTimesheetController.getProjects';
 import getProjectActivities from '@salesforce/apex/WeeklyTimesheetController.getProjectActivities';
 import getTimesheet from '@salesforce/apex/WeeklyTimesheetController.getTimesheet';
 import getEmployeeTimesheetItems from '@salesforce/apex/WeeklyTimesheetController.getEmployeeTimesheetItems';
-import upsertLineItems from '@salesforce/apex/WeeklyTimesheetController.upsertLineItems';
-import deleteTimesheetLineItems from '@salesforce/apex/WeeklyTimesheetController.deleteTimesheetLineItems';
+import saveWeek from '@salesforce/apex/WeeklyTimesheetController.saveWeek';
 import { getPicklistValues, getObjectInfo } from 'lightning/uiObjectInfoApi';
 import TIMESHEET_LINE_ITEM_OBJECT from '@salesforce/schema/Timesheet_Line_Item__c';
 import ACTIVITY_CATEGORY_FIELD from '@salesforce/schema/Timesheet_Line_Item__c.Activity__c';
@@ -93,6 +96,20 @@ export default class TestLineItem extends LightningElement {
     EmployeeID='';
 
     previousRecordIDs;
+    previousDurations = new Map(); // hours each loaded row had, so the server can tell if it changed since
+    previousSignatures = new Map(); // what each loaded row looked like, so only edited rows are sent on Save
+
+    // Unsaved grid edits, and whether the timer changed line items while they were pending.
+    isDirty = false;
+    timerChangedWhileEditing = false;
+    reloadRequestId = 0;
+    timerChannel;
+
+    disconnectedCallback() {
+        if (this.timerChannel) {
+            this.timerChannel.close();
+        }
+    }
 
     wiredTimesheetResult;
     error;
@@ -175,6 +192,12 @@ export default class TestLineItem extends LightningElement {
     }
 
     connectedCallback() {
+        // The timer (utility bar, other tabs) announces its changes on this channel.
+        if (typeof BroadcastChannel !== 'undefined') {
+            this.timerChannel = new BroadcastChannel(TIMER_SYNC_CHANNEL);
+            this.timerChannel.onmessage = event => this.handleTimerChange(event.data);
+        }
+
         const fetchPromise = new Promise((resolve, reject) => {
             this.fetchTimesheetData(this.recordId, result => {
                 // console.log('timesheet data',JSON.stringify(result));
@@ -321,6 +344,8 @@ export default class TestLineItem extends LightningElement {
 
         if (includeId) {
             this.previousRecordIDs = new Set();
+            this.previousDurations = new Map();
+            this.previousSignatures = new Map();
         }
 
         let attendanceData = {};
@@ -335,6 +360,12 @@ export default class TestLineItem extends LightningElement {
 
             if(includeId){
                 this.previousRecordIDs.add(item.Id);
+                this.previousDurations.set(item.Id, item.dbt__Duration__c || 0);
+                this.previousSignatures.set(item.Id, this.rowSignature({
+                    type: item.dbt__Type__c, project: item.dbt__Project__c, activity: item.dbt__Activity__c,
+                    absence: item.dbt__Absence_Category__c, date: item.dbt__Date__c,
+                    duration: item.dbt__Duration__c, description: item.dbt__Description__c
+                }));
             }
 
             // Helper to update the date data
@@ -386,6 +417,31 @@ export default class TestLineItem extends LightningElement {
         // calculate totals
         this.calculateTotals();
 
+        // A copied timesheet is unsaved; a fresh load from the server is not.
+        this.isDirty = !includeId;
+        if (includeId) {
+            this.timerChangedWhileEditing = false;
+        }
+    }
+
+    reloadGrid() {
+        // Only the latest reload may apply its result.
+        const requestId = ++this.reloadRequestId;
+        this.fetchTimesheetData(this.recordId, result => {
+            if (requestId !== this.reloadRequestId) return;
+            this.wiredTimesheetResult = result;
+            this.processTimesheetData(result, true);
+        });
+    }
+
+    // Reload so a later grid Save does not overwrite the timer's hours. With unsaved
+    // edits, warn only when the timer changed hours or removed a row (save, discard).
+    handleTimerChange(message) {
+        if (!this.isDirty) {
+            this.reloadGrid();
+        } else if (message && message.affectsHours) {
+            this.timerChangedWhileEditing = true;
+        }
     }
 
     getBlankData(type) {
@@ -422,6 +478,7 @@ export default class TestLineItem extends LightningElement {
     }
 
     handleProjectChange(event) {
+        this.isDirty = true;
         const rowIndex = event.target.dataset.rowIndex;
         const fieldName = event.target.name;
         const newValue = event.target.value;
@@ -486,11 +543,29 @@ export default class TestLineItem extends LightningElement {
         this.calculateTotals();
     }
 
+    handleKeyDown(event) {
+        // Feature temporarily disabled.
+    }
+
     handleDurationChange(event) {
+        this.isDirty = true;
         const rowIndex = event.target.dataset.rowIndex;
         const dayIndex = event.target.dataset.dayIndex;
-        const value = parseFloat(event.target.value) || 0;
         const dataFor = event.target.getAttribute('data-for'); // "project" or "absence"
+        
+        let rawStr = String(event.target.value);
+        let wasTruncated = false;
+
+        if (rawStr.includes('.')) {
+            let parts = rawStr.split('.');
+            if (parts[1].length > 2) {
+                parts[1] = parts[1].substring(0, 2);
+                rawStr = parts.join('.');
+                wasTruncated = true;
+            }
+        }
+
+        let value = parseFloat(rawStr) || 0;
         
         let list;
         let CalculateList;
@@ -508,18 +583,27 @@ export default class TestLineItem extends LightningElement {
             return;
         }
 
-        CalculateList[dayIndex] += (value - list[rowIndex].dates[dayIndex].dur);
-        this.grandTotals[dayIndex] += (value - list[rowIndex].dates[dayIndex].dur);
+        let prevDur = parseFloat(list[rowIndex].dates[dayIndex].dur) || 0;
+
+        CalculateList[dayIndex] = parseFloat((CalculateList[dayIndex] + (value - prevDur)).toFixed(2));
+        this.grandTotals[dayIndex] = parseFloat((this.grandTotals[dayIndex] + (value - prevDur)).toFixed(2));
 
         if (dataFor === 'project') {
-            this.billableAmounts[dayIndex] = this.billableAmounts[dayIndex] + (value - list[rowIndex].dates[dayIndex].dur) * parseFloat(list[rowIndex].hourlyRate) || 0;
+            this.billableAmounts[dayIndex] = parseFloat((this.billableAmounts[dayIndex] + (value - prevDur) * parseFloat(list[rowIndex].hourlyRate)).toFixed(2)) || 0;
         }
 
         list[rowIndex].dates[dayIndex].dur = value;
         list[rowIndex].dates[dayIndex].isdisable = (value === 0);
+        
+        if (wasTruncated) {
+            try {
+                event.target.value = rawStr;
+            } catch(e) {}
+        }
     }
 
     handleDescriptionChange(event) {
+        this.isDirty = true;
         const rowIndex = parseInt(event.target.dataset.rowIndex);
         const dayIndex = parseInt(event.target.dataset.dayIndex);
         const newValue = event.target.value;
@@ -535,6 +619,7 @@ export default class TestLineItem extends LightningElement {
     }
 
     handleDeleteRow(event) {
+        this.isDirty = true;
         const rowIndex = parseInt(event.target.dataset.rowIndex);
         const type = event.target.dataset.type;
 
@@ -565,6 +650,7 @@ export default class TestLineItem extends LightningElement {
     }
 
     handleAbsenceChange(event) {
+        this.isDirty = true;
         const rowIndex = event.target.dataset.rowIndex;
         const newValue = event.target.value;
 
@@ -593,6 +679,16 @@ export default class TestLineItem extends LightningElement {
         currentRow.absenceName = newValue;
     }
 
+    handleAddProject() {
+        this.isDirty = true;
+        this.addNewProject();
+    }
+
+    handleAddAbsence() {
+        this.isDirty = true;
+        this.addNewAbsence();
+    }
+
     addNewProject() {
         const newProject = this.getBlankData("Attendance");
         this.projectsList.push(newProject);
@@ -603,9 +699,29 @@ export default class TestLineItem extends LightningElement {
         this.absenceList.push(newAbsence);
     }
 
-    handleSave(){
+    async handleSave() {
+        if (this.timerChangedWhileEditing) {
+            const confirmed = await LightningConfirm.open({
+                label: 'Timer changed this timesheet',
+                message: 'The timer changed this timesheet after you started editing. Saving now can overwrite or remove the hours it logged. Save anyway?',
+                theme: 'warning'
+            });
+            if (!confirmed) return;
+        }
+        this.saveGrid();
+    }
+
+    // The parts of a row the user can change, as one string, to tell edited rows from untouched ones.
+    rowSignature(row) {
+        return [
+            row.type || '', row.project || '', row.activity || '', row.absence || '',
+            String(row.date || '').slice(0, 10), Number(row.duration) || 0, row.description || ''
+        ].join('|');
+    }
+
+    saveGrid() {
         let upsertList = [];
-        let deleteList;
+        let deleteList = [];
         let currentRecordIDs = new Set();
 
         try {
@@ -665,33 +781,59 @@ export default class TestLineItem extends LightningElement {
             deleteList = [...this.previousRecordIDs].filter(id => !currentRecordIDs.has(id));
 
         } catch (error) {
-            this.showToast('Error', error, 'error');
+            this.showToast('Error', (error && error.message) || String(error), 'error');
+            return; // never save a half-built list
         }
 
-        (
-            (deleteList.length > 0 
-                ? deleteTimesheetLineItems({ lineItemIds: deleteList.map(id => ({ Id: id })) })
-                : Promise.resolve()
-            )
+        // Rows nobody edited are not sent: saving them again would put old hours over what the timer or a leave
+        // approval wrote since the grid was opened. Edited rows are sent with the hours they were loaded with, so
+        // the server can refuse the save when they changed meanwhile.
+        const loadedHours = {};
+        upsertList = upsertList.filter(row => {
+            if (!row.Id) return true;
+            const unchanged = this.previousSignatures.get(row.Id) === this.rowSignature({
+                type: row.dbt__Type__c, project: row.dbt__Project__c, activity: row.dbt__Activity__c,
+                absence: row.dbt__Absence_Category__c, date: row.dbt__Date__c,
+                duration: row.dbt__Duration__c, description: row.dbt__Description__c
+            });
+            if (!unchanged) {
+                loadedHours[row.Id] = this.previousDurations.get(row.Id) || 0;
+            }
+            return !unchanged;
+        });
+
+        if (upsertList.length === 0 && deleteList.length === 0) {
+            this.showToast('Success', 'Records saved', 'success');
+            this.reloadGrid();
+            return;
+        }
+
+        // One server call, one transaction: either the whole week is saved or nothing is.
+        saveWeek({
+            loadedHours,
+            upserts: upsertList,
+            deletes: deleteList.map(id => ({
+                sobjectType: 'dbt__Timesheet_Line_Item__c',
+                Id: id,
+                dbt__Duration__c: this.previousDurations.get(id) || 0
+            }))
+        })
             .then(res => {
-                if (res && res !== 'Success') throw new Error(res);
-                return upsertList.length > 0 ? upsertLineItems({ lineItems: upsertList }) : Promise.resolve();
-            })
-            .then(res => {
-                if (res && res !== 'Success') throw new Error(res);
+                if (!res || !res.success) {
+                    throw new Error((res && res.message) || 'The timesheet could not be saved.');
+                }
                 this.showToast('Success', 'Records saved', 'success');
+                // Open timers show the line item's hours, so let them reload.
+                if (this.timerChannel) {
+                    this.timerChannel.postMessage({ changed: true, source: 'grid' });
+                }
             })
             .catch(e => {
-                this.showToast('Error', e.message, 'error')
+                this.showToast('Error', (e && e.body && e.body.message) || e.message, 'error');
             })
             .finally(() => {
-                this.fetchTimesheetData(this.recordId, result => {
-                    this.wiredTimesheetResult = result;
-                    this.processTimesheetData(this.wiredTimesheetResult,true);
-                });
-            })
-        );
-        
+                this.reloadGrid();
+            });
     }
 
     calculateTotals() {
@@ -707,10 +849,10 @@ export default class TestLineItem extends LightningElement {
 
                 project.dates.forEach((day, index) => {
                     const duration = parseFloat(day.dur) || 0;
-                    this.projectsTotals[index] += duration;
+                    this.projectsTotals[index] = parseFloat((this.projectsTotals[index] + duration).toFixed(2));
                     
                     if (project.billable === "Yes") {
-                        this.billableAmounts[index] += duration * parseFloat(project.hourlyRate) || 0;
+                        this.billableAmounts[index] = parseFloat((this.billableAmounts[index] + duration * parseFloat(project.hourlyRate || 0)).toFixed(2));
                     }
                 });
             });
@@ -722,13 +864,13 @@ export default class TestLineItem extends LightningElement {
         this.absenceList.forEach(absence => {
             absence.dates.forEach((day, index) => {
                 const duration = parseFloat(day.dur) || 0;
-                this.absenceTotals[index] += duration;
+                this.absenceTotals[index] = parseFloat((this.absenceTotals[index] + duration).toFixed(2));
             });
         });
 
         // Calculate Grand totals
         this.projectsTotals.forEach((total, index) => {
-            this.grandTotals[index] = total + this.absenceTotals[index];
+            this.grandTotals[index] = parseFloat((total + this.absenceTotals[index]).toFixed(2));
         });
     }
 
@@ -740,14 +882,19 @@ export default class TestLineItem extends LightningElement {
         if(this.prevTimesheetValue != undefined){
             // console.log(this.prevTimesheetValue);
             this.fetchTimesheetData(this.prevTimesheetValue, result => {
-                this.processTimesheetData(result,false);
+                // Only the project hours are copied. This week's absence rows (leave from the PTO tab
+                // included) stay as they are, so Save never deletes or duplicates them.
+                const keptAbsence = this.absenceList;
+                this.processTimesheetData(result.filter(item => item.dbt__Type__c === 'Attendance'), false);
+                this.absenceList = keptAbsence;
+                this.calculateTotals();
                 this.showToast('Success', 'Timesheet copied successfully', 'success');
             });
         }
     }
 
     handleCancel() {
-        this.processTimesheetData(this.wiredTimesheetResult,true);
+        this.reloadGrid();
 
         this.template.querySelectorAll('lightning-combobox[data-id="prevTimesheet"]').forEach(cb => {
             cb.value = undefined;

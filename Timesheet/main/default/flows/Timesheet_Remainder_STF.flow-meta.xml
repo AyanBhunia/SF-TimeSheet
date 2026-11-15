@@ -17,7 +17,7 @@
         <inputParameters>
             <name>emailSubject</name>
             <value>
-                <stringValue>Timesheet Remainder</stringValue>
+                <stringValue>Timesheet Reminder</stringValue>
             </value>
         </inputParameters>
         <inputParameters>
@@ -72,11 +72,19 @@
                 <stringValue>New</stringValue>
             </value>
         </filters>
+        <filters>
+            <field>Is_Demo__c</field>
+            <operator>EqualTo</operator>
+            <value>
+                <booleanValue>false</booleanValue>
+            </value>
+        </filters>
         <object>Timesheet__c</object>
         <schedule>
             <frequency>Weekly</frequency>
-            <startDate>2024-11-29</startDate>
-            <startTime>07:59:00.000Z</startTime>
+            <frequencyNumber>0</frequencyNumber>
+            <startDate>2026-11-13</startDate>
+              <startTime>07:59:00.000Z</startTime>
         </schedule>
         <triggerType>Scheduled</triggerType>
     </start>
@@ -86,7 +94,7 @@
         <isViewedAsPlainText>true</isViewedAsPlainText>
         <text>Hi {!$Record.Employee__r.Name},
 
-This is remainder to submit timesheet for this week.
+This is Reminder to submit timesheet for this week.
 
 {!TimesheetLink}
 

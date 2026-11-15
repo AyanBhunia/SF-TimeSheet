@@ -1,0 +1,87 @@
+<template>
+    <div class="pto-overview slds-is-relative">
+        <template lwc:if={isLoading}>
+            <lightning-spinner alternative-text="Loading" size="small"></lightning-spinner>
+        </template>
+
+        <template lwc:if={error}>
+            <div class="slds-notify slds-notify_alert slds-alert_error slds-m-bottom_medium" role="alert">
+                <span class="slds-assistive-text">error</span>
+                <h2>{error}</h2>
+            </div>
+        </template>
+
+        <!-- Four Overview Tiles -->
+        <div class="slds-grid slds-wrap slds-gutters slds-m-bottom_medium">
+            <div class="slds-col slds-size_1-of-1 slds-small-size_1-of-2 slds-medium-size_1-of-4 slds-m-bottom_small">
+                <div class="slds-box slds-box_small slds-theme_shade tile-box">
+                    <div class="slds-text-title_caps slds-text-color_weak slds-truncate" title="Available">Available</div>
+                    <div class="slds-text-heading_medium slds-m-top_xx-small slds-truncate">{availableDisplay}</div>
+                    <div class="slds-text-body_small slds-text-color_weak slds-truncate">Balance minus pending</div>
+                </div>
+            </div>
+            <div class="slds-col slds-size_1-of-1 slds-small-size_1-of-2 slds-medium-size_1-of-4 slds-m-bottom_small">
+                <div class="slds-box slds-box_small slds-theme_shade tile-box">
+                    <div class="slds-text-title_caps slds-text-color_weak slds-truncate" title="Taken this year">Taken this year</div>
+                    <div class="slds-text-heading_medium slds-m-top_xx-small slds-truncate">{takenDisplay}</div>
+                    <div class="slds-text-body_small slds-text-color_weak slds-truncate">Approved leave</div>
+                </div>
+            </div>
+            <div class="slds-col slds-size_1-of-1 slds-small-size_1-of-2 slds-medium-size_1-of-4 slds-m-bottom_small">
+                <div class="slds-box slds-box_small slds-theme_shade tile-box">
+                    <div class="slds-text-title_caps slds-text-color_weak slds-truncate" title="Pending">Pending</div>
+                    <div class="slds-text-heading_medium slds-m-top_xx-small slds-truncate">{pendingDisplay}</div>
+                    <div class="slds-text-body_small slds-text-color_weak slds-truncate">{pendingCaption}</div>
+                </div>
+            </div>
+            <div class="slds-col slds-size_1-of-1 slds-small-size_1-of-2 slds-medium-size_1-of-4 slds-m-bottom_small">
+                <div class="slds-box slds-box_small slds-theme_shade tile-box">
+                    <div class="slds-text-title_caps slds-text-color_weak slds-truncate" title="Next leave">Next leave</div>
+                    <div class="slds-text-heading_medium slds-m-top_xx-small slds-truncate">{nextLeaveDateDisplay}</div>
+                    <div class="slds-text-body_small slds-text-color_weak slds-truncate">{nextLeaveCountDisplay}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hours by Category (Horizontal Stacked Bar Chart) -->
+        <article class="slds-card slds-card_boundary slds-m-bottom_medium">
+            <div class="slds-card__header slds-grid">
+                <header class="slds-media slds-media_center slds-has-flexi-truncate">
+                    <div class="slds-media__body">
+                        <h3 class="slds-card__header-title slds-truncate">Hours by category, {currentYear}</h3>
+                    </div>
+                </header>
+            </div>
+            <div class="slds-card__body slds-card__body_inner">
+                <div class="chart-container category-chart-container" style={categoryChartContainerStyle}>
+                    <canvas lwc:dom="manual" data-id="categoryChart" class="category-chart"></canvas>
+                </div>
+                <template lwc:if={noCategoryData}>
+                    <p class="slds-text-align_center slds-text-color_weak slds-m-top_small">No leave recorded for {currentYear}.</p>
+                </template>
+            </div>
+        </article>
+
+        <!-- Team leave heatmap (Managers & HR only): approved hours of the year per employee and weekday -->
+        <template lwc:if={isManagerOrHr}>
+            <article class="slds-card slds-card_boundary">
+                <div class="slds-card__header slds-grid">
+                    <header class="slds-media slds-media_center slds-has-flexi-truncate">
+                        <div class="slds-media__body">
+                            <h3 class="slds-card__header-title slds-truncate">Team leave, {currentYear}</h3>
+                            <p class="slds-text-body_small slds-text-color_weak">Approved hours this year by day of the week. The year's total is next to each name.</p>
+                        </div>
+                    </header>
+                </div>
+                <div class="slds-card__body slds-card__body_inner">
+                    <div class="chart-container team-chart-container" style={teamChartContainerStyle}>
+                        <canvas lwc:dom="manual" data-id="teamChart" class="team-chart"></canvas>
+                    </div>
+                    <template lwc:if={noTeamData}>
+                        <p class="slds-text-align_center slds-text-color_weak slds-m-top_small">No direct reports to show.</p>
+                    </template>
+                </div>
+            </article>
+        </template>
+    </div>
+</template>

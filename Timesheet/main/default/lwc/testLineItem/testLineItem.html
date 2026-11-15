@@ -19,6 +19,13 @@
                     </div>
                 </div>
 
+                <template if:true={timerChangedWhileEditing}>
+                    <div class="slds-notify slds-notify_alert slds-alert_warning slds-m-bottom_small" role="alert">
+                        <h2 class="slds-p-right_small">The timer changed this timesheet. Reload to see its changes; reloading discards your unsaved edits.</h2>
+                        <lightning-button label="Reload" onclick={reloadGrid}></lightning-button>
+                    </div>
+                </template>
+
                 <table class="slds-table slds-table_bordered slds-table_cell-buffer">
                     <thead>
                         <tr class="slds-line-height_reset">
@@ -87,8 +94,8 @@
                                         <div class="slds-grid slds-grid_vertical">
                                             <div class="slds-col">
                                                 <lightning-input type="number" title="Duration" value={day.dur}
-                                                    step="0.5" min="0" max="24" data-for="project"
-                                                    data-row-index={index} data-day-index={dayIndex} onchange={handleDurationChange}>
+                                                    step="0.01" min="0" max="24" data-for="project"
+                                                    data-row-index={index} data-day-index={dayIndex} onchange={handleDurationChange} onkeydown={handleKeyDown}>
                                                 </lightning-input>
                                             </div>
                                             <div class="slds-col">
@@ -131,8 +138,8 @@
                                     <td key={day.name}>
                                         <div class="slds-grid slds-grid_vertical">
                                             <div class="slds-col">
-                                                <lightning-input type="number" title="Duration" value={day.dur} step="0.5" min="0" max="24" data-for="absence"
-                                                    data-row-index={index} data-day-index={dayIndex} onchange={handleDurationChange}>
+                                                <lightning-input type="number" title="Duration" value={day.dur} step="0.01" min="0" max="24" data-for="absence"
+                                                    data-row-index={index} data-day-index={dayIndex} onchange={handleDurationChange} onkeydown={handleKeyDown}>
                                                 </lightning-input>
                                             </div>
                                             <div class="slds-col">
@@ -157,9 +164,9 @@
                 <div class="slds-grid slds-grid_align-spread slds-p-top_medium">
                     <!-- Left group -->
                     <div class="slds-col">
-                        <lightning-button label="Add Project" onclick={addNewProject} variant="neutral" class="slds-m-right_x-small">
+                        <lightning-button label="Add Project" onclick={handleAddProject} variant="neutral" class="slds-m-right_x-small">
                         </lightning-button>
-                        <lightning-button label="Add Absence" onclick={addNewAbsence} variant="neutral" class="slds-m-right_x-small">
+                        <lightning-button label="Add Absence" onclick={handleAddAbsence} variant="neutral" class="slds-m-right_x-small">
                         </lightning-button>
                     </div>
                 

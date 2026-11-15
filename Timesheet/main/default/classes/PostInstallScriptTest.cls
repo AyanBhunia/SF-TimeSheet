@@ -5,8 +5,7 @@ private class PostInstallScriptTest {
             Profile p = [
                 SELECT Id
                 FROM Profile
-                WHERE Name != 'Guest User'
-                ORDER BY CreatedDate
+                WHERE Name = 'Standard User'
                 LIMIT 1
             ];
             User u = new User(
@@ -29,8 +28,7 @@ private class PostInstallScriptTest {
             Profile p = [
                 SELECT Id
                 FROM Profile
-                WHERE Name != 'Guest User'
-                ORDER BY CreatedDate
+                WHERE Name = 'Standard User'
                 LIMIT 1
             ];
             User u = new User(
@@ -244,7 +242,7 @@ private class PostInstallScriptTest {
                             Id, 
                             Name 
                             FROM PermissionSet 
-                            WHERE Name = 'Timesheet_HR_Admin'];
+                            WHERE Name = 'Timesheet_HR_Admin' LIMIT 1];
         System.runAs(user){
             PermissionSetAssignment psa = new PermissionSetAssignment();
         	psa.PermissionSetId = ps.Id;

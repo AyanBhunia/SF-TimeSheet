@@ -201,8 +201,8 @@ export default class CreateEmployeeTimesheet extends LightningElement {
         try {
             return await getTimesheetsLineItems({
                 recID: this.recordId,
-                startDate: this.sd,
-                endDate: this.ed
+                startDate: this.startDate,
+                endDate: this.endDate
             });
         } catch (error) {
             console.error('Error fetching timesheets:', error);

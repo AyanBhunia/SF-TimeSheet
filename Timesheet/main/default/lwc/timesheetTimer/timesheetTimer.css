@@ -1,0 +1,46 @@
+:host {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.timer-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background-color: #ffffff;
+}
+
+.timer-container lightning-card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    --sds-c-card-shadow: none;
+    --sds-c-card-color-border: transparent;
+    --sds-c-card-radius-border: 0;
+}
+
+.time-display {
+    transition: all 0.3s ease;
+}
+.time-display .digits {
+    font-size: 3.5rem;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 2px;
+    color: #2c3e50;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+}
+.time-display.running .digits {
+    color: #00b09b;
+    text-shadow: 0 0 10px rgba(0, 176, 155, 0.3);
+}
+
+.stop-btn {
+    animation: pulse 2s infinite;
+}
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}

@@ -7,6 +7,30 @@
         <value xsi:type="xsd:double">10.0</value>
     </values>
     <values>
+        <field>Max_Holiday_Hours__c</field>
+        <value xsi:type="xsd:double">8.0</value>
+    </values>
+    <values>
+        <field>Max_On_Duty_Hours__c</field>
+        <value xsi:type="xsd:double">8.0</value>
+    </values>
+    <values>
+        <field>Max_PTO_Planned_Hours__c</field>
+        <value xsi:type="xsd:double">8.0</value>
+    </values>
+    <values>
+        <field>Max_PTO_Unplanned_Hours__c</field>
+        <value xsi:type="xsd:double">8.0</value>
+    </values>
+    <values>
+        <field>Max_Permission_Hours__c</field>
+        <value xsi:type="xsd:double">8.0</value>
+    </values>
+    <values>
+        <field>Max_Sick_Leave_Hours__c</field>
+        <value xsi:type="xsd:double">8.0</value>
+    </values>
+    <values>
         <field>Maximum_Working_Hrs_Per_Day__c</field>
         <value xsi:type="xsd:double">24.0</value>
     </values>

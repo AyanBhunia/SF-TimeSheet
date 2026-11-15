@@ -76,6 +76,8 @@ public class GetDashboardProfileDetailsTest {
             // System.assertEquals('John Doe', (String) result.get('Name'));
             System.assertEquals('john.doe@example.com', (String) result.get('Email'));
             System.assertEquals('Dashboard Project', (String) result.get('Projects'));
+            System.assertEquals([SELECT Active__c FROM Employee__c WHERE User__c = :testUser.Id].Active__c, result.get('Active'), 'Active flag for demoDataPrompt');
+            System.assertEquals(false, result.get('IsDemo'), 'Demo flag for demoDataPrompt');
         }
     }
 
@@ -141,7 +143,7 @@ public class GetDashboardProfileDetailsTest {
                             Id, 
                             Name 
                             FROM PermissionSet 
-                            WHERE Name = 'Timesheet_HR_Admin'];
+                            WHERE Name = 'Timesheet_HR_Admin' LIMIT 1];
         System.runAs(user){
             PermissionSetAssignment psa = new PermissionSetAssignment();
         	psa.PermissionSetId = ps.Id;

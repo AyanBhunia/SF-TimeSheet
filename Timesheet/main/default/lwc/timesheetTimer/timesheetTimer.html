@@ -1,0 +1,95 @@
+<template>
+    <div lwc:if={isHidden}></div>
+    <div lwc:else class="timer-container">
+        <lightning-card title="Time Tracker" icon-name="custom:custom95">
+            <div class="slds-p-horizontal_small slds-text-align_center slds-m-bottom_medium slds-text-color_weak">
+                <lightning-formatted-date-time value={today} year="numeric" month="long" day="2-digit" weekday="long"></lightning-formatted-date-time>
+            </div>
+
+            <template if:true={hasNoProjects}>
+                <div class="slds-p-around_medium slds-text-align_center slds-text-color_error">
+                    <p class="slds-text-heading_small">The Employee does not have any active Project.</p>
+                </div>
+            </template>
+
+            <template if:false={hasNoProjects}>
+                <div class="slds-p-horizontal_small">
+                    <!-- Show selection -->
+                    <template if:true={showPicklists}>
+                        <div class="slds-grid slds-gutters slds-m-bottom_medium">
+                            <div class="slds-col slds-size_1-of-2">
+                                <lightning-combobox
+                                    name="project"
+                                    label="Project"
+                                    value={selectedProject}
+                                    placeholder="Select Project"
+                                    options={projectOptions}
+                                    onchange={handleProjectChange}
+                                    disabled={inputsDisabled}
+                                    required>
+                                </lightning-combobox>
+                            </div>
+                            <div class="slds-col slds-size_1-of-2">
+                                <lightning-combobox
+                                    name="activity"
+                                    label="Activity"
+                                    value={selectedActivity}
+                                    placeholder="Select Activity"
+                                    options={activityOptions}
+                                    onchange={handleActivityChange}
+                                    disabled={inputsDisabled}
+                                    required>
+                                </lightning-combobox>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Show active task info -->
+                    <template if:true={showTaskInfo}>
+                        <div class="slds-text-align_center slds-m-bottom_medium">
+                            <p class="slds-text-heading_small slds-text-title_bold">{activeProjectName}</p>
+                            <p class="slds-text-body_regular slds-text-color_weak">{activeActivityName}</p>
+                        </div>
+                    </template>
+
+                    <!-- Display Time -->
+                    <div class={timerClass}>
+                        <span class="digits slds-text-heading_large slds-text-title_bold">{formattedTime}</span>
+                        <p class="slds-text-color_weak slds-m-top_x-small">{statusText}</p>
+                        <p class="slds-text-color_weak slds-text-body_small">{baseText}</p>
+                    </div>
+
+                    <!-- Buttons -->
+                    <div class="slds-text-align_center slds-m-top_medium">
+                        <template if:false={isRunning}>
+                            <template if:false={isPendingSave}>
+                                <lightning-button variant="brand" label="START" onclick={handleStart} disabled={startDisabled} class="slds-m-around_xx-small start-btn"></lightning-button>
+                            </template>
+                        </template>
+                        <template if:true={isRunning}>
+                            <lightning-button variant="destructive" label="STOP" onclick={handlePause} disabled={isLoading} class="slds-m-around_xx-small stop-btn"></lightning-button>
+                        </template>
+                        <template if:true={isPendingSave}>
+                            <div class="slds-m-bottom_small">
+                                <lightning-textarea
+                                    label="Description"
+                                    value={description}
+                                    onchange={handleDescriptionChange}
+                                    placeholder="Enter description for this time entry...">
+                                </lightning-textarea>
+                            </div>
+                            <lightning-button variant="brand" label="Save" onclick={handleSave} disabled={saveDisabled} class="slds-m-around_xx-small"></lightning-button>
+                            <lightning-button variant="brand-outline" label="Continue" onclick={handleContinue} disabled={continueDisabled} class="slds-m-around_xx-small"></lightning-button>
+                            <lightning-button variant="neutral" label="Discard" onclick={handleDiscard} disabled={isLoading} class="slds-m-around_xx-small"></lightning-button>
+                        </template>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Loading spinner -->
+            <template if:true={isLoading}>
+                <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+            </template>
+        </lightning-card>
+    </div>
+</template>
