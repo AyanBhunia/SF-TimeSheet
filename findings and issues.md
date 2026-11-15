@@ -219,3 +219,29 @@ The app handled both correctly, but they make manual tests confusing.
 
 **Proposed fix**
 Delete the duplicate timesheets and the row without a project on tsorg, or regenerate demo data.
+
+## 13. PtoControllerTest builds an invalid Id
+
+- **Severity:** Medium (fails the Apex gate G4)
+- **Found:** 2026-11-11, first CI Apex run (PR #14)
+
+**Problem**
+`PtoControllerTest.missingEmployeeId()` returns `Id.valueOf(prefix + '000000000000AAA')`. That is an 18-character Id
+with a wrong checksum suffix, so it throws `System.StringException: Invalid id: a0D000000000000AAA` and
+`managerActsForDirectReportOnly` fails.
+
+**Proposed fix**
+Use the 15-character form: `Id.valueOf(prefix + '000000000000')`.
+
+## 14. Report and dashboard folders are shared to a scratch-org user
+
+- **Severity:** Medium (any deploy to an org without that user fails)
+- **Found:** 2026-11-11, first CI Apex run (PR #14)
+
+**Problem**
+`TimeSheetDashboard.dashboardFolder-meta.xml` and `TimeSheetReports.reportFolder-meta.xml` contain a
+`folderShares` entry for `test-5nghg7r5ezau@example.com`. Deploys fail with "no User named ... found".
+CI strips these shares in its checkout as a workaround.
+
+**Proposed fix**
+Remove the user `folderShares` blocks from both files.
