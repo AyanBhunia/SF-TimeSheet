@@ -95,7 +95,7 @@ public with sharing class TimesheetTriggerHandler extends TriggerHandler {
         }
     }
 
-    private static void cascadeStatusToLineItems(
+        public static void cascadeStatusToLineItems(
     List<Timesheet__c> newTimesheets,
     Map<Id, Timesheet__c> oldMap
 ) {
@@ -163,8 +163,8 @@ public with sharing class TimesheetTriggerHandler extends TriggerHandler {
     }
 
 }
-    private static void syncStatusFromLineItems(List<Timesheet__c> newTimesheets, Map<Id, Timesheet__c> oldMap) {
-        Map<Id, Timesheet__c> timesheetsToSync = new Map<Id, Timesheet__c>();
+    public static void syncStatusFromLineItems(List<Timesheet__c> newTimesheets, Map<Id, Timesheet__c> oldMap) {
+Map<Id, Timesheet__c> timesheetsToSync = new Map<Id, Timesheet__c>();
         
         for (Timesheet__c ts : newTimesheets) {
             Timesheet__c oldTs = oldMap.get(ts.Id);

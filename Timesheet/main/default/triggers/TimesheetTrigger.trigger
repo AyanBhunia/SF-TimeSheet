@@ -1,6 +1,11 @@
 trigger TimesheetTrigger on dbt__Timesheet__c (before insert, before update, after insert, after update, after delete, after undelete) {
 
     if (Trigger.isBefore) {
+        
+        // Partial Submit: set the timesheet status from its line items when the status itself was not changed.
+        if (Trigger.isUpdate) {
+            TimesheetTriggerHandler.syncStatusFromLineItems(Trigger.new, Trigger.oldMap);
+        }
 
         // A running timer's time is only added to its row when the timer is saved, and a submitted or
         // approved timesheet can no longer take it. So the week cannot be closed while a timer runs: it is checked
@@ -101,6 +106,10 @@ trigger TimesheetTrigger on dbt__Timesheet__c (before insert, before update, aft
             LeaveToLineItem.forTimesheets(Trigger.new);
         }
 
+        if (Trigger.isUpdate) {
+            // Partial Submit: push a changed timesheet status down to its line items.
+            TimesheetTriggerHandler.cascadeStatusToLineItems(Trigger.new, Trigger.oldMap);
+        }
         Set<Id> empIdsToUpdate = new Set<Id>();
 
         if (Trigger.isInsert || Trigger.isUpdate || Trigger.isUndelete) {
