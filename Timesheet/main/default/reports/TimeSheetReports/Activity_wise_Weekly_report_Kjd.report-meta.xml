@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Report xmlns="http://soap.sforce.com/2006/04/metadata">
+    <columns>
+        <aggregateTypes>Sum</aggregateTypes>
+        <field>Timesheet_Line_Item__c.Duration__c</field>
+    </columns>
+    <filter>
+        <criteriaItems>
+            <column>Timesheet_Line_Item__c.Activity__c</column>
+            <columnToColumn>false</columnToColumn>
+            <isUnlocked>true</isUnlocked>
+            <operator>notEqual</operator>
+            <value />
+        </criteriaItems>
+        <criteriaItems>
+            <column>Timesheet_Line_Item__c.Type__c</column>
+            <columnToColumn>false</columnToColumn>
+            <isUnlocked>true</isUnlocked>
+            <operator>equals</operator>
+            <value>Attendance</value>
+        </criteriaItems>
+    </filter>
+    <format>Summary</format>
+    <groupingsDown>
+        <dateGranularity>Day</dateGranularity>
+        <field>Timesheet_Line_Item__c.Activity__c</field>
+        <sortOrder>Asc</sortOrder>
+    </groupingsDown>
+    <name>Activity wise Weekly report</name>
+    <params>
+        <name>co</name>
+        <value>0</value>
+    </params>
+    <reportType
+  >CustomEntityCustomEntity$Timesheet__c$Timesheet_Line_Item__c</reportType>
+    <scope>organization</scope>
+    <showDetails>false</showDetails>
+    <showGrandTotal>true</showGrandTotal>
+    <showSubTotals>false</showSubTotals>
+    <timeFrameFilter>
+        <dateColumn>Timesheet_Line_Item__c.Date__c</dateColumn>
+        <interval>INTERVAL_THISWEEK</interval>
+    </timeFrameFilter>
+</Report>

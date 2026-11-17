@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Report xmlns="http://soap.sforce.com/2006/04/metadata">
+    <columns>
+        <field>Timesheet_Line_Item__c.Date__c</field>
+    </columns>
+    <columns>
+        <field>Timesheet_Line_Item__c.Description__c</field>
+    </columns>
+    <columns>
+        <field>Timesheet_Line_Item__c.Absence_Category__c</field>
+    </columns>
+    <columns>
+        <aggregateTypes>Sum</aggregateTypes>
+        <field>Timesheet_Line_Item__c.Duration__c</field>
+    </columns>
+    <filter>
+        <criteriaItems>
+            <column>Timesheet_Line_Item__c.Absence_Category__c</column>
+            <columnToColumn>false</columnToColumn>
+            <isUnlocked>true</isUnlocked>
+            <operator>notEqual</operator>
+            <value>,On Duty,Permission,Holiday</value>
+        </criteriaItems>
+        <criteriaItems>
+            <column>Timesheet_Line_Item__c.Type__c</column>
+            <columnToColumn>false</columnToColumn>
+            <isUnlocked>true</isUnlocked>
+            <operator>equals</operator>
+            <value>Absence</value>
+        </criteriaItems>
+    </filter>
+    <format>Summary</format>
+    <groupingsDown>
+        <dateGranularity>Day</dateGranularity>
+        <field>Timesheet_Line_Item__c.Employee__c</field>
+        <sortOrder>Asc</sortOrder>
+    </groupingsDown>
+    <name>Top Out of Office Employee Month</name>
+    <params>
+        <name>co</name>
+        <value>0</value>
+    </params>
+    <reportType
+  >CustomEntityCustomEntity$Timesheet__c$Timesheet_Line_Item__c</reportType>
+    <scope>organization</scope>
+    <showDetails>true</showDetails>
+    <showGrandTotal>false</showGrandTotal>
+    <showSubTotals>true</showSubTotals>
+    <timeFrameFilter>
+        <dateColumn>Timesheet_Line_Item__c.Date__c</dateColumn>
+        <interval>INTERVAL_THISMONTH</interval>
+    </timeFrameFilter>
+</Report>

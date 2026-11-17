@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Report xmlns="http://soap.sforce.com/2006/04/metadata">
+    <columns>
+        <field>Timesheet_Line_Item__c.Description__c</field>
+    </columns>
+    <columns>
+        <field>Timesheet_Line_Item__c.Project__c</field>
+    </columns>
+    <columns>
+        <aggregateTypes>Sum</aggregateTypes>
+        <field>Timesheet_Line_Item__c.Duration__c</field>
+    </columns>
+    <filter>
+        <criteriaItems>
+            <column>Timesheet_Line_Item__c.Employee__c</column>
+            <columnToColumn>false</columnToColumn>
+            <isUnlocked>true</isUnlocked>
+            <operator>equals</operator>
+            <value />
+        </criteriaItems>
+        <criteriaItems>
+            <column>Timesheet_Line_Item__c.Project__c</column>
+            <columnToColumn>false</columnToColumn>
+            <isUnlocked>true</isUnlocked>
+            <operator>equals</operator>
+            <value />
+        </criteriaItems>
+    </filter>
+    <format>Summary</format>
+    <groupingsDown>
+        <dateGranularity>Day</dateGranularity>
+        <field>Timesheet__c.Employee__c</field>
+        <sortOrder>Asc</sortOrder>
+    </groupingsDown>
+    <name>Daily Hours Report</name>
+    <params>
+        <name>co</name>
+        <value>0</value>
+    </params>
+    <reportType
+  >CustomEntityCustomEntity$Timesheet__c$Timesheet_Line_Item__c</reportType>
+    <scope>organization</scope>
+    <showDetails>false</showDetails>
+    <showGrandTotal>true</showGrandTotal>
+    <showSubTotals>false</showSubTotals>
+    <timeFrameFilter>
+        <dateColumn>Timesheet_Line_Item__c.Date__c</dateColumn>
+        <interval>INTERVAL_CUSTOM</interval>
+    </timeFrameFilter>
+</Report>

@@ -317,15 +317,36 @@ this.allTimesheetNames = Array.isArray(result.timesheetNames)
     ? result.timesheetNames
     : [];
 
-this.allFilterValues = result.filterValues || {};
-
-// Parses Apex results.
+// Parse Apex results first.
 this._rawRows = this._parseApexResult(result.rows);
+
+// Build distinct filter values from the loaded Manager Approval rows.
+this.allFilterValues = {};
+
+this.columns.forEach(col => {
+    const values = new Set();
+
+    this._rawRows.forEach(row => {
+        const rawValue = row[col.fieldName];
+
+        const value =
+            rawValue !== null &&
+            rawValue !== undefined &&
+            String(rawValue).trim() !== ''
+                ? String(rawValue).trim()
+                : '(Blank)';
+
+        values.add(value);
+    });
+
+    this.allFilterValues[col.id] = Array.from(values);
+});
 
 this._groupedRows = [];
 
 this._recompute();
 })
+
 .catch(error => {
 this.showToast(
 'Error',
@@ -359,7 +380,21 @@ if (isPartialAllowed && wrapper.lineItems && wrapper.lineItems.length > 0) {
     wrapper.lineItems.forEach((li, lIdx) => {
         const typeVal = li.dbt__Type__c;
         const isAbsence = typeVal === 'Absence';
-        const absenceCat = li.dbt__Absence_Category__c || 'Absence';
+       const absenceCat =
+    li.dbt__Absence_Category__c ||
+    li.Absence_Category__c ||
+    'Absence';
+
+const aName = isAbsence
+    ? '-'
+    : (
+        li.dbt__Activity__c ||
+        li.Activity__c ||
+        li.dbt__Description__c ||
+        li.Description__c ||
+        typeVal ||
+        '-'
+    );
         const projObj = li.dbt__Project__r;
         const projId = li.dbt__Project__c;
 
@@ -367,10 +402,7 @@ if (isPartialAllowed && wrapper.lineItems && wrapper.lineItems.length > 0) {
             ? absenceCat
             : (projObj ? projObj.Name : (projId || wrapper.projectName || 'N/A'));
 
-        const aName = isAbsence
-            ? '-'
-            : (li.dbt__Activity__c || li.dbt__Description__c || typeVal || '-');
-
+        
         const durVal = li.dbt__Duration__c;
         const dur = durVal !== undefined && durVal !== null ? parseFloat(durVal) : 0;
         const lineItemStatus = li.dbt__Line_Item_Status__c || '';
