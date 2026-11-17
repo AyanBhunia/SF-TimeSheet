@@ -7,6 +7,7 @@ public with sharing class TimesheetApprovalController {
         @AuraEnabled public String employeeName { get; set; }
         @AuraEnabled public String projectId { get; set; }
         @AuraEnabled public String projectName { get; set; }
+        @AuraEnabled public String activityName { get; set; }
         @AuraEnabled public Integer employeeLineItemCount { get; set; }
         @AuraEnabled public Decimal employeeTotalDuration { get; set; }
         @AuraEnabled public Integer projectLineItemCount { get; set; }
@@ -79,6 +80,7 @@ public class TimesheetDataResponse {
     public TimesheetDataResponse() {
         this.rows = new List<TimesheetWrapper>();
         this.groupedRows = new List<GroupedRow>();
+         this.timesheetNames = new List<String>();
     }
 }
 // Returns the value for the selected grouping column.
@@ -100,8 +102,7 @@ when 2 {
 }
 when 3 {
     if (row.lineItems != null && !row.lineItems.isEmpty()) {
-        return row.lineItems[0].Activity__c;
-    }
+return row.activityName;    }
 return '';
 }
 when 4 {
@@ -136,8 +137,7 @@ when 'projectName' {
 }
 when 'activityName' {
     if (row.lineItems != null && !row.lineItems.isEmpty()) {
-        return row.lineItems[0].Activity__c;
-    }
+return row.activityName;    }
 return '';
 }
 when 'duration' {
@@ -957,7 +957,7 @@ String query =
 'SELECT Id, Name, Employee__c,Employee__r.Name, Start_Date__c, End_Date__c, Status__c, Is_Partial_Allowed__c, Total_Hours__c, ' +
 '(SELECT Id, Date__c, Duration__c, Project__c, Project__r.Name, ' +
 'Type__c, Description__c, Billable__c, Line_Item_Status__c, ' +
-'Rejection_Notes__c, Activity__c, Absence_Category__c ' +
+'Rejection_Notes__c, Activity__c ,Absence_Category__c ' +
 'FROM Timesheets__r ';
 if (startDate != null && endDate != null) {
     query +=
@@ -971,7 +971,19 @@ query +=
 query +=
 'ORDER BY Date__c ASC) ' +
 'FROM Timesheet__c ' +
-'WHERE Manager__c = :userId ' ;
+'WHERE Manager__c = :userId ' +
+    'AND Id IN (' +
+        'SELECT Timesheet__c ' +
+        'FROM Timesheet_Line_Item__c ' +
+        'WHERE Line_Item_Status__c = \'Submitted\' ';
+
+if (startDate != null && endDate != null) {
+    query +=
+        'AND Date__c >= :startDate ' +
+        'AND Date__c <= :endDate ';
+}
+
+query += ') ';
 List<Timesheet__c> timesheets =
 Database.query(query);
 Set<String> timesheetNameSet = new Set<String>();
@@ -1095,6 +1107,55 @@ for (Timesheet__c ts : timesheets) {
             continue;
         }
         String key = String.valueOf(ts.Id);
+        // Collect actual project names from submitted line items.
+Set<String> projectNames = new Set<String>();
+Set<String> activityNames = new Set<String>();
+
+if (ts.Timesheets__r != null) {
+    for (Timesheet_Line_Item__c line : ts.Timesheets__r) {
+
+        String projectName;
+
+        if (line.Type__c == 'Absence') {
+            projectName = line.Absence_Category__c != null
+                ? line.Absence_Category__c
+                : 'Absence';
+        } else {
+            projectName = line.Project__r != null
+                ? line.Project__r.Name
+                : null;
+        }
+
+        if (!String.isBlank(projectName)) {
+            projectNames.add(projectName);
+        }
+        String activityName;
+
+if (line.Type__c == 'Absence') {
+    activityName = '-';
+} else {
+    activityName = !String.isBlank(line.Activity__c)
+        ? line.Activity__c
+        : (
+            !String.isBlank(line.Description__c)
+                ? line.Description__c
+                : line.Type__c
+        );
+}
+
+if (!String.isBlank(activityName) && activityName != '-') {
+    activityNames.add(activityName);
+}
+    }
+}
+
+String actualProjectNames = projectNames.isEmpty()
+    ? '-'
+    : String.join(new List<String>(projectNames), ', ');
+    String actualActivityNames = activityNames.isEmpty()
+    ? '-'
+    : String.join(new List<String>(activityNames), ', ');
+
         TimesheetWrapper newWrapper = new TimesheetWrapper(
             key,
             String.valueOf(ts.Id),
@@ -1102,13 +1163,20 @@ for (Timesheet__c ts : timesheets) {
             String.valueOf(ts.Employee__c),
             ts.Employee__r.Name,
             null,
-            'All Projects',
+            actualProjectNames,
             period,
             ts.Status__c,
             ts.Start_Date__c
         );
         newWrapper.isPartialAllowed = false;
         newWrapper.duration = (ts.Total_Hours__c != null) ? ts.Total_Hours__c : 0;
+        newWrapper.activityName = actualActivityNames;
+        // Add submitted line items to display Activity values.
+if (ts.Timesheets__r != null) {
+    for (Timesheet_Line_Item__c line : ts.Timesheets__r) {
+        newWrapper.lineItems.add(line);
+    }
+}
         wrapperMap.put(key, newWrapper);
         continue;
     }
@@ -1227,6 +1295,8 @@ if (groupingIndexes != null && !groupingIndexes.isEmpty()) {
 return response;
 }
 // Approves the selected timesheets.
+
+
 @AuraEnabled
 public static String approveTimesheets(List<Id> timesheetIds) {
     if (timesheetIds == null || timesheetIds.isEmpty()) {
@@ -1235,21 +1305,25 @@ public static String approveTimesheets(List<Id> timesheetIds) {
 
     try {
         for (Id tsId : timesheetIds) {
-            Boolean processed = approveSalesforceApproval(tsId);
+            updateNonPartialLineItems(
+                tsId,
+                'Approved',
+                null
+            );
 
-            if (!processed) {
-                return 'Error: No pending approval request found for Timesheet.';
-            }
-
-            updateNonPartialLineItems(tsId, 'Approved', null);
-            updateNonPartialTimesheetStatus(tsId, 'Approved');
+            updateNonPartialTimesheetStatus(
+                tsId,
+                'Approved'
+            );
         }
 
         return 'Success';
+
     } catch (Exception e) {
         return 'Error: ' + e.getMessage();
     }
 }
+
 
 // Approves the selected line items.
 @AuraEnabled
@@ -1417,6 +1491,7 @@ private static void updateNonPartialTimesheetStatus(
 }
 
 // Rejects the selected timesheets.
+
 @AuraEnabled
 public static String rejectTimesheets(
     List<Id> timesheetIds,
@@ -1428,13 +1503,6 @@ public static String rejectTimesheets(
 
     try {
         for (Id tsId : timesheetIds) {
-            Boolean processed =
-                rejectSalesforceApproval(tsId, rejectionNotes);
-
-            if (!processed) {
-                return 'Error: No pending approval request found for Timesheet.';
-            }
-
             updateNonPartialLineItems(
                 tsId,
                 'New',
@@ -1448,6 +1516,7 @@ public static String rejectTimesheets(
         }
 
         return 'Success';
+
     } catch (Exception e) {
         return 'Error: ' + e.getMessage();
     }

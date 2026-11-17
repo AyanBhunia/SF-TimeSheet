@@ -7,6 +7,26 @@
                     <name>actionNames</name>
                     <valueList>
                         <valueListItems>
+                            <value>Timesheet__c.Submit</value>
+                            <visibilityRule>
+                                <booleanFilter>1 AND 2 AND 3</booleanFilter>
+                                <criteria>
+                                    <leftValue>{!Record.Status__c}</leftValue>
+                                    <operator>EQUAL</operator>
+                                    <rightValue>New</rightValue>
+                                </criteria>
+                                <criteria>
+                                    <leftValue>{!Record.Manager__r.Alias}</leftValue>
+                                    <operator>NE</operator>
+                                </criteria>
+                                <criteria>
+                                    <leftValue>{!Record.Is_Partial_Allowed__c}</leftValue>
+                                    <operator>EQUAL</operator>
+                                    <rightValue>true</rightValue>
+                                </criteria>
+                            </visibilityRule>
+                        </valueListItems>
+                        <valueListItems>
                             <value>Submit</value>
                             <visibilityRule>
                                 <booleanFilter>(1 OR 4) AND 2 AND 3</booleanFilter>
