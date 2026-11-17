@@ -155,7 +155,7 @@ public with sharing class WeeklyTimesheetController {
                 }
             }
             for (Timesheet_Line_Item__c row : [
-                SELECT Id, Duration__c, Timer_Data__c, Timesheet__c, Project__c, Activity__c, Date__c, Project__r.Name
+                SELECT Id, Duration__c, Timer_Data__c, Timesheet__c, Project__c, Activity__c, Date__c, Project__r.Name, Line_Item_Status__c
                 FROM Timesheet_Line_Item__c
                 WHERE (Id IN :deletes OR Id IN :upserts OR (Timesheet__c IN :timesheetIds AND Timer_Data__c != null))
                 WITH SYSTEM_MODE
@@ -179,12 +179,27 @@ public with sharing class WeeklyTimesheetController {
                 }
             }
             for (Timesheet__c sheet : [
-                SELECT Id, Status__c FROM Timesheet__c
+                SELECT Id, Status__c, Is_Partial_Allowed__c FROM Timesheet__c
                 WHERE Id IN :sheetIds AND Status__c IN ('Submitted', 'Approved')
                 WITH SYSTEM_MODE
             ]) {
+                // Partial Submit: a submitted timesheet that allows partial submission stays open for its New lines.
+                if (sheet.Status__c == 'Submitted' && sheet.Is_Partial_Allowed__c == true) {
+                    continue;
+                }
                 return failed(sp, 'This timesheet is already ' + sheet.Status__c.toLowerCase()
                     + ', so its hours cannot be changed here. Ask your manager or HR to reopen it first. Nothing was saved.');
+            }
+
+            // Partial Submit: a line that is already submitted or approved cannot be changed or removed here.
+            List<Timesheet_Line_Item__c> touched = new List<Timesheet_Line_Item__c>(deletes);
+            touched.addAll(upserts);
+            for (Timesheet_Line_Item__c item : touched) {
+                Timesheet_Line_Item__c row = item.Id == null ? null : current.get(item.Id);
+                if (row != null && (row.Line_Item_Status__c == 'Submitted' || row.Line_Item_Status__c == 'Approved')) {
+                    return failed(sp, 'A line that is already ' + row.Line_Item_Status__c.toLowerCase()
+                        + ' cannot be changed here. Reload the timesheet and try again. Nothing was saved.');
+                }
             }
 
             // A new row for a project + activity + day that already has a running timer would be a duplicate.
