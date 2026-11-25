@@ -31,7 +31,48 @@
     </actionCalls>
     <apiVersion>64.0</apiVersion>
     <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
+    <decisions>
+        <name>Check_Employee_Email</name>
+        <label>Check Employee Email and Due Date</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <defaultConnectorLabel>Default Outcome</defaultConnectorLabel>
+        <rules>
+            <name>Employee_Email_Exists</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>$Record.Employee__r.Email__c</leftValueReference>
+                <operator>IsNull</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>$Record.Employee__r.Email__c</leftValueReference>
+                <operator>IsBlank</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>IsDueForReminder</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <booleanValue>true</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Send_Email_to_Timesheet_Owner</targetReference>
+            </connector>
+            <label>Employee Email Exists and Due</label>
+        </rules>
+    </decisions>
     <environments>Default</environments>
+    <formulas>
+        <name>IsDueForReminder</name>
+        <dataType>Boolean</dataType>
+        <expression>ISBLANK({!$Record.End_Date__c}) || (({!$Record.End_Date__c} - TODAY() &lt;= 2) &amp;&amp; ({!$Record.End_Date__c} - TODAY() &gt;= 0))</expression>
+    </formulas>
     <formulas>
         <name>TimesheetLink</name>
         <dataType>String</dataType>
@@ -62,7 +103,7 @@
         <locationX>0</locationX>
         <locationY>0</locationY>
         <connector>
-            <targetReference>Send_Email_to_Timesheet_Owner</targetReference>
+            <targetReference>Check_Employee_Email</targetReference>
         </connector>
         <filterLogic>and</filterLogic>
         <filters>
@@ -81,7 +122,9 @@
         </filters>
         <object>Timesheet__c</object>
         <schedule>
-            <frequency>Weekly</frequency>
+            <dayOfMonthToRun>0</dayOfMonthToRun>
+            <frequency>Daily</frequency>
+            <frequencyNumber>0</frequencyNumber>
             <startDate>2024-11-29</startDate>
             <startTime>07:59:00.000Z</startTime>
         </schedule>
@@ -93,7 +136,7 @@
         <isViewedAsPlainText>true</isViewedAsPlainText>
         <text>Hi {!$Record.Employee__r.Name},
 
-This is Reminder to submit timesheet for this week.
+This is a reminder to submit your timesheet for {!$Record.Start_Date__c} to {!$Record.End_Date__c}.
 
 {!TimesheetLink}
 

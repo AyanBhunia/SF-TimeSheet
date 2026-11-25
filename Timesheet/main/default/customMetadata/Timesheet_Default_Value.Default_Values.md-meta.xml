@@ -35,6 +35,18 @@
         <value xsi:type="xsd:double">24.0</value>
     </values>
     <values>
+        <field>Timesheet_Cycle_Type__c</field>
+        <value xsi:type="xsd:string">Monthly</value>
+    </values>
+    <values>
+        <field>Timesheet_Duration_Days__c</field>
+        <value xsi:type="xsd:double">30.0</value>
+    </values>
+    <values>
+        <field>Week_Start_Day__c</field>
+        <value xsi:type="xsd:string">Monday</value>
+    </values>
+    <values>
         <field>Working_Days_per_Week__c</field>
         <value xsi:type="xsd:double">5.0</value>
     </values>

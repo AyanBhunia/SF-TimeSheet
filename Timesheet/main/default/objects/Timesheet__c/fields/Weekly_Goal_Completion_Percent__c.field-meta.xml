@@ -2,24 +2,24 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Weekly_Goal_Completion_Percent__c</fullName>
     <formula>IF(
-    CASE(
-        WEEKDAY(Start_Date__c),
-        2, 5 * 8,  /* Monday: 40 hours */
-        3, 4 * 8,  /* Tuesday: 32 hours */
-        4, 3 * 8,  /* Wednesday: 24 hours */
-        5, 2 * 8,  /* Thursday: 16 hours */
-        6, 1 * 8,  /* Friday: 8 hours */
-        0          /* Saturday/Sunday: 0 hours */
+    IF(
+        ISBLANK(Start_Date__c) || ISBLANK(End_Date__c) || (End_Date__c - Start_Date__c + 1) &lt;= 0,
+        40,
+        IF(
+            (End_Date__c - Start_Date__c + 1) &lt;= 7,
+            CASE(WEEKDAY(Start_Date__c), 1, 40, 2, 40, 3, 32, 4, 24, 5, 16, 6, 8, 40),
+            ROUND((End_Date__c - Start_Date__c + 1) * (5 / 7), 0) * 8
+        )
     ) &gt; 0,
     ( Total_Hours__c /
-      CASE(
-          WEEKDAY(Start_Date__c),
-          2, 5 * 8,
-          3, 4 * 8,
-          4, 3 * 8,
-          5, 2 * 8,
-          6, 1 * 8,
-          0
+      IF(
+          ISBLANK(Start_Date__c) || ISBLANK(End_Date__c) || (End_Date__c - Start_Date__c + 1) &lt;= 0,
+          40,
+          IF(
+              (End_Date__c - Start_Date__c + 1) &lt;= 7,
+              CASE(WEEKDAY(Start_Date__c), 1, 40, 2, 40, 3, 32, 4, 24, 5, 16, 6, 8, 40),
+              ROUND((End_Date__c - Start_Date__c + 1) * (5 / 7), 0) * 8
+          )
       )
     ),
     0

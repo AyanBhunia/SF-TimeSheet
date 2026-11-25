@@ -28,6 +28,7 @@ public with sharing class GetTimesheet {
                     Billable_Hours__c,
                     Non_Billable_Hours__c,
                     Total_Hours__c,
+                    Status__c,
                     (
                         SELECT 
                             Duration__c,

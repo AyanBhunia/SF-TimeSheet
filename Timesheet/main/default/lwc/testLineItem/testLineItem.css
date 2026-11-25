@@ -36,20 +36,40 @@ border-spacing: 0;
 
 
 
-/* Force Monday-Sunday columns to the same width.
-Example:
-- 20% for the first column (Activity Name),
-- 7 columns for Monday→Sunday at 10% each = 70%,
-- last column (Action) = 10%.
-Adjust if you prefer different widths. */
-:host .slds-table thead th:nth-child(1) {
-width: 20%;
+/* Table scroll container for multi-day views */
+.table-scroll-container {
+    overflow-x: auto;
+    width: 100%;
 }
-:host .slds-table thead th:nth-child(n+2):nth-child(-n+8) {
-width: 10%; /* Monday to Sunday */
+
+/* Column sizing rules: flexible for 7-day, 14-day, and 30-day views */
+:host .slds-table thead th:first-child {
+    width: 22%;
+    min-width: 180px;
+}
+:host .slds-table thead th:not(:first-child):not(:last-child) {
+    min-width: 90px;
 }
 :host .slds-table thead th:last-child {
-width: 10%; /* Action column */
+    width: 60px;
+    min-width: 50px;
+}
+
+/* Header sub-label for date */
+.header-date {
+    font-size: 0.72rem;
+    font-weight: 400;
+    color: #e2eaf5;
+    text-transform: none;
+    margin-top: 2px;
+}
+
+/* Multi-week navigation container */
+.week-nav-container {
+    background-color: #f3f6f9;
+    border: 1px solid #d8dde6;
+    border-radius: 4px;
+    padding: 0.4rem 0.75rem;
 }
 
 /* Table cell styling */
@@ -105,10 +125,4 @@ resize: none; /* Prevent user from manually resizing if you want it fixed */
     height: 40px !important;
     text-align: center;
     --slds-g-color-neutral-base-95: red;
-}
-
-.slds-table thead th {
-    position: sticky;
-    top: 8.5rem;
-    z-index: 1;
 }

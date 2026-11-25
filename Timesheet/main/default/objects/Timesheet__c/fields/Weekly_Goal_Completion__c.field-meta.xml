@@ -5,14 +5,14 @@
     <formula>CASE(
 FLOOR(
 ( Total_Hours__c /
-CASE(
-WEEKDAY(Start_Date__c),
-2, 5*8,
-3, 4*8,
-4, 3*8,
-5, 2*8,
-6, 1*8,
-0
+IF(
+    ISBLANK(Start_Date__c) || ISBLANK(End_Date__c) || (End_Date__c - Start_Date__c + 1) &lt;= 0,
+    40,
+    IF(
+        (End_Date__c - Start_Date__c + 1) &lt;= 7,
+        CASE(WEEKDAY(Start_Date__c), 1, 40, 2, 40, 3, 32, 4, 24, 5, 16, 6, 8, 40),
+        ROUND((End_Date__c - Start_Date__c + 1) * (5 / 7), 0) * 8
+    )
 )
 ) * 5
 ),

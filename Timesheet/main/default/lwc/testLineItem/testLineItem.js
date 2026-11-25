@@ -72,12 +72,14 @@ export default class TestLineItem extends LightningElement {
 
     @api recordId;
     @track projectsList = [];
+    @track displayedProjectsList = [];
     @track projectOptions = [];
     // Common Activity picklist options from field metadata
     @track activityOptions= [];
     // Map of projectId -> array of activity option objects
     ProjectActivityMap;
     @track absenceList = [];
+    @track displayedAbsenceList = [];
     @track absenceOptions = [];
     projectIds = [];
     
@@ -85,15 +87,30 @@ export default class TestLineItem extends LightningElement {
     @track prevTimesheets= [];
     prevTimesheetValue;
 
-    @track projectsTotals = [0, 0, 0, 0, 0, 0, 0];
-    @track absenceTotals = [0, 0, 0, 0, 0, 0, 0];
-    @track grandTotals = [0, 0, 0, 0, 0, 0, 0];
-    @track billableAmounts = [0, 0, 0, 0, 0, 0, 0];
+    @track projectsTotals = [];
+    @track absenceTotals = [];
+    @track grandTotals = [];
+    @track billableAmounts = [];
 
     TimesheetStartDate='';
     TimeSheetEndDate='';
     TimeSheetName='';
     EmployeeID='';
+    @track timesheetStatus = '';
+
+    get isLocked() {
+        return this.timesheetStatus === 'Submitted' || this.timesheetStatus === 'Approved';
+    }
+
+    get lockedMessage() {
+        if (this.timesheetStatus === 'Submitted') {
+            return 'This timesheet has been submitted and is locked for editing.';
+        }
+        if (this.timesheetStatus === 'Approved') {
+            return 'This timesheet has been approved and is locked for editing.';
+        }
+        return '';
+    }
 
     previousRecordIDs;
     previousDurations = new Map(); // hours each loaded row had, so the server can tell if it changed since
@@ -114,7 +131,233 @@ export default class TestLineItem extends LightningElement {
     wiredTimesheetResult;
     error;
 
-    
+    @track dayHeaders = [];
+    @track activeWeekIndex = 0; // 0 = Week 1, 1 = Week 2, ..., -1 = All Days
+
+    get isMultiWeek() {
+        return this.dayList && this.dayList.length > 7;
+    }
+
+    get totalWeeks() {
+        return (this.dayList && this.dayList.length) ? Math.ceil(this.dayList.length / 7) : 1;
+    }
+
+    get timesheetCardTitle() {
+        if (!this.dayList || this.dayList.length <= 7) return 'Weekly Timesheet View';
+        if (this.dayList.length <= 14) return 'Bi-Weekly Timesheet View';
+        if (this.dayList.length <= 31) return 'Monthly Timesheet View';
+        return 'Timesheet View';
+    }
+
+    get weekOptions() {
+        if (!this.isMultiWeek) return [];
+        const options = [];
+        for (let w = 0; w < this.totalWeeks; w++) {
+            const startIdx = w * 7;
+            const endIdx = Math.min((w + 1) * 7 - 1, this.dayList.length - 1);
+            const startH = this.dayHeaders[startIdx];
+            const endH = this.dayHeaders[endIdx];
+            const startLabel = startH ? startH.formattedDate : '';
+            const endLabel = endH ? endH.formattedDate : '';
+            options.push({
+                index: w,
+                key: 'week-btn-' + w,
+                label: `Week ${w + 1} (${startLabel} - ${endLabel})`,
+                shortLabel: `Week ${w + 1}`,
+                dateRange: `${startLabel} - ${endLabel}`,
+                variant: this.activeWeekIndex === w ? 'brand' : 'neutral'
+            });
+        }
+        return options;
+    }
+
+    get allDaysVariant() {
+        return this.activeWeekIndex === -1 ? 'brand' : 'neutral';
+    }
+
+    get allDaysLabel() {
+        const total = this.dayList ? this.dayList.length : 0;
+        return `All ${total} Days`;
+    }
+
+    get overallTotalHours() {
+        return (this.grandTotals || []).reduce((acc, h) => acc + (parseFloat(h) || 0), 0).toFixed(2);
+    }
+
+    get overallBillableAmount() {
+        return (this.billableAmounts || []).reduce((acc, a) => acc + (parseFloat(a) || 0), 0).toFixed(2);
+    }
+
+    get activeWeekHours() {
+        const slice = this.getDisplayedSlice(this.grandTotals || []);
+        return slice.reduce((acc, item) => acc + (parseFloat(item.val) || 0), 0).toFixed(2);
+    }
+
+    get canGoPrev() {
+        return this.activeWeekIndex > 0;
+    }
+
+    get canGoNext() {
+        return this.activeWeekIndex >= 0 && this.activeWeekIndex < this.totalWeeks - 1;
+    }
+
+    handleSelectWeek(event) {
+        const index = parseInt(event.currentTarget.dataset.index, 10);
+        this.activeWeekIndex = isNaN(index) ? 0 : index;
+        this.updateDisplayedRows();
+    }
+
+    handleSelectAllDays() {
+        this.activeWeekIndex = -1;
+        this.updateDisplayedRows();
+    }
+
+    handlePrevWeek() {
+        if (this.activeWeekIndex > 0) {
+            this.activeWeekIndex--;
+            this.updateDisplayedRows();
+        }
+    }
+
+    handleNextWeek() {
+        if (this.activeWeekIndex >= 0 && this.activeWeekIndex < this.totalWeeks - 1) {
+            this.activeWeekIndex++;
+            this.updateDisplayedRows();
+        }
+    }
+
+    getDisplayedSlice(array) {
+        if (!array || !array.length) return [];
+        if (!this.isMultiWeek || this.activeWeekIndex === -1) {
+            return array.map((val, idx) => ({ val, index: idx }));
+        }
+        const start = this.activeWeekIndex * 7;
+        const end = Math.min(start + 7, (this.dayList && this.dayList.length) ? this.dayList.length : array.length);
+        const sliced = array.slice(start, end);
+        return sliced.map((val, i) => ({
+            val,
+            index: start + i
+        }));
+    }
+
+    get displayedDayHeaders() {
+        if (!this.isMultiWeek || this.activeWeekIndex === -1) {
+            return this.dayHeaders;
+        }
+        const start = this.activeWeekIndex * 7;
+        const end = Math.min(start + 7, this.dayHeaders.length);
+        return this.dayHeaders.slice(start, end);
+    }
+
+    get projectsTotalsDisplay() {
+        return this.getDisplayedSlice(this.projectsTotals || []).map(item => ({
+            key: 'p-' + item.index,
+            val: item.val
+        }));
+    }
+
+    get absenceTotalsDisplay() {
+        return this.getDisplayedSlice(this.absenceTotals || []).map(item => ({
+            key: 'a-' + item.index,
+            val: item.val
+        }));
+    }
+
+    get grandTotalsDisplay() {
+        return this.getDisplayedSlice(this.grandTotals || []).map(item => ({
+            key: 'g-' + item.index,
+            val: item.val
+        }));
+    }
+
+    get billableAmountsDisplay() {
+        return this.getDisplayedSlice(this.billableAmounts || []).map(item => ({
+            key: 'b-' + item.index,
+            val: item.val
+        }));
+    }
+
+    updateDisplayedRows() {
+        const isFilteredWeek = (this.isMultiWeek && this.activeWeekIndex !== -1);
+        const start = isFilteredWeek ? (this.activeWeekIndex * 7) : 0;
+        const end = isFilteredWeek
+            ? Math.min(start + 7, (this.dayList && this.dayList.length) ? this.dayList.length : 7)
+            : ((this.dayList && this.dayList.length) ? this.dayList.length : 7);
+
+        if (Array.isArray(this.projectsList)) {
+            this.projectsList.forEach((row, idx) => {
+                if (!row.rowKey) {
+                    row.rowKey = 'p-row-' + idx + '-' + Date.now();
+                }
+                row.realIndex = idx;
+                row.isProjectComboboxDisabled = this.isLocked;
+                row.isDeleteDisabled = this.isLocked;
+                const dates = Array.isArray(row.dates) ? row.dates : [];
+                dates.forEach(d => {
+                    d.isDurationDisabled = this.isLocked;
+                    d.isDescDisabled = d.isdisable || this.isLocked;
+                });
+                row.displayedDates = dates.slice(start, end);
+            });
+        }
+        if (Array.isArray(this.absenceList)) {
+            this.absenceList.forEach((row, idx) => {
+                if (!row.rowKey) {
+                    row.rowKey = 'a-row-' + idx + '-' + Date.now();
+                }
+                row.realIndex = idx;
+                row.isAbsenceComboboxDisabled = row.hasPto || this.isLocked;
+                row.isDeleteDisabled = this.isLocked;
+                const dates = Array.isArray(row.dates) ? row.dates : [];
+                dates.forEach(d => {
+                    d.isDurationDisabled = d.isPto || this.isLocked;
+                    d.isDescDisabled = d.isdisable || this.isLocked;
+                });
+                row.displayedDates = dates.slice(start, end);
+            });
+        }
+
+        if (!isFilteredWeek) {
+            this.displayedProjectsList = [...(this.projectsList || [])];
+            this.displayedAbsenceList = [...(this.absenceList || [])];
+        } else {
+            let weekProjects = (this.projectsList || []).filter(row => {
+                const hasHours = (row.displayedDates || []).some(d => (parseFloat(d.dur) || 0) > 0);
+                const hasDesc = (row.displayedDates || []).some(d => d.desc && d.desc.trim().length > 0);
+                const createdForWeek = (row.createdInWeek === this.activeWeekIndex);
+                const unconfigured = (!row.projectName && !row.activityName && row.createdInWeek === this.activeWeekIndex);
+                return hasHours || hasDesc || createdForWeek || unconfigured;
+            });
+
+            if (weekProjects.length === 0) {
+                const blankRow = this.getBlankData("Attendance");
+                blankRow.createdInWeek = this.activeWeekIndex;
+                blankRow.realIndex = this.projectsList.length;
+                blankRow.rowKey = 'p-blank-' + this.activeWeekIndex + '-' + Date.now();
+                blankRow.isProjectComboboxDisabled = this.isLocked;
+                blankRow.isDeleteDisabled = this.isLocked;
+                const dates = Array.isArray(blankRow.dates) ? blankRow.dates : [];
+                dates.forEach(d => {
+                    d.isDurationDisabled = this.isLocked;
+                    d.isDescDisabled = d.isdisable || this.isLocked;
+                });
+                blankRow.displayedDates = blankRow.dates.slice(start, end);
+                this.projectsList.push(blankRow);
+                weekProjects = [blankRow];
+            }
+            this.displayedProjectsList = weekProjects;
+
+            let weekAbsences = (this.absenceList || []).filter(row => {
+                const hasHours = (row.displayedDates || []).some(d => (parseFloat(d.dur) || 0) > 0);
+                const hasDesc = (row.displayedDates || []).some(d => d.desc && d.desc.trim().length > 0);
+                const createdForWeek = (row.createdInWeek === this.activeWeekIndex);
+                const unconfigured = (!row.absenceName && row.createdInWeek === this.activeWeekIndex);
+                return hasHours || hasDesc || createdForWeek || unconfigured;
+            });
+            this.displayedAbsenceList = weekAbsences;
+        }
+    }
+
     dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     dayList=[];
 
@@ -232,10 +475,11 @@ export default class TestLineItem extends LightningElement {
         return getTimesheet({ timesheetId: this.recordId })
             .then(result => {
                 // console.log('load timesheet',JSON.stringify(result));
-                this.EmployeeID = result.dbt__Employee__c;
-                this.TimesheetStartDate = result.dbt__Start_Date__c;
-                this.TimeSheetEndDate = result.dbt__End_Date__c;
-                this.TimeSheetName = result.name;
+                this.EmployeeID = result.dbt__Employee__c || result.Employee__c;
+                this.TimesheetStartDate = result.dbt__Start_Date__c || result.Start_Date__c;
+                this.TimeSheetEndDate = result.dbt__End_Date__c || result.End_Date__c;
+                this.TimeSheetName = result.name || result.Name;
+                this.timesheetStatus = result.dbt__Status__c || result.Status__c || '';
             })
             .then(() => {
                 this.createDays();
@@ -258,13 +502,49 @@ export default class TestLineItem extends LightningElement {
         if (!startDateObj) {
             console.warn('createDays: invalid TimesheetStartDate', this.TimesheetStartDate);
             this.dayList = [];
+            this.dayNames = [];
+            this.dayHeaders = [];
             return;
         }
 
-        this.dayList = Array.from({ length: 7 }, (_, i) => {
+        let totalDays = 7;
+        if (this.TimeSheetEndDate) {
+            const endDateObj = (this.TimeSheetEndDate instanceof Date)
+                ? new Date(this.TimeSheetEndDate.getFullYear(), this.TimeSheetEndDate.getMonth(), this.TimeSheetEndDate.getDate())
+                : this.localDateFromServer(this.TimeSheetEndDate);
+            if (endDateObj && endDateObj >= startDateObj) {
+                const diffMs = endDateObj.getTime() - startDateObj.getTime();
+                totalDays = Math.round(diffMs / (1000 * 60 * 60 * 24)) + 1;
+            }
+        }
+
+        const weekdayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        this.dayNames = [];
+        this.dayHeaders = [];
+        this.dayList = Array.from({ length: totalDays }, (_, i) => {
             const temp = new Date(startDateObj.getFullYear(), startDateObj.getMonth(), startDateObj.getDate() + i);
-            return this.formatDateYMD(temp);
+            const dayName = weekdayNames[temp.getDay()];
+            const ymd = this.formatDateYMD(temp);
+            const shortMonth = monthNames[temp.getMonth()];
+            const dayNum = String(temp.getDate()).padStart(2, '0');
+            const formattedDate = `${shortMonth} ${dayNum}`;
+            this.dayNames.push(dayName);
+            this.dayHeaders.push({
+                key: ymd,
+                name: dayName.substring(0, 3).toUpperCase(),
+                fullDayName: dayName,
+                formattedDate: formattedDate,
+                date: ymd,
+                index: i
+            });
+            return ymd;
         });
+
+        this.projectsTotals = new Array(totalDays).fill(0);
+        this.absenceTotals = new Array(totalDays).fill(0);
+        this.grandTotals = new Array(totalDays).fill(0);
+        this.billableAmounts = new Array(totalDays).fill(0);
     }
 
     loadPrevTimesheets(){
@@ -283,13 +563,19 @@ export default class TestLineItem extends LightningElement {
     loadProjects() {
         return getProjects({ empId: this.EmployeeID })
             .then(result => {
-                this.projectOptions = result.map(proj => ({
-                    label: proj.dbt__Project__r.Name,
-                    value: proj.dbt__Project__c,
-                    billable: proj.dbt__Project__r?.dbt__Billable__c,
-                    hourly_rate: proj.dbt__Hourly_Rate__c || 0 
-                }));
-                this.projectIds = result.map(proj => proj.dbt__Project__c);
+                this.projectOptions = result.map(proj => {
+                    const projRel = proj.dbt__Project__r || proj.Project__r;
+                    const projId = proj.dbt__Project__c || proj.Project__c;
+                    const billable = projRel ? (projRel.dbt__Billable__c || projRel.Billable__c) : 'No';
+                    const hourlyRate = proj.dbt__Hourly_Rate__c != null ? proj.dbt__Hourly_Rate__c : (proj.Hourly_Rate__c != null ? proj.Hourly_Rate__c : 0);
+                    return {
+                        label: projRel ? projRel.Name : '',
+                        value: projId,
+                        billable: billable,
+                        hourly_rate: hourlyRate
+                    };
+                });
+                this.projectIds = result.map(proj => proj.dbt__Project__c || proj.Project__c);
             })
             .then(() => {
                 getProjectActivities({ projectIds: this.projectIds })
@@ -298,7 +584,7 @@ export default class TestLineItem extends LightningElement {
                         // Build a map of projectId -> array of option objects
                         this.ProjectActivityMap = new Map();
                         result.forEach(item => {
-                            const pid = item.dbt__Project__c;
+                            const pid = item.dbt__Project__c || item.Project__c;
                             const arr = this.ProjectActivityMap.get(pid) || [];
                             arr.push({ label: item.Name, value: item.Name });
                             this.ProjectActivityMap.set(pid, arr);
@@ -354,52 +640,71 @@ export default class TestLineItem extends LightningElement {
         // console.log("data",JSON.stringify(data));
   
         data.forEach(item => {
-            // Use localDateFromServer to get a local-midnight Date object (no TZ shift)
-            const date = this.localDateFromServer(item.dbt__Date__c);
-            const dayIndex = date.getDay() === 0 ? 6 : date.getDay() - 1;
+            const itemDate = item.dbt__Date__c || item.Date__c;
+            const itemDur = item.dbt__Duration__c != null ? item.dbt__Duration__c : (item.Duration__c != null ? item.Duration__c : 0);
+            const itemType = item.dbt__Type__c || item.Type__c;
+            const itemProj = item.dbt__Project__c || item.Project__c;
+            const itemAct = item.dbt__Activity__c || item.Activity__c;
+            const itemAbs = item.dbt__Absence_Category__c || item.Absence_Category__c;
+            const itemDesc = item.dbt__Description__c != null ? item.dbt__Description__c : (item.Description__c != null ? item.Description__c : '');
+            const itemProjRel = item.dbt__Project__r || item.Project__r;
+            const itemBillable = itemProjRel ? (itemProjRel.dbt__Billable__c || itemProjRel.Billable__c) : undefined;
+            const ptoRel = item.dbt__Leave_Line_Items__r || item.Leave_Line_Items__r;
+            const isPto = !!(ptoRel && (Array.isArray(ptoRel) ? ptoRel.length > 0 : ptoRel.records && ptoRel.records.length > 0));
+
+            // Match date directly against the timesheet dayList
+            const dayIndex = this.dayList.indexOf(itemDate);
+            if (dayIndex === -1) {
+                return;
+            }
 
             if(includeId){
                 this.previousRecordIDs.add(item.Id);
-                this.previousDurations.set(item.Id, item.dbt__Duration__c || 0);
+                this.previousDurations.set(item.Id, itemDur || 0);
                 this.previousSignatures.set(item.Id, this.rowSignature({
-                    type: item.dbt__Type__c, project: item.dbt__Project__c, activity: item.dbt__Activity__c,
-                    absence: item.dbt__Absence_Category__c, date: item.dbt__Date__c,
-                    duration: item.dbt__Duration__c, description: item.dbt__Description__c
+                    type: itemType, project: itemProj, activity: itemAct,
+                    absence: itemAbs, date: itemDate,
+                    duration: itemDur, description: itemDesc
                 }));
             }
 
             // Helper to update the date data
-            const updateDate = record => {
-                record.dates[dayIndex].dur = item.dbt__Duration__c || 0;
-                record.dates[dayIndex].desc = item.dbt__Description__c || '';
+            const updateDate = (record, isPtoItem) => {
+                record.dates[dayIndex].dayIndex = dayIndex;
+                record.dates[dayIndex].dur = itemDur || 0;
+                record.dates[dayIndex].desc = itemDesc || '';
                 record.dates[dayIndex].id = includeId ? item.Id : null; 
-                record.dates[dayIndex].isdisable = false;
+                record.dates[dayIndex].isdisable = isPtoItem ? true : false;
+                if (isPtoItem) {
+                    record.dates[dayIndex].isPto = true;
+                    record.hasPto = true;
+                }
             };
 
-            if (item.dbt__Type__c === "Attendance") {
+            if (itemType === "Attendance") {
 
-                const key = `${item.dbt__Project__c}_${item.dbt__Activity__c}`;
+                const key = `${itemProj}_${itemAct}`;
 
                 if (!attendanceData[key]) {
-                    const selectedProject = this.projectOptions.find(option => option.value === item.dbt__Project__c);
+                    const selectedProject = this.projectOptions.find(option => option.value === itemProj);
                     attendanceData[key] = {
                         ...this.getBlankData("Attendance"),
-                        projectName: item.dbt__Project__c,
-                        activityName: item.dbt__Activity__c,
-                        billable: item.dbt__Project__r?.dbt__Billable__c,
+                        projectName: itemProj,
+                        activityName: itemAct,
+                        billable: itemBillable,
                         hourlyRate: (selectedProject && selectedProject.hourly_rate) ? selectedProject.hourly_rate : 0
                     };
                 }
-                updateDate(attendanceData[key]); 
+                updateDate(attendanceData[key], false); 
             } else {
-                const key = item.dbt__Absence_Category__c;
+                const key = itemAbs;
                 if (!absenceData[key]) {
                     absenceData[key] = {
                         ...this.getBlankData("Absence"),
-                        absenceName: item.dbt__Absence_Category__c
+                        absenceName: itemAbs
                     };
                 }
-                updateDate(absenceData[key]);
+                updateDate(absenceData[key], isPto);
             }
 
         });
@@ -416,6 +721,7 @@ export default class TestLineItem extends LightningElement {
 
         // calculate totals
         this.calculateTotals();
+        this.updateDisplayedRows();
 
         // A copied timesheet is unsaved; a fresh load from the server is not.
         this.isDirty = !includeId;
@@ -445,20 +751,24 @@ export default class TestLineItem extends LightningElement {
     }
 
     getBlankData(type) {
-        
+        const rowUid = 'row_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
         const dates = this.dayNames.map((name, index) => {
             return {
                 id: null,
                 isdisable: true,
                 date: this.dayList[index],
+                dayIndex: index,
                 name,
                 dur: 0,
-                desc: ""
+                desc: "",
+                isPto: false
             };
         });
 
         if (type === "Attendance") {
             return {
+                rowKey: rowUid,
+                createdInWeek: null,
                 type: "Attendance",
                 projectName: "",
                 activityName: "",
@@ -466,18 +776,26 @@ export default class TestLineItem extends LightningElement {
                 hourlyRate: 0,
                 // Default to common options; per-row options update when project changes
                 activityOptions: Array.isArray(this.activityOptions) ? this.activityOptions : [],
-                dates
+                dates,
+                displayedDates: []
             };
         } else {
             return {
+                rowKey: rowUid,
+                createdInWeek: null,
                 type: "Absence",
                 absenceName: "",
-                dates
+                hasPto: false,
+                dates,
+                displayedDates: []
             };
         }
     }
 
     handleProjectChange(event) {
+        if (this.isLocked) {
+            return;
+        }
         this.isDirty = true;
         const rowIndex = event.target.dataset.rowIndex;
         const fieldName = event.target.name;
@@ -496,26 +814,35 @@ export default class TestLineItem extends LightningElement {
             tempRow.activityName = newValue;
         }
 
-        // Only check for duplicates if both fields have values
+        // Check for duplicates / existing row across month
         if (tempRow.projectName && tempRow.activityName) {
-            // Check if this combination would create a duplicate
-            const wouldCreateDuplicate = this.projectsList.some((row, index) => 
-                index !== parseInt(rowIndex) && 
+            const existingRowIndex = this.projectsList.findIndex((row, index) => 
+                index !== parseInt(rowIndex, 10) && 
                 row.projectName === tempRow.projectName && 
                 row.activityName === tempRow.activityName
             );
 
-            if (wouldCreateDuplicate) {
-                // Show error toast
-                this.showToast(
-                    'Error', 
-                    'A row with the same Project and Activity already exists.', 
-                    'error'
-                );
-
-                // Revert the change by setting the combobox value back
-                event.target.value = currentRow[fieldName];
-                return; // Exit without making any changes
+            if (existingRowIndex !== -1) {
+                if (this.isMultiWeek && this.activeWeekIndex !== -1) {
+                    const existingRow = this.projectsList[existingRowIndex];
+                    const currentHasHours = (currentRow.dates || []).some(d => (parseFloat(d.dur) || 0) > 0);
+                    if (!currentHasHours && this.projectsList.length > 1) {
+                        this.projectsList = this.projectsList.filter((_, idx) => idx !== parseInt(rowIndex, 10));
+                    }
+                    existingRow.createdInWeek = this.activeWeekIndex;
+                    this.calculateTotals();
+                    this.updateDisplayedRows();
+                    this.showToast('Info', `Loaded row for ${tempRow.projectName} - ${tempRow.activityName}`, 'info');
+                    return;
+                } else {
+                    this.showToast(
+                        'Error', 
+                        'A row with the same Project and Activity already exists.', 
+                        'error'
+                    );
+                    event.target.value = currentRow[fieldName];
+                    return;
+                }
             }
         }
 
@@ -541,6 +868,7 @@ export default class TestLineItem extends LightningElement {
         // Reassign array reference to trigger reactivity and recalc totals
         this.projectsList = [...this.projectsList];
         this.calculateTotals();
+        this.updateDisplayedRows();
     }
 
     handleKeyDown(event) {
@@ -548,6 +876,9 @@ export default class TestLineItem extends LightningElement {
     }
 
     handleDurationChange(event) {
+        if (this.isLocked) {
+            return;
+        }
         this.isDirty = true;
         const rowIndex = event.target.dataset.rowIndex;
         const dayIndex = event.target.dataset.dayIndex;
@@ -595,6 +926,13 @@ export default class TestLineItem extends LightningElement {
         list[rowIndex].dates[dayIndex].dur = value;
         list[rowIndex].dates[dayIndex].isdisable = (value === 0);
         
+        if (dataFor === 'project') {
+            this.projectsList = [...this.projectsList];
+        } else if (dataFor === 'absence') {
+            this.absenceList = [...this.absenceList];
+        }
+        this.updateDisplayedRows();
+        
         if (wasTruncated) {
             try {
                 event.target.value = rawStr;
@@ -603,6 +941,9 @@ export default class TestLineItem extends LightningElement {
     }
 
     handleDescriptionChange(event) {
+        if (this.isLocked) {
+            return;
+        }
         this.isDirty = true;
         const rowIndex = parseInt(event.target.dataset.rowIndex);
         const dayIndex = parseInt(event.target.dataset.dayIndex);
@@ -619,87 +960,170 @@ export default class TestLineItem extends LightningElement {
     }
 
     handleDeleteRow(event) {
+        if (this.isLocked) {
+            return;
+        }
         this.isDirty = true;
-        const rowIndex = parseInt(event.target.dataset.rowIndex);
+        const rowIndex = parseInt(event.target.dataset.rowIndex, 10);
         const type = event.target.dataset.type;
 
         try {
-            if (type === 'project' && this.projectsList.length>0) {
-                // Remove row from projectsList
-                this.projectsList = this.projectsList.filter((row, index) => index !== rowIndex);
-                
-                // If all projects are deleted, you might want to keep at least one empty row
-                if (this.projectsList.length === 0) {
-                    this.addNewProject();
-                }
-            } else if (type === 'absence' && this.absenceList.length>0) {
-                // Remove row from absenceList
-                this.absenceList = this.absenceList.filter((row, index) => index !== rowIndex);
-            }
+            if (type === 'project' && this.projectsList.length > 0) {
+                const targetRow = this.projectsList[rowIndex];
+                if (!targetRow) return;
 
-            // Show success toast
-            this.showToast('warning', 'Row Removed. Please Click Save', 'warning');
+                const isFilteredWeek = (this.isMultiWeek && this.activeWeekIndex !== -1);
+                const hasHoursInOtherWeeks = (targetRow.dates || []).some((d, idx) => {
+                    if (!isFilteredWeek) return false;
+                    const start = this.activeWeekIndex * 7;
+                    const end = start + 7;
+                    const inThisWeek = (idx >= start && idx < end);
+                    return !inThisWeek && (parseFloat(d.dur) || 0) > 0;
+                });
+
+                if (isFilteredWeek && hasHoursInOtherWeeks) {
+                    // Clear only the hours in the active week
+                    const start = this.activeWeekIndex * 7;
+                    const end = Math.min(start + 7, targetRow.dates.length);
+                    for (let i = start; i < end; i++) {
+                        targetRow.dates[i].dur = 0;
+                        targetRow.dates[i].desc = '';
+                        targetRow.dates[i].isdisable = true;
+                    }
+                    targetRow.createdInWeek = null;
+                    this.showToast('Info', 'Hours for the active week cleared.', 'info');
+                } else {
+                    // Remove row from projectsList
+                    this.projectsList = this.projectsList.filter((_, index) => index !== rowIndex);
+                    if (this.projectsList.length === 0) {
+                        this.addNewProject();
+                    }
+                    this.showToast('warning', 'Row Removed. Please Click Save', 'warning');
+                }
+            } else if (type === 'absence' && this.absenceList.length > 0) {
+                const targetRow = this.absenceList[rowIndex];
+                if (targetRow && targetRow.hasPto) {
+                    this.showToast('Warning', 'Absence rows created from approved PTO leave cannot be deleted from the timesheet.', 'warning');
+                    return;
+                }
+                const isFilteredWeek = (this.isMultiWeek && this.activeWeekIndex !== -1);
+                const hasHoursInOtherWeeks = (targetRow.dates || []).some((d, idx) => {
+                    if (!isFilteredWeek) return false;
+                    const start = this.activeWeekIndex * 7;
+                    const end = start + 7;
+                    const inThisWeek = (idx >= start && idx < end);
+                    return !inThisWeek && (parseFloat(d.dur) || 0) > 0;
+                });
+
+                if (isFilteredWeek && hasHoursInOtherWeeks) {
+                    const start = this.activeWeekIndex * 7;
+                    const end = Math.min(start + 7, targetRow.dates.length);
+                    for (let i = start; i < end; i++) {
+                        targetRow.dates[i].dur = 0;
+                        targetRow.dates[i].desc = '';
+                        targetRow.dates[i].isdisable = true;
+                    }
+                    targetRow.createdInWeek = null;
+                    this.showToast('Info', 'Hours for the active week cleared.', 'info');
+                } else {
+                    this.absenceList = this.absenceList.filter((_, index) => index !== rowIndex);
+                    this.showToast('warning', 'Row Removed. Please Click Save', 'warning');
+                }
+            }
         } catch (error) {
-            // Show error toast
             this.showToast('Error', 'Failed to delete row', 'error');
             console.error('Error deleting row:', error);
         }
 
         // calculate totals
         this.calculateTotals();
+        this.updateDisplayedRows();
     }
 
     handleAbsenceChange(event) {
+        if (this.isLocked) {
+            return;
+        }
         this.isDirty = true;
-        const rowIndex = event.target.dataset.rowIndex;
+        const rowIndex = parseInt(event.target.dataset.rowIndex, 10);
         const newValue = event.target.value;
 
         // Get the current row's existing value
         const currentRow = this.absenceList[rowIndex];
 
         // Check if this absence type is already selected in another row
-        const isDuplicate = this.absenceList.some((row, index) => 
-            index !== parseInt(rowIndex) && row.absenceName === newValue
+        const existingAbsenceIndex = this.absenceList.findIndex((row, index) => 
+            index !== rowIndex && row.absenceName === newValue
         );
 
-        if (isDuplicate) {
-            // Show error toast if duplicate found
-            this.showToast(
-                'Error',
-                'This absence type is already selected in another row',
-                'error'
-            );
-
-            // Reset the value in UI to its previous state
-            event.target.value = currentRow.absenceName;
-            return;
+        if (existingAbsenceIndex !== -1) {
+            if (this.isMultiWeek && this.activeWeekIndex !== -1) {
+                const existingRow = this.absenceList[existingAbsenceIndex];
+                const currentHasHours = (currentRow.dates || []).some(d => (parseFloat(d.dur) || 0) > 0);
+                if (!currentHasHours && this.absenceList.length > 1) {
+                    this.absenceList = this.absenceList.filter((_, idx) => idx !== rowIndex);
+                }
+                existingRow.createdInWeek = this.activeWeekIndex;
+                this.calculateTotals();
+                this.updateDisplayedRows();
+                this.showToast('Info', `Loaded row for ${newValue}`, 'info');
+                return;
+            } else {
+                this.showToast(
+                    'Error',
+                    'This absence type is already selected in another row',
+                    'error'
+                );
+                event.target.value = currentRow.absenceName;
+                return;
+            }
         }
 
         // Update the absence name if no duplicate
         currentRow.absenceName = newValue;
+        this.calculateTotals();
+        this.updateDisplayedRows();
     }
 
     handleAddProject() {
+        if (this.isLocked) {
+            return;
+        }
         this.isDirty = true;
         this.addNewProject();
     }
 
     handleAddAbsence() {
+        if (this.isLocked) {
+            return;
+        }
         this.isDirty = true;
         this.addNewAbsence();
     }
 
     addNewProject() {
         const newProject = this.getBlankData("Attendance");
+        if (this.isMultiWeek && this.activeWeekIndex !== -1) {
+            newProject.createdInWeek = this.activeWeekIndex;
+        }
         this.projectsList.push(newProject);
+        this.updateDisplayedRows();
     }
 
     addNewAbsence() {
         const newAbsence = this.getBlankData("Absence");
+        if (this.isMultiWeek && this.activeWeekIndex !== -1) {
+            newAbsence.createdInWeek = this.activeWeekIndex;
+        }
         this.absenceList.push(newAbsence);
+        this.updateDisplayedRows();
     }
 
     async handleSave() {
+        if (this.isLocked) {
+            this.showToast('Timesheet Locked', this.lockedMessage, 'warning');
+            return;
+        }
         if (this.timerChangedWhileEditing) {
             const confirmed = await LightningConfirm.open({
                 label: 'Timer changed this timesheet',
@@ -733,17 +1157,26 @@ export default class TestLineItem extends LightningElement {
                             return true; // Stop iteration
                         }
                         if (day.id) currentRecordIDs.add(day.id);
+                        const projOption = this.projectOptions.find(option => option.value === project.projectName);
                         upsertList.push({
-                            sobjectType: 'dbt__Timesheet_Line_Item__c',
                             Id: day.id,
+                            Timesheet__c: this.recordId,
                             dbt__Timesheet__c: this.recordId,
+                            Type__c: "Attendance",
                             dbt__Type__c: "Attendance",
+                            Project__c: project.projectName,
                             dbt__Project__c: project.projectName,
+                            Activity__c: project.activityName,
                             dbt__Activity__c: project.activityName,
+                            Duration__c: day.dur,
                             dbt__Duration__c: day.dur,
+                            Description__c: day.desc,
                             dbt__Description__c: day.desc,
+                            Date__c: day.date,
                             dbt__Date__c: day.date,
-                            dbt__Billable__c: this.projectOptions.find(option => option.value === project.projectName)?.billable || "No",
+                            Billable__c: projOption?.billable || "No",
+                            dbt__Billable__c: projOption?.billable || "No",
+                            Hours_Limit_Exceeded__c: false,
                             dbt__Hours_Limit_Exceeded__c: false
                         });
                     }
@@ -760,16 +1193,24 @@ export default class TestLineItem extends LightningElement {
                             return true; // Stop iteration
                         }
                         if (day.id) currentRecordIDs.add(day.id);
+                        const absOption = this.projectOptions.find(option => option.value === absence.absenceName);
                         upsertList.push({
-                            sobjectType: 'dbt__Timesheet_Line_Item__c',
                             Id: day.id,
+                            Timesheet__c: this.recordId,
                             dbt__Timesheet__c: this.recordId,
+                            Type__c: "Absence",
                             dbt__Type__c: "Absence",
+                            Absence_Category__c: absence.absenceName,
                             dbt__Absence_Category__c: absence.absenceName,
+                            Duration__c: day.dur,
                             dbt__Duration__c: day.dur,
+                            Description__c: day.desc,
                             dbt__Description__c: day.desc,
+                            Date__c: day.date,
                             dbt__Date__c: day.date,
-                            dbt__Billable__c: this.projectOptions.find(option => option.value === absence.absenceName)?.billable || "No",
+                            Billable__c: absOption?.billable || "No",
+                            dbt__Billable__c: absOption?.billable || "No",
+                            Hours_Limit_Exceeded__c: false,
                             dbt__Hours_Limit_Exceeded__c: false
                         });
                     }
@@ -792,9 +1233,13 @@ export default class TestLineItem extends LightningElement {
         upsertList = upsertList.filter(row => {
             if (!row.Id) return true;
             const unchanged = this.previousSignatures.get(row.Id) === this.rowSignature({
-                type: row.dbt__Type__c, project: row.dbt__Project__c, activity: row.dbt__Activity__c,
-                absence: row.dbt__Absence_Category__c, date: row.dbt__Date__c,
-                duration: row.dbt__Duration__c, description: row.dbt__Description__c
+                type: row.Type__c || row.dbt__Type__c,
+                project: row.Project__c || row.dbt__Project__c,
+                activity: row.Activity__c || row.dbt__Activity__c,
+                absence: row.Absence_Category__c || row.dbt__Absence_Category__c,
+                date: row.Date__c || row.dbt__Date__c,
+                duration: row.Duration__c != null ? row.Duration__c : row.dbt__Duration__c,
+                description: row.Description__c != null ? row.Description__c : row.dbt__Description__c
             });
             if (!unchanged) {
                 loadedHours[row.Id] = this.previousDurations.get(row.Id) || 0;
@@ -813,8 +1258,8 @@ export default class TestLineItem extends LightningElement {
             loadedHours,
             upserts: upsertList,
             deletes: deleteList.map(id => ({
-                sobjectType: 'dbt__Timesheet_Line_Item__c',
                 Id: id,
+                Duration__c: this.previousDurations.get(id) || 0,
                 dbt__Duration__c: this.previousDurations.get(id) || 0
             }))
         })
@@ -837,11 +1282,12 @@ export default class TestLineItem extends LightningElement {
     }
 
     calculateTotals() {
-        // Reset totals
-        this.projectsTotals = [0, 0, 0, 0, 0, 0, 0];
-        this.absenceTotals = [0, 0, 0, 0, 0, 0, 0];
-        this.grandTotals = [0, 0, 0, 0, 0, 0, 0];
-        this.billableAmounts = [0, 0, 0, 0, 0, 0, 0]; 
+        // Reset totals matching dayList length
+        const len = (this.dayList && this.dayList.length) ? this.dayList.length : 7;
+        this.projectsTotals = new Array(len).fill(0);
+        this.absenceTotals = new Array(len).fill(0);
+        this.grandTotals = new Array(len).fill(0);
+        this.billableAmounts = new Array(len).fill(0); 
 
         // Calculate Projects totals and billable amounts
         try {
@@ -879,13 +1325,16 @@ export default class TestLineItem extends LightningElement {
     }
 
     handleCopy(){
+        if (this.isLocked) {
+            return;
+        }
         if(this.prevTimesheetValue != undefined){
             // console.log(this.prevTimesheetValue);
             this.fetchTimesheetData(this.prevTimesheetValue, result => {
                 // Only the project hours are copied. This week's absence rows (leave from the PTO tab
                 // included) stay as they are, so Save never deletes or duplicates them.
                 const keptAbsence = this.absenceList;
-                this.processTimesheetData(result.filter(item => item.dbt__Type__c === 'Attendance'), false);
+                this.processTimesheetData(result.filter(item => (item.dbt__Type__c || item.Type__c) === 'Attendance'), false);
                 this.absenceList = keptAbsence;
                 this.calculateTotals();
                 this.showToast('Success', 'Timesheet copied successfully', 'success');

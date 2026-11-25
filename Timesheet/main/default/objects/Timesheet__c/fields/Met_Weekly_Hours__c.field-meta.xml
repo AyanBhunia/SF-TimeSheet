@@ -2,18 +2,18 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Met_Weekly_Hours__c</fullName>
     <formula>IF(
-        ISPICKVAL(Employee__r.Employment_Type__c , &quot;Full Time&quot;),
-        Total_Hours__c &gt;= 40,
-        IF(
-        ISPICKVAL(Employee__r.Employment_Type__c, &quot;Part Time&quot;),
-        Total_Hours__c &gt;= 20,
-        IF(
-        ISPICKVAL(Employee__r.Employment_Type__c, &quot;Internship&quot;),
-        Total_Hours__c &gt;= 10,
-        FALSE
-        )
-        )
-        )</formula>
+    ISPICKVAL(Employee__r.Employment_Type__c , &quot;Full Time&quot;),
+    Total_Hours__c &gt;= IF(ISBLANK(Start_Date__c) || ISBLANK(End_Date__c) || (End_Date__c - Start_Date__c + 1) &lt;= 7, 40, ROUND((End_Date__c - Start_Date__c + 1) * (5 / 7), 0) * 8),
+    IF(
+    ISPICKVAL(Employee__r.Employment_Type__c, &quot;Part Time&quot;),
+    Total_Hours__c &gt;= IF(ISBLANK(Start_Date__c) || ISBLANK(End_Date__c) || (End_Date__c - Start_Date__c + 1) &lt;= 7, 20, ROUND((End_Date__c - Start_Date__c + 1) * (5 / 7), 0) * 4),
+    IF(
+    ISPICKVAL(Employee__r.Employment_Type__c, &quot;Internship&quot;),
+    Total_Hours__c &gt;= IF(ISBLANK(Start_Date__c) || ISBLANK(End_Date__c) || (End_Date__c - Start_Date__c + 1) &lt;= 7, 10, ROUND((End_Date__c - Start_Date__c + 1) * (5 / 7), 0) * 2),
+    FALSE
+    )
+    )
+)</formula>
     <formulaTreatBlanksAs>BlankAsZero</formulaTreatBlanksAs>
     <label>Met Weekly Hours</label>
     <trackHistory>false</trackHistory>

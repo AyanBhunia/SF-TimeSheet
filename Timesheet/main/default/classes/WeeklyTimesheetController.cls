@@ -7,7 +7,8 @@ public with sharing class WeeklyTimesheetController {
                 name,
                 Employee__c, 
                 Start_Date__c, 
-                End_Date__c 
+                End_Date__c,
+                Status__c 
                 from Timesheet__c 
                 WHERE Id = :timesheetId
                 WITH SECURITY_ENFORCED];

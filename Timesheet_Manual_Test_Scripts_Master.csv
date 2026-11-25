@@ -1,0 +1,145 @@
+"Test Case ID","Suite","Test Case Name","Profile / Role","Preconditions","Test Steps","Expected Result","Actual Result","Status (Pass/Fail)","Comments / Notes"
+"TC_PAGE_001","Custom Metadata Admin","Page Layout Visibility of Cycle Configuration Fields","System Administrator","User is logged in as System Administrator with access to Setup.","1. Navigate to Setup > Custom Metadata Types.
+2. Click Manage Records next to Timesheet Default Value.
+3. Click Default Values (or click Edit).
+4. Inspect the displayed fields.","Timesheet Cycle Type, Week Start Day, and Timesheet Duration Days fields are visible and directly editable on the detail and edit page layouts.","As Expected","Pass","Resolved previous issue where fields were missing from the layout."
+"TC_FLEX_001","Custom Metadata Admin","Configure Weekly Cycle with Monday Start (Default)","System Administrator / Timesheet_HR_Admin","User has access to Custom Metadata in Setup.","1. Go to Setup > Custom Metadata Types > Timesheet Default Value.
+2. Click Edit on Default Values.
+3. Set Timesheet Cycle Type = Weekly, Week Start Day = Monday, Timesheet Duration Days = 7.
+4. Click Save.","Settings save successfully without errors. Default configuration established for standard 7-day Monday cycle.","As Expected","Pass","Standard baseline weekly Monday start."
+"TC_FLEX_002","Custom Metadata Admin","Configure Weekly Cycle with Sunday Start","System Administrator / Timesheet_HR_Admin","User has access to Custom Metadata in Setup.","1. Go to Setup > Custom Metadata Types > Timesheet Default Value.
+2. Click Edit on Default Values.
+3. Set Timesheet Cycle Type = Weekly, Week Start Day = Sunday, Timesheet Duration Days = 7.
+4. Click Save.","Settings save successfully without errors.","As Expected","Pass","Sunday start configuration for Middle East / international orgs."
+"TC_FLEX_003","Custom Metadata Admin","Configure Bi-Weekly Cycle (14 Days)","System Administrator / Timesheet_HR_Admin","User has access to Custom Metadata in Setup.","1. Go to Setup > Custom Metadata Types > Timesheet Default Value.
+2. Click Edit on Default Values.
+3. Set Timesheet Cycle Type = Bi-Weekly, Week Start Day = Monday, Timesheet Duration Days = 14.
+4. Click Save.","Settings save successfully without errors.","As Expected","Pass","Bi-Weekly 14 days pay cycle."
+"TC_FLEX_004","Custom Metadata Admin","Configure Monthly Cycle (Calendar Month, 30 Days)","System Administrator / Timesheet_HR_Admin","User has access to Custom Metadata in Setup.","1. Go to Setup > Custom Metadata Types > Timesheet Default Value.
+2. Click Edit on Default Values.
+3. Set Timesheet Cycle Type = Monthly, Timesheet Duration Days = 30.
+4. Click Save.","Settings save successfully without errors.","As Expected","Pass","Calendar month cycle from 1st of month to month end."
+"TC_FLEX_005","Custom Metadata Admin","Configure Custom Duration Cycle (e.g. 6 Days or 10 Days)","System Administrator / Timesheet_HR_Admin","User has access to Custom Metadata in Setup.","1. Go to Setup > Custom Metadata Types > Timesheet Default Value.
+2. Click Edit on Default Values.
+3. Set Timesheet Cycle Type = Custom, Timesheet Duration Days = 6 (or 10), Week Start Day = Monday.
+4. Click Save.","Settings save successfully without errors.","As Expected","Pass","Arbitrary custom duration cycle."
+"TC_FLEX_006","Flow Automation","Run Timesheets Creation STF for Weekly Monday Start","System Administrator / Flow Admin","Metadata configured to Weekly Monday. Active employees exist.","1. Go to Setup > Flows > Timesheets Creation STF.
+2. Click Debug > Run.","1. startDate evaluates to Monday of current week.
+2. endDate evaluates to Sunday of current week (startDate + 6).
+3. Timesheet created for each active employee with Status New.","As Expected","Pass","Automated creation for Monday start."
+"TC_FLEX_007","Flow Automation","Run Timesheets Creation STF for Weekly Sunday Start","System Administrator / Flow Admin","Metadata configured to Weekly Sunday. Active employees exist.","1. Go to Setup > Flows > Timesheets Creation STF.
+2. Click Debug > Run.","1. startDate evaluates to Sunday of current week.
+2. endDate evaluates to Saturday of current week.
+3. Timesheet records created with Sunday-Saturday date range.","As Expected","Pass","Automated creation for Sunday start."
+"TC_FLEX_008","Flow Automation","Run Timesheets Creation STF for Bi-Weekly Cycle","System Administrator / Flow Admin","Metadata configured to Bi-Weekly. Active employees exist.","1. Go to Setup > Flows > Timesheets Creation STF.
+2. Click Debug > Run.","1. startDate evaluates to start of pay period.
+2. endDate evaluates to startDate + 13 days (14 calendar days).
+3. Timesheets created covering 14 days.","As Expected","Pass","Automated creation for Bi-Weekly."
+"TC_FLEX_009","Flow Automation","Run Timesheets Creation STF for Monthly Cycle","System Administrator / Flow Admin","Metadata configured to Monthly. Active employees exist.","1. Go to Setup > Flows > Timesheets Creation STF.
+2. Click Debug > Run.","1. startDate evaluates to 1st day of current month (e.g. 2026-11-01).
+2. endDate evaluates to last day of current month (e.g. 2026-11-30).
+3. Timesheets created covering full month.","As Expected","Pass","Automated creation for calendar month."
+"TC_FLOW_001","Flow Automation","Run Timesheets Creation STF for Custom 6-Day Cycle","System Administrator / Flow Admin","Metadata configured to Custom, Duration = 6, Week Start Day = Monday. Active employees exist.","1. Go to Setup > Flows > Timesheets Creation STF.
+2. Click Debug > Run.","1. startDate evaluates to Monday of current week (2026-11-23).
+2. endDate evaluates to Saturday (2026-11-28, startDate + 5 days).
+3. Duration spans exactly 6 days (Mon-Sat). Sunday is excluded.","As Expected","Pass","Verified formula calculates startDate + Duration - 1."
+"TC_FLEX_010","Flow Automation","Duplicate Prevention on Daily Flow Execution","System Administrator / Flow Admin","Timesheet already created for employee for current cycle.","1. Run Timesheets Creation STF in Debug a second time on the same day.
+2. Check execution path in Debug panel.","1. Get_Existing_Timesheet finds the existing timesheet.
+2. Decision Check_If_Timesheet_Exists takes path Timesheet Already Exists.
+3. TimesheetMasterRecordCollection is empty.
+4. No duplicate records created.","As Expected","Pass","Prevents duplicate timesheet creation when STF runs daily."
+"TC_FLEX_011","Flow Automation","Skip Inactive Employees and Employees without User","System Administrator / Flow Admin","At least one employee is marked Active=false or has User__c=null.","1. Run Timesheets Creation STF.
+2. Check decision Is_Employee_User_Active.","1. Inactive employees and employees without user are skipped.
+2. Only active employees with active users receive timesheets.","As Expected","Pass","Ensures clean timesheet generation only for active staff."
+"TC_SWCH_001","Cycle Switching","Switch Cycle from Monthly to Weekly","System Administrator","Current metadata is Monthly. Test monthly timesheet exists.","1. Go to Setup > Custom Metadata Types > Timesheet Default Value.
+2. Change Timesheet Cycle Type = Weekly, Week Start Day = Monday, Timesheet Duration Days = 7.
+3. Click Save.
+4. Run Timesheets Creation STF.","1. Flow creates weekly timesheet (e.g. 2026-11-23 to 2026-11-29).
+2. Existing monthly timesheets remain intact for historical record.","As Expected","Pass","Smooth transition from Monthly to Weekly."
+"TC_SWCH_002","Cycle Switching","Switch Cycle from Weekly to Monthly","System Administrator","Current metadata is Weekly.","1. Go to Setup > Custom Metadata Types > Timesheet Default Value.
+2. Change Timesheet Cycle Type = Monthly, Timesheet Duration Days = 30.
+3. Click Save.
+4. Run Timesheets Creation STF.","1. Flow creates calendar month timesheet (e.g. 2026-11-01 to 2026-11-30).
+2. Grid renders multi-week tab bar automatically.","As Expected","Pass","Smooth transition from Weekly to Monthly."
+"TC_GRID_001","LWC Grid UI","Option 2 Week-Isolated Row Filtering (Clean Week 2)","Timesheet_User / TimeSheet_Manager","Monthly timesheet is open in testLineItem grid.","1. In Week 1 tab, add Project DBT - Documentation and enter 8h Mon, 8h Tue.
+2. Add Absence Sick Leave, enter 8h Wed, Thu, Fri (Week 1 = 40h).
+3. Click Week 2 tab (Nov 08 - Nov 14).
+4. Observe displayed rows.","1. Week 2 displays a clean table with 1 blank row.
+2. Week 1 rows with 0.00h in Week 2 are completely hidden.
+3. Active Week total shows 0.00h, Cycle Total shows 40.00h.","As Expected","Pass","Option 2 Week-Isolated Grid UX verified."
+"TC_GRID_002","LWC Grid UI","Re-selecting Existing Project in Week 2 (Smart Row Linking)","Timesheet_User / TimeSheet_Manager","User is on Week 2 tab after entering DBT in Week 1.","1. In the blank row of Week 2, open Project dropdown.
+2. Select DBT - Documentation.
+3. Enter 8h on Monday of Week 2.
+4. Click Save.","1. Selection succeeds without duplicate row error.
+2. System re-links to the existing project line item seamlessly.
+3. Save persists cleanly.","As Expected","Pass","Smart row linking handles duplicate prevention across tabs."
+"TC_GRID_003","LWC Grid UI","Protected Row Deletion in Active Week View","Timesheet_User / TimeSheet_Manager","Project DBT has hours in both Week 1 (16h) and Week 2 (8h).","1. Switch to Week 2 tab.
+2. Click the Trash / Delete icon on the DBT row.
+3. Check Week 2 hours.
+4. Switch to Week 1 tab.","1. In Week 2, hours for that week are cleared to 0.00 and row disappears.
+2. In Week 1, the 16.00 hours remain completely intact and untouched.","As Expected","Pass","Protected deletion prevents accidental multi-week data loss."
+"TC_GRID_004","LWC Grid UI","Multi-Week Tab Navigation across Entire Month","Timesheet_User / TimeSheet_Manager","Monthly timesheet (30 days) open in grid.","1. Click through Week 1 (Nov 01 - Nov 07).
+2. Click Week 2 (Nov 08 - Nov 14).
+3. Click Week 3 (Nov 15 - Nov 21).
+4. Click Week 4 (Nov 22 - Nov 28).
+5. Click Week 5 (Nov 29 - Nov 30).","1. Tabs switch instantly.
+2. Week 5 renders partial week (2 days: Mon-Tue) correctly.
+3. Date headers update dynamically to match each week slice.","As Expected","Pass","Multi-week tab slicing and date calculation verified."
+"TC_GRID_005","LWC Grid UI","Multi-Week Save & Database Persistence","Timesheet_User / TimeSheet_Manager","Hours entered across multiple weeks (Week 1 = 40h, Week 2 = 32h).","1. Click Save button in LWC header.
+2. Observe toast notification.
+3. Hard refresh the browser page (Ctrl+F5).
+4. Inspect Week 1 and Week 2 tabs.","1. Success toast appears: Timesheet saved successfully.
+2. Upon reload, Week 1 displays 40h, Week 2 displays 32h.
+3. Cycle Total accurately displays 72.00h.","As Expected","Pass","saveWeek Apex action persists all line items and day values."
+"TC_FLEX_012","LWC Grid UI","LWC Grid Column Rendering - Weekly Monday Start","Timesheet_User / TimeSheet_Manager","Timesheet exists with Monday Start Date and Sunday End Date.","1. Navigate to Timesheets tab.
+2. Open Monday-start timesheet record.
+3. Inspect grid headers and dates.","1. 7 day columns rendered: Monday through Sunday.
+2. Date subheaders match Monday to Sunday dates.
+3. Action column displayed at end.","As Expected","Pass","Standard 7-day grid rendering."
+"TC_FLEX_013","LWC Grid UI","LWC Grid Column Rendering - Weekly Sunday Start","Timesheet_User / TimeSheet_Manager","Timesheet exists with Sunday Start Date and Saturday End Date.","1. Navigate to Timesheets tab.
+2. Open Sunday-start timesheet record.
+3. Inspect grid headers and dates.","1. 7 day columns rendered: Sunday through Saturday.
+2. Date subheaders match Sunday to Saturday dates.","As Expected","Pass","Sunday-start 7-day grid rendering."
+"TC_FLEX_014","LWC Grid UI","Dynamic Column Expansion - Bi-Weekly (14 Days)","Timesheet_User / TimeSheet_Manager","Timesheet exists with 14-day duration.","1. Navigate to Timesheets tab.
+2. Open 14-day timesheet.
+3. Inspect grid table.","1. Table dynamically renders 14 date columns.
+2. Headers display all 14 day names and calendar dates.
+3. No console errors or layout breakage.","As Expected","Pass","Dynamic column sizing in testLineItem.js."
+"TC_FLEX_015","LWC Grid UI","Dynamic Column Expansion - Monthly (28-31 Days)","Timesheet_User / TimeSheet_Manager","Timesheet exists with full month date range.","1. Navigate to Timesheets tab.
+2. Open monthly timesheet record.
+3. Inspect grid table with horizontal scroll.","1. Table dynamically renders all days in the month (e.g. 30 columns).
+2. Each column matches exact calendar day.","As Expected","Pass","Handles arbitrary monthly duration."
+"TC_FLEX_016","LWC Grid UI","Daily Totals and Billable Calculation Across Dynamic Columns","Timesheet_User / TimeSheet_Manager","Timesheet open in LWC grid. Project and activity assigned.","1. Enter 8h on Day 1, 4h on Day 3 for project.
+2. Add Absence row and enter 8h on Day 2.
+3. Check top summary rows: Project Hours, Absence Hours, Total Hours, Billable Amount.","1. Daily columns calculate exact sums for that specific day.
+2. Billable amount matches rate * billable hours.
+3. Total hours combines project and absence hours per day.","As Expected","Pass","Dynamic totals array calculation."
+"TC_FLEX_017","LWC Grid UI","Save and Reload Persistence with Dynamic Cycles","Timesheet_User / TimeSheet_Manager","Hours entered across dynamic grid.","1. Click Save button in LWC grid.
+2. Wait for success toast.
+3. Refresh browser window.","1. Toast message Timesheet saved successfully appears.
+2. All entered project and absence hours persist accurately across all columns.","As Expected","Pass","Full persistence with saveWeek Apex action."
+"TC_FLEX_018","Notifications & Alerts","Reminder Flow Fires Within 2 Days of End Date","System Administrator / Flow Admin","Timesheet exists with Status New and End_Date__c within 2 days of TODAY.","1. Open Setup > Flows > Timesheet Remainder STF.
+2. Click Debug > Select record > Run.","1. IsDueForReminder evaluates to true.
+2. Check_Employee_Email evaluates to true.
+3. Send_Email_to_Timesheet_Owner action executes.
+4. Email contains dynamic Start Date and End Date.","As Expected","Pass","Reminder STF fires within 2-day reminder window."
+"TC_FLEX_019","Notifications & Alerts","Reminder Flow Skips Timesheets Far From End Date","System Administrator / Flow Admin","Timesheet exists with Status New and End_Date__c 5+ days in future.","1. Open Setup > Flows > Timesheet Remainder STF.
+2. Click Debug > Select record > Run.","1. IsDueForReminder evaluates to false.
+2. Flow terminates without sending email.","As Expected","Pass","No premature reminders sent."
+"TC_FLEX_020","Notifications & Alerts","Follow-Up Email Fires on Final Day of Cycle","System Administrator / Flow Admin","Timesheet exists with Status New and End_Date__c = TODAY().","1. Open Setup > Flows > Timesheet Submission Follow-up Email STF.
+2. Click Debug > Select record > Run.","1. IsDueForFollowUp evaluates to true.
+2. Send_Email action executes.
+3. Email specifies submit by the end of today with dynamic dates.","As Expected","Pass","Follow-up STF fires on last day of cycle."
+"TC_FLEX_021","Notifications & Alerts","In-App Guidance Permission Assigned for Active Timesheets","System Administrator / Flow Admin","Active employee has New timesheet overlapping TODAY.","1. Open Setup > Flows > In-app Guidence using STF.
+2. Click Debug > Run.","1. Get_This_Week_Timesheets finds the active timesheet.
+2. Timesheet_Reminder_Access permission set assigned with ExpirationDate = NOW() + 3.","As Expected","Pass","Guidance permission set granted."
+"TC_FLEX_022","Formulas & Logic","Weekly Goal Completion Formula on Sunday Start","Timesheet_User / TimeSheet_Manager","Sunday-start timesheet (7 days). Total Hours = 40.","1. Open Sunday-start timesheet record detail page.
+2. Enter 40 Total Hours.
+3. Inspect Weekly Goal Completion and Percent fields.","1. Weekly Goal Completion displays full bar: [=====] (100%).
+2. Weekly Goal Completion Percent displays 100%. (Previously 0%).","As Expected","Pass","Sunday start 40h goal baseline fix."
+"TC_FLEX_023","Formulas & Logic","Goal Completion Formula on Bi-Weekly Timesheet","Timesheet_User / TimeSheet_Manager","Bi-Weekly timesheet (14 days). Expected goal = 80 hours.","1. Open 14-day timesheet.
+2. Enter 40 Total Hours -> Goal displays 50%.
+3. Enter 80 Total Hours -> Goal displays 100% [=====].","Goal percent scales proportionally with cycle duration (80h expected for 2 weeks).","As Expected","Pass","Multi-week formula scaling."
+"TC_FLEX_024","Formulas & Logic","Met Weekly Hours Checkbox across Employment Types","Timesheet_User / TimeSheet_Manager","Timesheet record with employee employment type set.","1. Test Full Time employee: checked when Total Hours >= 40 (or 80 for bi-weekly).
+2. Test Part Time employee: checked when Total Hours >= 20 (or 40 for bi-weekly).
+3. Test Internship: checked when Total Hours >= 10 (or 20 for bi-weekly).","Met_Weekly_Hours__c checkbox dynamically checks based on scaled threshold.","As Expected","Pass","Employment type threshold validation."
