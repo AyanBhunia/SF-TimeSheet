@@ -184,8 +184,9 @@ export default class CreateEmployeeTimesheet extends LightningElement {
     async fetchEmployeeData() {
         try {
             const employee = await getEmployee({ recID: this.recordId });
-            this.Client = employee.dbt__Project_Employees__r
-                ?.map(el => el.dbt__Project_Name__c)
+            const projectEmployees = employee.Project_Employees__r || employee.dbt__Project_Employees__r;
+            this.Client = projectEmployees
+                ?.map(el => el.Project_Name__c || el.dbt__Project_Name__c)
                 .join(', ') || '';
             return employee;
         } catch (error) {
@@ -247,7 +248,7 @@ export default class CreateEmployeeTimesheet extends LightningElement {
 
         // Normalize incoming items to YYYY-MM-DD before matching
         const normalizedItems = (lineItems || []).map(item => ({
-            ymd: this.extractYMDFromSFDate(item.dbt__Date__c),
+            ymd: this.extractYMDFromSFDate(item.Date__c || item.dbt__Date__c),
             duration: item.duration != null ? String(item.duration) : "0"
         }));
 
@@ -331,8 +332,9 @@ export default class CreateEmployeeTimesheet extends LightningElement {
      */
     addHeader(doc) {
         const contractorName = this.Employee?.Name || "Unknown Contractor";
-        const clientmanagerName = this.Employee?.dbt__Client_Manager__r?.Name || "Unknown Manager";
-        const clientmanagerEmail = this.Employee?.dbt__Client_Manager_email__c || "No Email Provided";
+        const clientManager = this.Employee?.Client_Manager__r || this.Employee?.dbt__Client_Manager__r;
+        const clientmanagerName = clientManager?.Name || "Unknown Manager";
+        const clientmanagerEmail = (this.Employee?.Client_Manager_email__c || this.Employee?.dbt__Client_Manager_email__c) || "No Email Provided";
 
         const pic = new Image();
         pic.src = imageLogo;

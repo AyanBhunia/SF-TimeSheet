@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8" ?>
+<?xml version="1.0" encoding="UTF-8"?>
 <Report xmlns="http://soap.sforce.com/2006/04/metadata">
     <columns>
         <field>Timesheet_Line_Item__c.Date__c</field>
@@ -40,8 +40,7 @@
         <name>co</name>
         <value>0</value>
     </params>
-    <reportType
-  >CustomEntityCustomEntity$Timesheet__c$Timesheet_Line_Item__c</reportType>
+    <reportType>CustomEntityCustomEntity$Timesheet__c$Timesheet_Line_Item__c</reportType>
     <scope>organization</scope>
     <showDetails>false</showDetails>
     <showGrandTotal>false</showGrandTotal>

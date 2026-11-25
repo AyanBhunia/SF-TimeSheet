@@ -69,9 +69,13 @@ public without sharing class PtoNotifier {
         n.setTitle(title.abbreviate(TITLE_MAX));
         n.setBody(body.abbreviate(BODY_MAX));
         // The same link as the PTO emails, so both open the PTO tab on the request.
+        String linkUrl = r.PTO_Tab_Link__c;
+        if (namespace() == null && linkUrl != null && linkUrl.contains('/dbt__PTO')) {
+            linkUrl = linkUrl.replace('/dbt__PTO', '/PTO');
+        }
         n.setTargetPageRef(JSON.serialize(new Map<String, Object>{
             'type' => 'standard__webPage',
-            'attributes' => new Map<String, Object>{ 'url' => r.PTO_Tab_Link__c + '&c__section=' + section }
+            'attributes' => new Map<String, Object>{ 'url' => linkUrl + '&c__section=' + section }
         }));
         try {
             n.send(new Set<String>{ recipientId });

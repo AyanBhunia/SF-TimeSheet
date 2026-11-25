@@ -41,176 +41,176 @@ private class TimesheetAccrualBatchTest {
             insert users;
             
             // Create Employees
-            dbt__Employee__c empWithAll = new dbt__Employee__c(
+            Employee__c empWithAll = new Employee__c(
                 Name = 'Emp All',
-                dbt__User__c = users[0].Id,
-                dbt__Accrual_Start_Date__c = System.today().addDays(-10),
+                User__c = users[0].Id,
+                Accrual_Start_Date__c = System.today().addDays(-10),
                 Accrual_Divisor__c = 2
             );
-            dbt__Employee__c empMissingStart = new dbt__Employee__c(
+            Employee__c empMissingStart = new Employee__c(
                 Name = 'Emp Missing Start',
-                dbt__User__c = users[1].Id,
+                User__c = users[1].Id,
                 Accrual_Divisor__c = 2
             );
-            dbt__Employee__c empMissingDivisor = new dbt__Employee__c(
+            Employee__c empMissingDivisor = new Employee__c(
                 Name = 'Emp Missing Divisor',
-                dbt__User__c = users[2].Id,
-                dbt__Accrual_Start_Date__c = System.today().addDays(-10)
+                User__c = users[2].Id,
+                Accrual_Start_Date__c = System.today().addDays(-10)
             );
-            insert new List<dbt__Employee__c>{ empWithAll, empMissingStart, empMissingDivisor };
+            insert new List<Employee__c>{ empWithAll, empMissingStart, empMissingDivisor };
 
             // Create timesheets
-            dbt__Timesheet__c tsApprovedValid = new dbt__Timesheet__c(
+            Timesheet__c tsApprovedValid = new Timesheet__c(
                 Name = 'TS Approved Valid',
-                dbt__Status__c = 'New',
-                dbt__Employee__c = empWithAll.Id,
+                Status__c = 'New',
+                Employee__c = empWithAll.Id,
                 Accrued_Hours__c = 0
             );
-            dbt__Timesheet__c tsApprovedNoStart = new dbt__Timesheet__c(
+            Timesheet__c tsApprovedNoStart = new Timesheet__c(
                 Name = 'TS Approved No Start',
-                dbt__Status__c = 'New',
-                dbt__Employee__c = empMissingStart.Id
+                Status__c = 'New',
+                Employee__c = empMissingStart.Id
             );
-            dbt__Timesheet__c tsApprovedNoDivisor = new dbt__Timesheet__c(
+            Timesheet__c tsApprovedNoDivisor = new Timesheet__c(
                 Name = 'TS Approved No Divisor',
-                dbt__Status__c = 'New',
-                dbt__Employee__c = empMissingDivisor.Id
+                Status__c = 'New',
+                Employee__c = empMissingDivisor.Id
             );
-            dbt__Timesheet__c tsSubmitted = new dbt__Timesheet__c(
+            Timesheet__c tsSubmitted = new Timesheet__c(
                 Name = 'TS Submitted',
-                dbt__Status__c = 'New',
-                dbt__Employee__c = empWithAll.Id
+                Status__c = 'New',
+                Employee__c = empWithAll.Id
             );
-            insert new List<dbt__Timesheet__c>{ tsApprovedValid, tsApprovedNoStart, tsApprovedNoDivisor, tsSubmitted };
+            insert new List<Timesheet__c>{ tsApprovedValid, tsApprovedNoStart, tsApprovedNoDivisor, tsSubmitted };
 
-            tsApprovedValid.dbt__Status__c = 'Approved';
-            tsApprovedNoStart.dbt__Status__c = 'Approved';
-            tsApprovedNoDivisor.dbt__Status__c = 'Approved';
-            tsSubmitted.dbt__Status__c = 'Submitted';
-            update new List<dbt__Timesheet__c>{ tsApprovedValid, tsApprovedNoStart, tsApprovedNoDivisor, tsSubmitted };
+            tsApprovedValid.Status__c = 'Approved';
+            tsApprovedNoStart.Status__c = 'Approved';
+            tsApprovedNoDivisor.Status__c = 'Approved';
+            tsSubmitted.Status__c = 'Submitted';
+            update new List<Timesheet__c>{ tsApprovedValid, tsApprovedNoStart, tsApprovedNoDivisor, tsSubmitted };
 
             // Create Project and Activity
-            dbt__Project__c proj = new dbt__Project__c(Name = 'Test Project', dbt__Billable__c = 'Yes', dbt__Active__c = true);
+            Project__c proj = new Project__c(Name = 'Test Project', Billable__c = 'Yes', Active__c = true);
             insert proj;
-            dbt__Project_Activity__c act = new dbt__Project_Activity__c(Name = 'Test Activity', dbt__Project__c = proj.Id);
+            Project_Activity__c act = new Project_Activity__c(Name = 'Test Activity', Project__c = proj.Id);
             insert act;
 
-            dbt__Project__c projNonBillable = new dbt__Project__c(Name = 'Non-Billable Project', dbt__Billable__c = 'No', dbt__Active__c = true);
+            Project__c projNonBillable = new Project__c(Name = 'Non-Billable Project', Billable__c = 'No', Active__c = true);
             insert projNonBillable;
-            dbt__Project_Activity__c actNonBillable = new dbt__Project_Activity__c(Name = 'Non-Billable Activity', dbt__Project__c = projNonBillable.Id);
+            Project_Activity__c actNonBillable = new Project_Activity__c(Name = 'Non-Billable Activity', Project__c = projNonBillable.Id);
             insert actNonBillable;
 
             // Line items for the valid approved timesheet
-            List<dbt__Timesheet_Line_Item__c> lis = new List<dbt__Timesheet_Line_Item__c>();
+            List<Timesheet_Line_Item__c> lis = new List<Timesheet_Line_Item__c>();
 
             // Billable Attendance ON/AFTER accrual start
-            lis.add(new dbt__Timesheet_Line_Item__c(
-                dbt__Timesheet__c = tsApprovedValid.Id,
-                dbt__Employee__c = empWithAll.Id,
-                dbt__Date__c = System.today().addDays(-3),
-                dbt__Duration__c = 4,
-                dbt__Type__c = 'Attendance',
-                dbt__Billable__c = 'Yes',
-                dbt__Project__c = proj.Id,
-                dbt__Activity__c = act.Id
+            lis.add(new Timesheet_Line_Item__c(
+                Timesheet__c = tsApprovedValid.Id,
+                Employee__c = empWithAll.Id,
+                Date__c = System.today().addDays(-3),
+                Duration__c = 4,
+                Type__c = 'Attendance',
+                Billable__c = 'Yes',
+                Project__c = proj.Id,
+                Activity__c = act.Id
             ));
             // Billable Attendance with null duration
-            lis.add(new dbt__Timesheet_Line_Item__c(
-                dbt__Timesheet__c = tsApprovedValid.Id,
-                dbt__Employee__c = empWithAll.Id,
-                dbt__Date__c = System.today().addDays(-2),
-                dbt__Duration__c = 0,
-                dbt__Billable__c = 'Yes',
-                dbt__Type__c = 'Attendance',
-                dbt__Project__c = proj.Id,
-                dbt__Activity__c = act.Id
+            lis.add(new Timesheet_Line_Item__c(
+                Timesheet__c = tsApprovedValid.Id,
+                Employee__c = empWithAll.Id,
+                Date__c = System.today().addDays(-2),
+                Duration__c = 0,
+                Billable__c = 'Yes',
+                Type__c = 'Attendance',
+                Project__c = proj.Id,
+                Activity__c = act.Id
             ));
             // Non-billable
-            lis.add(new dbt__Timesheet_Line_Item__c(
-                dbt__Timesheet__c = tsApprovedValid.Id,
-                dbt__Employee__c = empWithAll.Id,
-                dbt__Date__c = System.today().addDays(-1),
-                dbt__Duration__c = 8,
-                dbt__Billable__c = 'No',
-                dbt__Type__c = 'Attendance',
-                dbt__Project__c = projNonBillable.Id,
-                dbt__Activity__c = actNonBillable.Id
+            lis.add(new Timesheet_Line_Item__c(
+                Timesheet__c = tsApprovedValid.Id,
+                Employee__c = empWithAll.Id,
+                Date__c = System.today().addDays(-1),
+                Duration__c = 8,
+                Billable__c = 'No',
+                Type__c = 'Attendance',
+                Project__c = projNonBillable.Id,
+                Activity__c = actNonBillable.Id
             ));
             // Non-attendance
-            lis.add(new dbt__Timesheet_Line_Item__c(
-                dbt__Timesheet__c = tsApprovedValid.Id,
-                dbt__Employee__c = empWithAll.Id,
-                dbt__Date__c = System.today().addDays(-1),
-                dbt__Duration__c = 8,
-                dbt__Billable__c = 'Yes',
-                dbt__Type__c = 'Absence',
-                dbt__Absence_Category__c = 'PTO-Planned'
+            lis.add(new Timesheet_Line_Item__c(
+                Timesheet__c = tsApprovedValid.Id,
+                Employee__c = empWithAll.Id,
+                Date__c = System.today().addDays(-1),
+                Duration__c = 8,
+                Billable__c = 'Yes',
+                Type__c = 'Absence',
+                Absence_Category__c = 'PTO-Planned'
             ));
             // Before accrual start
-            lis.add(new dbt__Timesheet_Line_Item__c(
-                dbt__Timesheet__c = tsApprovedValid.Id,
-                dbt__Employee__c = empWithAll.Id,
-                dbt__Date__c = System.today().addDays(-20),
-                dbt__Duration__c = 10,
-                dbt__Billable__c = 'Yes',
-                dbt__Type__c = 'Attendance',
-                dbt__Project__c = proj.Id,
-                dbt__Activity__c = act.Id
+            lis.add(new Timesheet_Line_Item__c(
+                Timesheet__c = tsApprovedValid.Id,
+                Employee__c = empWithAll.Id,
+                Date__c = System.today().addDays(-20),
+                Duration__c = 10,
+                Billable__c = 'Yes',
+                Type__c = 'Attendance',
+                Project__c = proj.Id,
+                Activity__c = act.Id
             ));
             // Additional Billable Attendance
-            lis.add(new dbt__Timesheet_Line_Item__c(
-                dbt__Timesheet__c = tsApprovedValid.Id,
-                dbt__Employee__c = empWithAll.Id,
-                dbt__Date__c = System.today().addDays(-1),
-                dbt__Duration__c = 6,
-                dbt__Billable__c = 'Yes',
-                dbt__Type__c = 'Attendance',
-                dbt__Project__c = proj.Id,
-                dbt__Activity__c = act.Id
+            lis.add(new Timesheet_Line_Item__c(
+                Timesheet__c = tsApprovedValid.Id,
+                Employee__c = empWithAll.Id,
+                Date__c = System.today().addDays(-1),
+                Duration__c = 6,
+                Billable__c = 'Yes',
+                Type__c = 'Attendance',
+                Project__c = proj.Id,
+                Activity__c = act.Id
             ));
 
             // Other timesheet items
-            lis.add(new dbt__Timesheet_Line_Item__c(
-                dbt__Timesheet__c = tsSubmitted.Id,
-                dbt__Employee__c = empWithAll.Id,
-                dbt__Date__c = System.today(),
-                dbt__Duration__c = 5,
-                dbt__Billable__c = 'Yes',
-                dbt__Type__c = 'Attendance',
-                dbt__Project__c = proj.Id,
-                dbt__Activity__c = act.Id
+            lis.add(new Timesheet_Line_Item__c(
+                Timesheet__c = tsSubmitted.Id,
+                Employee__c = empWithAll.Id,
+                Date__c = System.today(),
+                Duration__c = 5,
+                Billable__c = 'Yes',
+                Type__c = 'Attendance',
+                Project__c = proj.Id,
+                Activity__c = act.Id
             ));
 
             insert lis;
 
             // Create a second valid employee
-            dbt__Employee__c emp2 = new dbt__Employee__c(
+            Employee__c emp2 = new Employee__c(
                 Name = 'Emp Two',
-                dbt__User__c = users[3].Id,
-                dbt__Accrual_Start_Date__c = System.today().addDays(-5),
+                User__c = users[3].Id,
+                Accrual_Start_Date__c = System.today().addDays(-5),
                 Accrual_Divisor__c = 5
             );
             insert emp2;
 
-            dbt__Timesheet__c tsApprovedValid2 = new dbt__Timesheet__c(
+            Timesheet__c tsApprovedValid2 = new Timesheet__c(
                 Name = 'TS Approved Valid 2',
-                dbt__Status__c = 'New',
-                dbt__Employee__c = emp2.Id,
+                Status__c = 'New',
+                Employee__c = emp2.Id,
                 Accrued_Hours__c = 1 // pre-set
             );
             insert tsApprovedValid2;
-            tsApprovedValid2.dbt__Status__c = 'Approved';
+            tsApprovedValid2.Status__c = 'Approved';
             update tsApprovedValid2;
 
-            insert new dbt__Timesheet_Line_Item__c(
-                dbt__Timesheet__c = tsApprovedValid2.Id,
-                dbt__Employee__c = emp2.Id,
-                dbt__Date__c = System.today().addDays(-1),
-                dbt__Duration__c = 10,
-                dbt__Billable__c = 'Yes',
-                dbt__Type__c = 'Attendance',
-                dbt__Project__c = proj.Id,
-                dbt__Activity__c = act.Id
+            insert new Timesheet_Line_Item__c(
+                Timesheet__c = tsApprovedValid2.Id,
+                Employee__c = emp2.Id,
+                Date__c = System.today().addDays(-1),
+                Duration__c = 10,
+                Billable__c = 'Yes',
+                Type__c = 'Attendance',
+                Project__c = proj.Id,
+                Activity__c = act.Id
             );
         }
     }
@@ -228,15 +228,15 @@ private class TimesheetAccrualBatchTest {
 
             // Only timesheets with Approved and employee having both fields should be processed.
             // Validate by recalculating expected accrued hours:
-            dbt__Timesheet__c tsApprovedValid = [
-                SELECT Id, Accrued_Hours__c, dbt__Employee__c
-                FROM dbt__Timesheet__c
+            Timesheet__c tsApprovedValid = [
+                SELECT Id, Accrued_Hours__c, Employee__c
+                FROM Timesheet__c
                 WHERE Name = 'TS Approved Valid'
                 LIMIT 1
             ];
-            dbt__Employee__c empAll = [
+            Employee__c empAll = [
                 SELECT Id, Accrual_Divisor__c
-                FROM dbt__Employee__c
+                FROM Employee__c
                 WHERE Name = 'Emp All'
                 LIMIT 1
             ];
@@ -245,21 +245,21 @@ private class TimesheetAccrualBatchTest {
             System.assertEquals(5, tsApprovedValid.Accrued_Hours__c, 'Accrued_Hours__c should be totalBillable/d Divisor');
 
             // Timesheets that should not have been processed
-            dbt__Timesheet__c tsApprovedNoStart = [
+            Timesheet__c tsApprovedNoStart = [
                 SELECT Id, Accrued_Hours__c
-                FROM dbt__Timesheet__c
+                FROM Timesheet__c
                 WHERE Name = 'TS Approved No Start'
                 LIMIT 1
             ];
-            dbt__Timesheet__c tsApprovedNoDiv = [
+            Timesheet__c tsApprovedNoDiv = [
                 SELECT Id, Accrued_Hours__c
-                FROM dbt__Timesheet__c
+                FROM Timesheet__c
                 WHERE Name = 'TS Approved No Divisor'
                 LIMIT 1
             ];
-            dbt__Timesheet__c tsSubmitted = [
+            Timesheet__c tsSubmitted = [
                 SELECT Id, Accrued_Hours__c
-                FROM dbt__Timesheet__c
+                FROM Timesheet__c
                 WHERE Name = 'TS Submitted'
                 LIMIT 1
             ];
@@ -270,9 +270,9 @@ private class TimesheetAccrualBatchTest {
             System.assertEquals(0, tsSubmitted.Accrued_Hours__c, 'Non-approved timesheet should be 0');
 
             // Verify second approved valid timesheet bulk behavior
-            dbt__Timesheet__c tsApprovedValid2 = [
+            Timesheet__c tsApprovedValid2 = [
                 SELECT Id, Accrued_Hours__c
-                FROM dbt__Timesheet__c
+                FROM Timesheet__c
                 WHERE Name = 'TS Approved Valid 2'
                 LIMIT 1
             ];
@@ -301,39 +301,39 @@ private class TimesheetAccrualBatchTest {
             );
             insert u;
 
-            dbt__Employee__c emp = new dbt__Employee__c(
+            Employee__c emp = new Employee__c(
                 Name = 'Emp NoChange',
-                dbt__User__c = u.Id,
-                dbt__Accrual_Start_Date__c = System.today().addDays(-7),
+                User__c = u.Id,
+                Accrual_Start_Date__c = System.today().addDays(-7),
                 Accrual_Divisor__c = 2
             );
             insert emp;
 
             // Create Project and Activity
-            dbt__Project__c proj = new dbt__Project__c(Name = 'Test Project NC', dbt__Billable__c = 'Yes', dbt__Active__c = true);
+            Project__c proj = new Project__c(Name = 'Test Project NC', Billable__c = 'Yes', Active__c = true);
             insert proj;
-            dbt__Project_Activity__c act = new dbt__Project_Activity__c(Name = 'Test Activity NC', dbt__Project__c = proj.Id);
+            Project_Activity__c act = new Project_Activity__c(Name = 'Test Activity NC', Project__c = proj.Id);
             insert act;
 
-            dbt__Timesheet__c ts = new dbt__Timesheet__c(
+            Timesheet__c ts = new Timesheet__c(
                 Name = 'TS NoChange',
-                dbt__Status__c = 'New',
-                dbt__Employee__c = emp.Id,
+                Status__c = 'New',
+                Employee__c = emp.Id,
                 Accrued_Hours__c = 5 // expecting same
             );
             insert ts;
-            ts.dbt__Status__c = 'Approved';
+            ts.Status__c = 'Approved';
             update ts;
 
-            insert new dbt__Timesheet_Line_Item__c(
-                dbt__Timesheet__c = ts.Id,
-                dbt__Employee__c = emp.Id,
-                dbt__Date__c = System.today().addDays(-1),
-                dbt__Duration__c = 10, // total 10 / 2 = 5 matches old value
-                dbt__Billable__c = 'Yes',
-                dbt__Type__c = 'Attendance',
-                dbt__Project__c = proj.Id,
-                dbt__Activity__c = act.Id
+            insert new Timesheet_Line_Item__c(
+                Timesheet__c = ts.Id,
+                Employee__c = emp.Id,
+                Date__c = System.today().addDays(-1),
+                Duration__c = 10, // total 10 / 2 = 5 matches old value
+                Billable__c = 'Yes',
+                Type__c = 'Attendance',
+                Project__c = proj.Id,
+                Activity__c = act.Id
             );
 
             Test.startTest();
@@ -341,9 +341,9 @@ private class TimesheetAccrualBatchTest {
             Test.stopTest();
 
             // If updated, value would remain 5, but code only updates when value changes
-            dbt__Timesheet__c reloaded = [
+            Timesheet__c reloaded = [
                 SELECT Id, Accrued_Hours__c
-                FROM dbt__Timesheet__c WHERE Id = :ts.Id
+                FROM Timesheet__c WHERE Id = :ts.Id
             ];
             System.assertEquals(5, reloaded.Accrued_Hours__c, 'Value remains 5; update should have been skipped as no change');
         }
@@ -369,38 +369,38 @@ private class TimesheetAccrualBatchTest {
             );
             insert u;
 
-            dbt__Employee__c emp = new dbt__Employee__c(
+            Employee__c emp = new Employee__c(
                 Name = 'Emp Finish Hook',
-                dbt__User__c = u.Id,
-                dbt__Accrual_Start_Date__c = System.today().addDays(-1),
+                User__c = u.Id,
+                Accrual_Start_Date__c = System.today().addDays(-1),
                 Accrual_Divisor__c = 1
             );
             insert emp;
 
             // Create Project and Activity
-            dbt__Project__c proj = new dbt__Project__c(Name = 'Test Project Fin', dbt__Billable__c = 'Yes', dbt__Active__c = true);
+            Project__c proj = new Project__c(Name = 'Test Project Fin', Billable__c = 'Yes', Active__c = true);
             insert proj;
-            dbt__Project_Activity__c act = new dbt__Project_Activity__c(Name = 'Test Activity Fin', dbt__Project__c = proj.Id);
+            Project_Activity__c act = new Project_Activity__c(Name = 'Test Activity Fin', Project__c = proj.Id);
             insert act;
 
-            dbt__Timesheet__c ts = new dbt__Timesheet__c(
+            Timesheet__c ts = new Timesheet__c(
                 Name = 'TS Finish Hook',
-                dbt__Status__c = 'New',
-                dbt__Employee__c = emp.Id
+                Status__c = 'New',
+                Employee__c = emp.Id
             );
             insert ts;
-            ts.dbt__Status__c = 'Approved';
+            ts.Status__c = 'Approved';
             update ts;
 
-            insert new dbt__Timesheet_Line_Item__c(
-                dbt__Timesheet__c = ts.Id,
-                dbt__Employee__c = emp.Id,
-                dbt__Date__c = System.today(),
-                dbt__Duration__c = 1,
-                dbt__Billable__c = 'Yes',
-                dbt__Type__c = 'Attendance',
-                dbt__Project__c = proj.Id,
-                dbt__Activity__c = act.Id
+            insert new Timesheet_Line_Item__c(
+                Timesheet__c = ts.Id,
+                Employee__c = emp.Id,
+                Date__c = System.today(),
+                Duration__c = 1,
+                Billable__c = 'Yes',
+                Type__c = 'Attendance',
+                Project__c = proj.Id,
+                Activity__c = act.Id
             );
 
             // Execute the batch. If finish() throws, Test.stopTest() will fail.
@@ -409,9 +409,9 @@ private class TimesheetAccrualBatchTest {
             Test.stopTest();
 
             // Validate batch effects materialized (indirect evidence finish() ran without errors)
-            dbt__Timesheet__c tsCheck = [
+            Timesheet__c tsCheck = [
                 SELECT Id, Accrued_Hours__c
-                FROM dbt__Timesheet__c
+                FROM Timesheet__c
                 WHERE Id = :ts.Id
             ];
             System.assertNotEquals(null, tsCheck.Accrued_Hours__c, 'Batch should compute and finish without errors');

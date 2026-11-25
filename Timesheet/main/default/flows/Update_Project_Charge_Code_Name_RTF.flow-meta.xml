@@ -19,7 +19,7 @@
     <formulas>
         <name>projectChargeCodeName</name>
         <dataType>String</dataType>
-        <expression>{!$Record.dbt__Project__r.Name} + &apos;  &apos; + {!$Record.dbt__Charge_Code__r.Name}</expression>
+        <expression>{!$Record.Project__r.Name} + &apos;  &apos; + {!$Record.Charge_Code__r.Name}</expression>
     </formulas>
     <interviewLabel>Update Project Charge Code Name {!$Flow.CurrentDateTime}</interviewLabel>
     <label>Update Project Charge Code Name RTF</label>

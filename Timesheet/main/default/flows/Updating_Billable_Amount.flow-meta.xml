@@ -6,8 +6,8 @@
     <formulas>
         <name>BillableAmount</name>
         <dataType>Currency</dataType>
-        <expression>IF(ISPICKVAL({!$Record.dbt__Project__r.dbt__Billable__c}, &apos;Yes&apos;),
-            {!Project_Employee_Record.dbt__Hourly_Rate__c}*{!$Record.dbt__Duration__c}, 0)</expression>
+        <expression>IF(ISPICKVAL({!$Record.Project__r.Billable__c}, &apos;Yes&apos;),
+            {!Project_Employee_Record.Hourly_Rate__c}*{!$Record.Duration__c}, 0)</expression>
         <scale>2</scale>
     </formulas>
     <interviewLabel>Updating Billable Amount {!$Flow.CurrentDateTime}</interviewLabel>

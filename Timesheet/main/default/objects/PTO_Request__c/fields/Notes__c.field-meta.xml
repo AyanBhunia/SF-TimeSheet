@@ -3,7 +3,6 @@
     <fullName>Notes__c</fullName>
     <label>Reason</label>
     <length>2000</length>
-    <required>false</required>
     <trackTrending>false</trackTrending>
     <type>LongTextArea</type>
     <visibleLines>4</visibleLines>

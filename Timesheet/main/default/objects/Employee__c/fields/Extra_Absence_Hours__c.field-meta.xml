@@ -3,6 +3,7 @@
     <fullName>Extra_Absence_Hours__c</fullName>
     <defaultValue>0</defaultValue>
     <externalId>false</externalId>
+    <inlineHelpText>Manually added extra absence hours are included in the employee&apos;s Total Absence Hours upon the approval of any timesheet.</inlineHelpText>
     <label>Extra Absence Hours</label>
     <precision>18</precision>
     <required>false</required>
@@ -12,5 +13,4 @@
     <trackTrending>false</trackTrending>
     <type>Number</type>
     <unique>false</unique>
-    <inlineHelpText>Manually added extra absence hours are included in the employee's Total Absence Hours upon the approval of any timesheet.</inlineHelpText>
 </CustomField>

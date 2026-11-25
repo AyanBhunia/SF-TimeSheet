@@ -6,7 +6,7 @@
         component.find('nav').navigate({
             type: 'standard__objectPage',
             attributes: {
-                objectApiName: 'dbt__Project_Employee__c',
+                objectApiName: 'Project_Employee__c',
                 actionName: 'list'
             }
         }, true);

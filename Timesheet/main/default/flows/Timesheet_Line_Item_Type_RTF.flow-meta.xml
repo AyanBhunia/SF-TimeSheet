@@ -8,7 +8,7 @@
         <locationX>0</locationX>
         <locationY>0</locationY>
         <assignmentItems>
-            <assignToReference>$Record.dbt__Absence_Category__c</assignToReference>
+            <assignToReference>$Record.Absence_Category__c</assignToReference>
             <operator>Assign</operator>
         </assignmentItems>
     </assignments>
@@ -18,11 +18,11 @@
         <locationX>0</locationX>
         <locationY>0</locationY>
         <assignmentItems>
-            <assignToReference>$Record.dbt__Activity__c</assignToReference>
+            <assignToReference>$Record.Activity__c</assignToReference>
             <operator>Assign</operator>
         </assignmentItems>
         <assignmentItems>
-            <assignToReference>$Record.dbt__Project__c</assignToReference>
+            <assignToReference>$Record.Project__c</assignToReference>
             <operator>Assign</operator>
         </assignmentItems>
     </assignments>
@@ -36,7 +36,7 @@
             <name>Attendance_type</name>
             <conditionLogic>and</conditionLogic>
             <conditions>
-                <leftValueReference>$Record.dbt__Type__c</leftValueReference>
+                <leftValueReference>$Record.Type__c</leftValueReference>
                 <operator>EqualTo</operator>
                 <rightValue>
                     <stringValue>Attendance</stringValue>
@@ -51,7 +51,7 @@
             <name>Absence_Type</name>
             <conditionLogic>and</conditionLogic>
             <conditions>
-                <leftValueReference>$Record.dbt__Type__c</leftValueReference>
+                <leftValueReference>$Record.Type__c</leftValueReference>
                 <operator>EqualTo</operator>
                 <rightValue>
                     <stringValue>Absence</stringValue>

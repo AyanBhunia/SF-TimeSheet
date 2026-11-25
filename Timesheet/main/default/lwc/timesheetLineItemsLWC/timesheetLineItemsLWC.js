@@ -82,13 +82,22 @@ export default class TimesheetLineItemsLWC extends LightningElement {
     } else {
       timesheetLineItem.index = 1;
     }
+    const curDate = new Date().toISOString().split("T")[0];
+    timesheetLineItem.Type__c = "Attendance";
     timesheetLineItem.dbt__Type__c = "Attendance";
+    timesheetLineItem.Timesheet__c = this.recordId;
     timesheetLineItem.dbt__Timesheet__c = this.recordId;
-    timesheetLineItem.dbt__Date__c = new Date().toISOString().split("T")[0];
+    timesheetLineItem.Date__c = curDate;
+    timesheetLineItem.dbt__Date__c = curDate;
+    timesheetLineItem.Project__c = null;
     timesheetLineItem.dbt__Project__c = null;
+    timesheetLineItem.Activity__c = null;
     timesheetLineItem.dbt__Activity__c = null;
+    timesheetLineItem.Absence_Category__c = null;
     timesheetLineItem.dbt__Absence_Category__c = null;
+    timesheetLineItem.Duration__c = null;
     timesheetLineItem.dbt__Duration__c = null;
+    timesheetLineItem.Description__c = null;
     timesheetLineItem.dbt__Description__c = null;
     timesheetLineItem.isAttendance = true;
     timesheetLineItem.isAbsence = false;

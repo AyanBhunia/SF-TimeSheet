@@ -3,6 +3,22 @@
     <apiVersion>64.0</apiVersion>
     <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
     <assignments>
+        <name>Add_New_Record_Duration</name>
+        <label>Add New Record Duration</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>dur_Coll</assignToReference>
+            <operator>Add</operator>
+            <value>
+                <elementReference>$Record.Duration__c</elementReference>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Check_Duration_Value</targetReference>
+        </connector>
+    </assignments>
+    <assignments>
         <name>Collect_Duration_Value</name>
         <label>Collect Duration Value</label>
         <locationX>0</locationX>
@@ -47,7 +63,7 @@
         <locationX>0</locationX>
         <locationY>0</locationY>
         <assignmentItems>
-            <assignToReference>$Record.dbt__Hours_Limit_Exceeded__c</assignToReference>
+            <assignToReference>$Record.Hours_Limit_Exceeded__c</assignToReference>
             <operator>Assign</operator>
             <value>
                 <booleanValue>true</booleanValue>
@@ -60,28 +76,12 @@
         <locationX>0</locationX>
         <locationY>0</locationY>
         <assignmentItems>
-            <assignToReference>$Record.dbt__Hours_Limit_Exceeded__c</assignToReference>
+            <assignToReference>$Record.Hours_Limit_Exceeded__c</assignToReference>
             <operator>Assign</operator>
             <value>
                 <booleanValue>true</booleanValue>
             </value>
         </assignmentItems>
-    </assignments>
-    <assignments>
-        <name>Add_New_Record_Duration</name>
-        <label>Add New Record Duration</label>
-        <locationX>0</locationX>
-        <locationY>0</locationY>
-        <assignmentItems>
-            <assignToReference>dur_Coll</assignToReference>
-            <operator>Add</operator>
-            <value>
-                <elementReference>$Record.Duration__c</elementReference>
-            </value>
-        </assignmentItems>
-        <connector>
-            <targetReference>Check_Duration_Value</targetReference>
-        </connector>
     </assignments>
     <decisions>
         <name>Check_Duration_Value</name>
@@ -133,7 +133,7 @@
             <name>Triggered_record_has_prior_value</name>
             <conditionLogic>and</conditionLogic>
             <conditions>
-                <leftValueReference>$Record__Prior.dbt__Duration__c</leftValueReference>
+                <leftValueReference>$Record__Prior.Duration__c</leftValueReference>
                 <operator>NotEqualTo</operator>
                 <rightValue>
                     <elementReference>$Record.Duration__c</elementReference>

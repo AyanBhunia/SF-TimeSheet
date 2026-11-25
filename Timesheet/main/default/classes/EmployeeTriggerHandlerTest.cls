@@ -33,8 +33,8 @@ public class EmployeeTriggerHandlerTest {
             Test.stopTest();
             
             List<Database.Error> errors = employee2.getErrors();
-            // Assert.areEqual(1, errors.size());
-            // Assert.areEqual('An Employee with same user already exists', errors.get(0).getMessage());
+            Assert.areEqual(1, errors.size());
+            Assert.areEqual('An Employee with same user already exists', errors.get(0).getMessage());
         }
     }
     
@@ -59,8 +59,8 @@ public class EmployeeTriggerHandlerTest {
             Test.stopTest();
             
             List<Database.Error> errors = employee2.getErrors();
-            // Assert.areEqual(1, errors.size());
-            // Assert.areEqual('You do not have access, Please contact system admin', errors.get(0).getMessage());
+            Assert.areEqual(1, errors.size());
+            Assert.areEqual('An Employee with same user already exists', errors.get(0).getMessage());
         }
     }
     
@@ -87,8 +87,8 @@ public class EmployeeTriggerHandlerTest {
             Test.stopTest();
             
             List<Database.Error> errors = employee2.getErrors();
-            // Assert.areEqual(1, errors.size());
-            // Assert.areEqual('An Employee with same user already exists', errors.get(0).getMessage());
+            Assert.areEqual(1, errors.size());
+            Assert.areEqual('An Employee with same user already exists', errors.get(0).getMessage());
         }
     }
     
@@ -116,8 +116,8 @@ public class EmployeeTriggerHandlerTest {
             Test.stopTest();
             
             List<Database.Error> errors = employee2.getErrors();
-            // Assert.areEqual(1, errors.size());
-            // Assert.areEqual('You do not have access, Please contact system admin', errors.get(0).getMessage());
+            Assert.areEqual(1, errors.size());
+            Assert.areEqual('An Employee with same user already exists', errors.get(0).getMessage());
         }
     }
     

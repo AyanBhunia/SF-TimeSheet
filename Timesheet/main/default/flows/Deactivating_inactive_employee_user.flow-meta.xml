@@ -50,10 +50,24 @@
             <name>Last_Working_Date_is_Today</name>
             <conditionLogic>and</conditionLogic>
             <conditions>
-                <leftValueReference>$Record.dbt__Last_Working_Date__c</leftValueReference>
+                <leftValueReference>$Record.Last_Working_Date__c</leftValueReference>
                 <operator>LessThanOrEqualTo</operator>
                 <rightValue>
                     <elementReference>CheckingLastWorkingDate</elementReference>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>$Record.Is_Demo__c</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>$Record.Last_Working_Date__c</leftValueReference>
+                <operator>IsNull</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
                 </rightValue>
             </conditions>
             <connector>
@@ -215,7 +229,7 @@
         </scheduledPaths>
         <triggerType>RecordAfterSave</triggerType>
     </start>
-    <status>Obsolete</status>
+    <status>Active</status>
     <textTemplates>
         <name>SendingEmailtoAdmin</name>
         <isViewedAsPlainText>true</isViewedAsPlainText>

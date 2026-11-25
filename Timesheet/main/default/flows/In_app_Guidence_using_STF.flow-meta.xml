@@ -33,7 +33,6 @@
             <assignToReference>Existing_Assignments</assignToReference>
             <name>assignments</name>
         </outputParameters>
-        <storeOutputAutomatically>false</storeOutputAutomatically>
     </actionCalls>
     <actionCalls>
         <description>Inserts and updates the assignments with partial success: a user who cannot receive the permission set fails alone. Failures are returned in Error_Message.</description>
@@ -65,7 +64,6 @@
             <assignToReference>Error_Message</assignToReference>
             <name>errors</name>
         </outputParameters>
-        <storeOutputAutomatically>false</storeOutputAutomatically>
     </actionCalls>
     <apiVersion>64.0</apiVersion>
     <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
@@ -380,6 +378,11 @@
         <dataType>Date</dataType>
         <expression>TODAY() - MOD(TODAY() - DATE(1900,1,1), 7)</expression>
     </formulas>
+    <formulas>
+        <name>TodayDate</name>
+        <dataType>Date</dataType>
+        <expression>TODAY()</expression>
+    </formulas>
     <interviewLabel>In-app Guidence using STF {!$Flow.CurrentDateTime}</interviewLabel>
     <label>In-app Guidence using STF</label>
     <loops>
@@ -494,14 +497,14 @@
             <field>Start_Date__c</field>
             <operator>LessThanOrEqualTo</operator>
             <value>
-                <elementReference>EndOfWeek</elementReference>
+                <elementReference>TodayDate</elementReference>
             </value>
         </filters>
         <filters>
             <field>End_Date__c</field>
             <operator>GreaterThanOrEqualTo</operator>
             <value>
-                <elementReference>StartOfWeek</elementReference>
+                <elementReference>TodayDate</elementReference>
             </value>
         </filters>
         <filters>
@@ -529,8 +532,10 @@
             <targetReference>Get_This_Week_Timesheets</targetReference>
         </connector>
         <schedule>
-            <frequency>Weekly</frequency>
-            <startDate>2025-08-08</startDate>
+            <dayOfMonthToRun>0</dayOfMonthToRun>
+            <frequency>Daily</frequency>
+            <frequencyNumber>0</frequencyNumber>
+            <startDate>2026-11-13</startDate>
             <startTime>00:00:00.000Z</startTime>
         </schedule>
         <triggerType>Scheduled</triggerType>

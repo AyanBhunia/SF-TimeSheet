@@ -4,6 +4,7 @@
     <externalId>false</externalId>
     <formula>Total_Accrued_Hours__c -  Total_Absence_Hours__c</formula>
     <formulaTreatBlanksAs>BlankAsZero</formulaTreatBlanksAs>
+    <inlineHelpText>Shows the employee&apos;s remaining absence balance, calculated by subtracting Total Absence Hours from Total Accrued Hours.</inlineHelpText>
     <label>Total Absence Hours Available</label>
     <precision>18</precision>
     <required>false</required>
@@ -12,5 +13,4 @@
     <trackTrending>false</trackTrending>
     <type>Number</type>
     <unique>false</unique>
-    <inlineHelpText>Shows the employee's remaining absence balance, calculated by subtracting Total Absence Hours from Total Accrued Hours.</inlineHelpText>
 </CustomField>

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomMetadata xmlns="http://soap.sforce.com/2006/04/metadata" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+    <label>Default Values</label>
+    <protected>false</protected>
+    <values>
+        <field>Accrued_Vacation_Days__c</field>
+        <value xsi:type="xsd:double">10.0</value>
+    </values>
+    <values>
+        <field>Max_Holiday_Hours__c</field>
+        <value xsi:type="xsd:double">8.0</value>
+    </values>
+    <values>
+        <field>Max_On_Duty_Hours__c</field>
+        <value xsi:type="xsd:double">8.0</value>
+    </values>
+    <values>
+        <field>Max_PTO_Planned_Hours__c</field>
+        <value xsi:type="xsd:double">8.0</value>
+    </values>
+    <values>
+        <field>Max_PTO_Unplanned_Hours__c</field>
+        <value xsi:type="xsd:double">8.0</value>
+    </values>
+    <values>
+        <field>Max_Permission_Hours__c</field>
+        <value xsi:type="xsd:double">8.0</value>
+    </values>
+    <values>
+        <field>Max_Sick_Leave_Hours__c</field>
+        <value xsi:type="xsd:double">8.0</value>
+    </values>
+    <values>
+        <field>Maximum_Working_Hrs_Per_Day__c</field>
+        <value xsi:type="xsd:double">24.0</value>
+    </values>
+    <values>
+        <field>Timesheet_Cycle_Type__c</field>
+        <value xsi:type="xsd:string">Bi-Weekly</value>
+    </values>
+    <values>
+        <field>Timesheet_Duration_Days__c</field>
+        <value xsi:type="xsd:double">14.0</value>
+    </values>
+    <values>
+        <field>Week_Start_Day__c</field>
+        <value xsi:type="xsd:string">Monday</value>
+    </values>
+    <values>
+        <field>Working_Days_per_Week__c</field>
+        <value xsi:type="xsd:double">5.0</value>
+    </values>
+    <values>
+        <field>Working_Hours_Per_Day__c</field>
+        <value xsi:type="xsd:double">8.0</value>
+    </values>
+</CustomMetadata>

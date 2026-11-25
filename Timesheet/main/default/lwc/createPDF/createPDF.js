@@ -149,8 +149,10 @@ export default class PdfGenerator extends LightningElement {
      * (Rewritten to use local-midnight Date creation to avoid timezone shifts)
      */
     processLineItems(lineItems) {
-        const startDateLocal = this.parseDateAsLocal(this.Timesheet.dbt__Start_Date__c);
-        const endDateLocal = this.parseDateAsLocal(this.Timesheet.dbt__End_Date__c);
+        const startDateStr = this.Timesheet?.Start_Date__c || this.Timesheet?.dbt__Start_Date__c;
+        const endDateStr = this.Timesheet?.End_Date__c || this.Timesheet?.dbt__End_Date__c;
+        const startDateLocal = this.parseDateAsLocal(startDateStr);
+        const endDateLocal = this.parseDateAsLocal(endDateStr);
         if (!startDateLocal || !endDateLocal) {
             this.TimesheetLineItems = [];
             return;
@@ -171,7 +173,7 @@ export default class PdfGenerator extends LightningElement {
 
         // Normalize incoming items to YYYY-MM-DD before matching
         const normalizedItems = (lineItems || []).map(item => ({
-            ymd: this.extractYMDFromSFDate(item.dbt__Date__c),
+            ymd: this.extractYMDFromSFDate(item.Date__c || item.dbt__Date__c),
             duration: item.duration != null ? String(item.duration) : "0"
         }));
 
@@ -198,26 +200,33 @@ export default class PdfGenerator extends LightningElement {
         this.addHeader(doc);
         this.addTable(doc);
 
-        doc.save(`${this.Timesheet?.dbt__Employee__r?.Name || "Unknown Contractor"}_Timesheet_${this.Timesheet?.dbt__End_Date__c || 'generated'}.pdf`);
+        const employee = this.Timesheet?.Employee__r || this.Timesheet?.dbt__Employee__r;
+        const contractorName = employee?.Name || "Unknown Contractor";
+        const endDateStr = this.Timesheet?.End_Date__c || this.Timesheet?.dbt__End_Date__c || 'generated';
+
+        doc.save(`${contractorName}_Timesheet_${endDateStr}.pdf`);
     }
 
     /**
      * @description Adds header to PDF
      */
     addHeader(doc) {
-        const contractorName = this.Timesheet?.dbt__Employee__r?.Name || "Unknown Contractor";
-        const clientManagerName = this.Timesheet?.dbt__Employee__r?.dbt__Client_Manager__r?.Name || "Unknown Manager";
-        const clientManagerEmail = this.Timesheet?.dbt__Employee__r?.dbt__Client_Manager_email__c || "No Email Provided";
-        const fortnightEnding = this.Timesheet?.dbt__End_Date__c || "Unknown Date";
-        const billableHours = this.Timesheet?.dbt__Billable_Hours__c || "0";
-        const totalHours = this.Timesheet?.dbt__Total_Hours__c || "0";
+        const employee = this.Timesheet?.Employee__r || this.Timesheet?.dbt__Employee__r;
+        const clientManager = employee?.Client_Manager__r || employee?.dbt__Client_Manager__r;
+        const contractorName = employee?.Name || "Unknown Contractor";
+        const clientManagerName = clientManager?.Name || "Unknown Manager";
+        const clientManagerEmail = employee?.Client_Manager_email__c || employee?.dbt__Client_Manager_email__c || "No Email Provided";
+        const startDate = this.Timesheet?.Start_Date__c || this.Timesheet?.dbt__Start_Date__c;
+        const fortnightEnding = this.Timesheet?.End_Date__c || this.Timesheet?.dbt__End_Date__c || "Unknown Date";
+        const billableHours = this.Timesheet?.Billable_Hours__c ?? this.Timesheet?.dbt__Billable_Hours__c ?? "0";
+        const totalHours = this.Timesheet?.Total_Hours__c ?? this.Timesheet?.dbt__Total_Hours__c ?? "0";
 
         const pic = new Image();
         pic.src = imageLogo;
 
         doc.setFontSize(22);
         doc.setTextColor(0, 56, 101);
-        doc.text(`Timesheet_${this.Timesheet?.dbt__Start_Date__c || 'NA'}_${this.Timesheet?.dbt__End_Date__c || 'Na'}`, 18, this.tableRowStart - 20); 
+        doc.text(`Timesheet_${startDate || 'NA'}_${this.Timesheet?.End_Date__c || this.Timesheet?.dbt__End_Date__c || 'Na'}`, 18, this.tableRowStart - 20); 
         doc.setFontSize(12);
         doc.setTextColor(0, 0, 0);
 

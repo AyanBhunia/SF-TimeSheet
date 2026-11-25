@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Absence_Hours__c</fullName>
-    <deprecated>false</deprecated>
+    <inlineHelpText>Calculates total absence hours from absence entries on timesheets, excluding any logged Holiday hours.</inlineHelpText>
     <label>Absence Hours</label>
     <summarizedField>Timesheet_Line_Item__c.Duration__c</summarizedField>
     <summaryFilterItems>
@@ -19,5 +19,4 @@
     <trackHistory>false</trackHistory>
     <trackTrending>false</trackTrending>
     <type>Summary</type>
-    <inlineHelpText>Calculates total absence hours from absence entries on timesheets, excluding any logged Holiday hours.</inlineHelpText>
 </CustomField>

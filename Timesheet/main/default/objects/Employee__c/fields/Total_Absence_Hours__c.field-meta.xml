@@ -3,6 +3,7 @@
     <fullName>Total_Absence_Hours__c</fullName>
     <defaultValue>0</defaultValue>
     <externalId>false</externalId>
+    <inlineHelpText>Shows the sum of absence hours from all approved timesheets, including manually added Extra Absence Hours, updated when any timesheet is approved.</inlineHelpText>
     <label>Total Absence Hours</label>
     <precision>18</precision>
     <required>false</required>
@@ -12,5 +13,4 @@
     <trackTrending>false</trackTrending>
     <type>Number</type>
     <unique>false</unique>
-    <inlineHelpText>Shows the sum of absence hours from all approved timesheets, including manually added Extra Absence Hours, updated when any timesheet is approved.</inlineHelpText>
 </CustomField>

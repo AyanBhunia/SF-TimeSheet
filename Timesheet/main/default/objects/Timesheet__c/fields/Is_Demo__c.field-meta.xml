@@ -5,7 +5,6 @@
     <description>Set by the Demo Data Setup tab. Demo records are excluded from scheduled automation and can be removed with Delete test records.</description>
     <inlineHelpText>Checked for sample records created from the Demo Data Setup tab.</inlineHelpText>
     <label>Is Demo</label>
-    <trackFeedHistory>false</trackFeedHistory>
     <trackHistory>false</trackHistory>
     <trackTrending>false</trackTrending>
     <type>Checkbox</type>
