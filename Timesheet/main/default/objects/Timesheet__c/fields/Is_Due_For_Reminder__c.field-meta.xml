@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Is_Due_For_Reminder__c</fullName>
+    <description>Returns true when the employee has an email address and today is 2 days before the timesheet End Date. Used by the Timesheet Remainder STF scheduled flow.</description>
+    <formula>NOT(ISBLANK(Employee__r.Email__c)) &amp;&amp; NOT(ISBLANK(End_Date__c)) &amp;&amp; ((End_Date__c - TODAY()) = 2)</formula>
+    <formulaTreatBlanksAs>BlankAsZero</formulaTreatBlanksAs>
+    <label>Is Due For Reminder</label>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+</CustomField>

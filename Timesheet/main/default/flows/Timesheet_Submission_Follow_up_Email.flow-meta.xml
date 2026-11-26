@@ -37,48 +37,7 @@
     </actionCalls>
     <apiVersion>64.0</apiVersion>
     <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
-    <decisions>
-        <name>Check_Employee_Email</name>
-        <label>Check Employee Email and Due Date</label>
-        <locationX>0</locationX>
-        <locationY>0</locationY>
-        <defaultConnectorLabel>Default Outcome</defaultConnectorLabel>
-        <rules>
-            <name>Employee_Email_Exists</name>
-            <conditionLogic>and</conditionLogic>
-            <conditions>
-                <leftValueReference>$Record.Employee__r.Email__c</leftValueReference>
-                <operator>IsNull</operator>
-                <rightValue>
-                    <booleanValue>false</booleanValue>
-                </rightValue>
-            </conditions>
-            <conditions>
-                <leftValueReference>$Record.Employee__r.Email__c</leftValueReference>
-                <operator>IsBlank</operator>
-                <rightValue>
-                    <booleanValue>false</booleanValue>
-                </rightValue>
-            </conditions>
-            <conditions>
-                <leftValueReference>IsDueForFollowUp</leftValueReference>
-                <operator>EqualTo</operator>
-                <rightValue>
-                    <booleanValue>true</booleanValue>
-                </rightValue>
-            </conditions>
-            <connector>
-                <targetReference>Send_Email</targetReference>
-            </connector>
-            <label>Employee Email Exists and Due</label>
-        </rules>
-    </decisions>
     <environments>Default</environments>
-    <formulas>
-        <name>IsDueForFollowUp</name>
-        <dataType>Boolean</dataType>
-        <expression>ISBLANK({!$Record.End_Date__c}) || ({!$Record.End_Date__c} == TODAY())</expression>
-    </formulas>
     <formulas>
         <name>TimesheetLink</name>
         <dataType>String</dataType>
@@ -109,7 +68,7 @@
         <locationX>0</locationX>
         <locationY>0</locationY>
         <connector>
-            <targetReference>Check_Employee_Email</targetReference>
+            <targetReference>Send_Email</targetReference>
         </connector>
         <filterLogic>and</filterLogic>
         <filters>
@@ -124,6 +83,13 @@
             <operator>EqualTo</operator>
             <value>
                 <booleanValue>false</booleanValue>
+            </value>
+        </filters>
+        <filters>
+            <field>Is_Due_For_Follow_Up__c</field>
+            <operator>EqualTo</operator>
+            <value>
+                <booleanValue>true</booleanValue>
             </value>
         </filters>
         <object>Timesheet__c</object>

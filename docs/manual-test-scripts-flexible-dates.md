@@ -348,13 +348,13 @@ This document provides complete, step-by-step manual test procedures for verifyi
 
 ## Suite 5: Scheduled Reminders & Guidance Flows
 
-### TC_FLEX_018: Reminder Flow Fires Within 2 Days of End Date
+### TC_FLEX_018: Reminder Flow Fires 2 Days Before End Date
 * **Test Steps**:
   1. In Setup > Flows, open **`Timesheet Remainder STF`**.
-  2. Click Debug, select a timesheet whose `End_Date__c` is within 2 days of TODAY.
+  2. Click Debug, select a timesheet whose `End_Date__c` is 2 days after TODAY (so `Is_Due_For_Reminder__c` = true).
   3. Click **Run**.
 * **Expected Result**:
-  * `IsDueForReminder` = true. Email sent to timesheet owner with dynamic Start and End dates.
+  * `Is_Due_For_Reminder__c` = true. Email sent to timesheet owner with dynamic Start and End dates.
 
 ---
 
@@ -363,26 +363,28 @@ This document provides complete, step-by-step manual test procedures for verifyi
   1. In `Timesheet Remainder STF` Debug, select a timesheet whose `End_Date__c` is 5+ days in future.
   2. Click **Run**.
 * **Expected Result**:
-  * `IsDueForReminder` = false. Flow terminates without sending email.
+  * `Is_Due_For_Reminder__c` = false. Flow Start filter excludes the record without sending email.
 
 ---
 
 ### TC_FLEX_020: Follow-Up Email Fires on Final Day of Cycle
 * **Test Steps**:
   1. In Setup > Flows, open **`Timesheet Submission Follow-up Email STF`**.
-  2. Click Debug, select timesheet with `End_Date__c` = `TODAY()`.
+  2. Click Debug, select timesheet with `End_Date__c` = `TODAY()` (so `Is_Due_For_Follow_Up__c` = true).
   3. Click **Run**.
 * **Expected Result**:
-  * Email executes specifying: `"Please submit by the end of today."`
+  * `Is_Due_For_Follow_Up__c` = true. Email executes specifying: `"Please submit by the end of today."`
 
 ---
 
-### TC_FLEX_021: In-App Guidance Permission Assigned for Active Timesheets
+### TC_FLEX_021: In-App Guidance Permission Assigned 2 Days Before End Date
 * **Test Steps**:
-  1. In Setup > Flows, open **`In-app Guidence using STF`**.
-  2. Click Debug > Run.
+  1. Ensure an active employee has a `New`, non-demo timesheet with `End_Date__c` = `TODAY() + 2`.
+  2. In Setup > Flows, open **`In-app Guidence using STF`**.
+  3. Click Debug > Run.
 * **Expected Result**:
-  * `Timesheet_Reminder_Access` permission set assigned to active user with 3-day expiration date (`NOW() + 3`).
+  * `Get_This_Week_Timesheets` matches `End_Date__c = ReminderTargetDate` (`TODAY() + 2`).
+  * `Timesheet_Reminder_Access` permission set assigned to active user with 3-day expiration date (`NOW() + 3`), displaying the `TimesheetSubmission` prompt (*"before the end of your current timesheet period"*).
 
 ---
 

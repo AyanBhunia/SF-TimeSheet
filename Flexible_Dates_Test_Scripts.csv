@@ -118,21 +118,20 @@
 2. Wait for success toast.
 3. Refresh browser window.","1. Toast message Timesheet saved successfully appears.
 2. All entered project and absence hours persist accurately across all columns.","As Expected","Pass","Full persistence with saveWeek Apex action."
-"TC_FLEX_018","Notifications & Alerts","Reminder Flow Fires Within 2 Days of End Date","System Administrator / Flow Admin","Timesheet exists with Status New and End_Date__c within 2 days of TODAY.","1. Open Setup > Flows > Timesheet Remainder STF.
-2. Click Debug > Select record > Run.","1. IsDueForReminder evaluates to true.
-2. Check_Employee_Email evaluates to true.
-3. Send_Email_to_Timesheet_Owner action executes.
-4. Email contains dynamic Start Date and End Date.","As Expected","Pass","Reminder STF fires within 2-day reminder window."
+"TC_FLEX_018","Notifications & Alerts","Reminder Flow Fires 2 Days Before End Date","System Administrator / Flow Admin","Timesheet exists with Status New, non-blank Employee Email, and End_Date__c = TODAY() + 2.","1. Open Setup > Flows > Timesheet Remainder STF.
+2. Click Debug > Select record > Run.","1. Is_Due_For_Reminder__c evaluates to true.
+2. Start filter passes record directly to Send_Email_to_Timesheet_Owner (no Decision element).
+3. Email contains dynamic Start Date and End Date.","As Expected","Pass","Reminder STF fires once 2 days prior to End_Date__c."
 "TC_FLEX_019","Notifications & Alerts","Reminder Flow Skips Timesheets Far From End Date","System Administrator / Flow Admin","Timesheet exists with Status New and End_Date__c 5+ days in future.","1. Open Setup > Flows > Timesheet Remainder STF.
-2. Click Debug > Select record > Run.","1. IsDueForReminder evaluates to false.
-2. Flow terminates without sending email.","As Expected","Pass","No premature reminders sent."
-"TC_FLEX_020","Notifications & Alerts","Follow-Up Email Fires on Final Day of Cycle","System Administrator / Flow Admin","Timesheet exists with Status New and End_Date__c = TODAY().","1. Open Setup > Flows > Timesheet Submission Follow-up Email STF.
-2. Click Debug > Select record > Run.","1. IsDueForFollowUp evaluates to true.
-2. Send_Email action executes.
+2. Click Debug > Select record > Run.","1. Is_Due_For_Reminder__c evaluates to false.
+2. Start filter excludes the record without sending email.","As Expected","Pass","No premature reminders sent."
+"TC_FLEX_020","Notifications & Alerts","Follow-Up Email Fires on Final Day of Cycle","System Administrator / Flow Admin","Timesheet exists with Status New, non-blank Employee Email, and End_Date__c = TODAY().","1. Open Setup > Flows > Timesheet Submission Follow-up Email STF.
+2. Click Debug > Select record > Run.","1. Is_Due_For_Follow_Up__c evaluates to true.
+2. Start filter passes record directly to Send_Email (no Decision element).
 3. Email specifies submit by the end of today with dynamic dates.","As Expected","Pass","Follow-up STF fires on last day of cycle."
-"TC_FLEX_021","Notifications & Alerts","In-App Guidance Permission Assigned for Active Timesheets","System Administrator / Flow Admin","Active employee has New timesheet overlapping TODAY.","1. Open Setup > Flows > In-app Guidence using STF.
-2. Click Debug > Run.","1. Get_This_Week_Timesheets finds the active timesheet.
-2. Timesheet_Reminder_Access permission set assigned with ExpirationDate = NOW() + 3.","As Expected","Pass","Guidance permission set granted."
+"TC_FLEX_021","Notifications & Alerts","In-App Guidance Permission Assigned 2 Days Before End Date","System Administrator / Flow Admin","Active employee has New non-demo timesheet with End_Date__c = TODAY() + 2.","1. Open Setup > Flows > In-app Guidence using STF.
+2. Click Debug > Run.","1. Get_This_Week_Timesheets matches End_Date__c = ReminderTargetDate (TODAY() + 2).
+2. Timesheet_Reminder_Access permission set assigned with ExpirationDate = NOW() + 3; TimesheetSubmission prompt uses cycle-agnostic wording.","As Expected","Pass","Guidance permission set granted for final 3 days of cycle."
 "TC_FLEX_022","Formulas & Logic","Weekly Goal Completion Formula on Sunday Start","Timesheet_User / TimeSheet_Manager","Sunday-start timesheet (7 days). Total Hours = 40.","1. Open Sunday-start timesheet record detail page.
 2. Enter 40 Total Hours.
 3. Inspect Weekly Goal Completion and Percent fields.","1. Weekly Goal Completion displays full bar: [=====] (100%).

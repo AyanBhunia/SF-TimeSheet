@@ -252,10 +252,20 @@ if (this.TimeSheetEndDate) {
 
 | Feature / Process | Interaction with Flexible Dates | Status |
 |---|---|---|
-| **Timesheet Reminder Flow** (`Timesheet_Remainder_STF`) | Uses formula `ISBLANK({!$Record.End_Date__c}) \|\| ({!$Record.End_Date__c} - TODAY() <= 2)`. Reminders send 2 days prior to `End_Date__c` regardless of cycle length. | Fully Compatible |
-| **Submission Follow-Up** (`Timesheet_Submission_Follow_up_Email`) | Triggers relative to submission and approval due dates calculated from `End_Date__c`. | Fully Compatible |
+| **Timesheet Reminder Flow** (`Timesheet_Remainder_STF`) | Runs daily with **no Decision element**; Start element filters directly on `Status__c = 'New'`, `Is_Demo__c = false`, and `Timesheet__c.Is_Due_For_Reminder__c = true` (`NOT(ISBLANK(Employee__r.Email__c)) && NOT(ISBLANK(End_Date__c)) && ((End_Date__c - TODAY()) = 2)`). Reminders send once, 2 days prior to `End_Date__c`, regardless of cycle length. | Fully Compatible |
+| **Submission Follow-Up** (`Timesheet_Submission_Follow_up_Email`) | Runs daily with **no Decision element**; Start element filters directly on `Status__c = 'New'`, `Is_Demo__c = false`, and `Timesheet__c.Is_Due_For_Follow_Up__c = true` (`NOT(ISBLANK(Employee__r.Email__c)) && NOT(ISBLANK(End_Date__c)) && (End_Date__c = TODAY())`). Follow-up sends once on `End_Date__c` regardless of cycle length. | Fully Compatible |
+| **In-App Guidance Flow & Prompt** (`In_app_Guidence_using_STF`, `TimesheetSubmission`) | Runs daily and queries `New`, non-demo timesheets where `End_Date__c = TODAY() + 2` (`ReminderTargetDate`), granting `Timesheet_Reminder_Access` for 3 days (`NOW() + 3`) to cover the final days of any cycle. The `TimesheetSubmission` prompt uses cycle-agnostic wording (*"before the end of your current timesheet period"*). | Fully Compatible |
 | **PTO & Absence Sync** (`LeaveToLineItem.cls`) | Absence sync matches leave dates against `Start_Date__c <= Date__c AND End_Date__c >= Date__c`. Absences map seamlessly into weekly, bi-weekly, or monthly sheets. | Fully Compatible |
 | **PDF Generation** (`createPDF.js`) | Queries `Start_Date__c` and `End_Date__c` dynamically; outputs date range in document header and prints all active date rows. | Fully Compatible |
+
+### Timesheet Formula Fields for Decision-Free Scheduled Flows
+
+Salesforce Schedule-Triggered Flow Start conditions cannot evaluate `TODAY()` or cross-object fields (`Employee__r.Email__c`) directly. Two read-only Checkbox formula fields on `Timesheet__c` move that evaluation onto the record so the reminder and follow-up flows stay decision-free:
+
+| Field API Name | Formula Logic | Used By |
+|---|---|---|
+| `Is_Due_For_Reminder__c` | `NOT(ISBLANK(Employee__r.Email__c)) && NOT(ISBLANK(End_Date__c)) && ((End_Date__c - TODAY()) = 2)` | `Timesheet_Remainder_STF` |
+| `Is_Due_For_Follow_Up__c` | `NOT(ISBLANK(Employee__r.Email__c)) && NOT(ISBLANK(End_Date__c)) && (End_Date__c = TODAY())` | `Timesheet_Submission_Follow_up_Email` |
 
 ---
 

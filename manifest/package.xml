@@ -178,6 +178,8 @@
         <members>Timesheet__c.End_Date__c</members>
         <members>Timesheet__c.Holiday_Hours__c</members>
         <members>Timesheet__c.Is_Demo__c</members>
+        <members>Timesheet__c.Is_Due_For_Follow_Up__c</members>
+        <members>Timesheet__c.Is_Due_For_Reminder__c</members>
         <members>Timesheet__c.Manager__c</members>
         <members>Timesheet__c.Met_Weekly_Hours__c</members>
         <members>Timesheet__c.Non_Billable_Hours__c</members>

@@ -364,24 +364,14 @@
     </decisions>
     <environments>Default</environments>
     <formulas>
-        <name>EndOfWeek</name>
-        <dataType>Date</dataType>
-        <expression>{!StartOfWeek}+6</expression>
-    </formulas>
-    <formulas>
         <name>Expiry_date</name>
         <dataType>DateTime</dataType>
         <expression>NOW()+3</expression>
     </formulas>
     <formulas>
-        <name>StartOfWeek</name>
+        <name>ReminderTargetDate</name>
         <dataType>Date</dataType>
-        <expression>TODAY() - MOD(TODAY() - DATE(1900,1,1), 7)</expression>
-    </formulas>
-    <formulas>
-        <name>TodayDate</name>
-        <dataType>Date</dataType>
-        <expression>TODAY()</expression>
+        <expression>TODAY()+2</expression>
     </formulas>
     <interviewLabel>In-app Guidence using STF {!$Flow.CurrentDateTime}</interviewLabel>
     <label>In-app Guidence using STF</label>
@@ -480,7 +470,7 @@
         <storeOutputAutomatically>true</storeOutputAutomatically>
     </recordLookups>
     <recordLookups>
-        <description>New, non-demo timesheets whose period overlaps this week (Monday to Sunday).</description>
+        <description>New, non-demo timesheets whose End Date is 2 days from today so the 3-day guidance window covers the final days of any cycle.</description>
         <name>Get_This_Week_Timesheets</name>
         <label>Get This Week Timesheets</label>
         <locationX>0</locationX>
@@ -494,17 +484,10 @@
         </faultConnector>
         <filterLogic>and</filterLogic>
         <filters>
-            <field>Start_Date__c</field>
-            <operator>LessThanOrEqualTo</operator>
-            <value>
-                <elementReference>TodayDate</elementReference>
-            </value>
-        </filters>
-        <filters>
             <field>End_Date__c</field>
-            <operator>GreaterThanOrEqualTo</operator>
+            <operator>EqualTo</operator>
             <value>
-                <elementReference>TodayDate</elementReference>
+                <elementReference>ReminderTargetDate</elementReference>
             </value>
         </filters>
         <filters>
